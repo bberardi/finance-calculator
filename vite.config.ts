@@ -5,4 +5,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "/finance-calculator/",
   plugins: [react()],
+  define: {
+    APP_VERSION: JSON.stringify(process.env.npm_package_version),
+  },
 });
