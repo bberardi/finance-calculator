@@ -1,8 +1,41 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
   text-align: center;
+  width: 100%;
+  /* display: flex;
+  height: 100vh;
+  flex-direction: column;
+  width: 100%; */
+}
+
+.wrapper {
+  display: flex; /* Use Flexbox */
+  flex-direction: column; /* Stack children vertically */
+  height: 100vh;
+}
+
+.header {
+  background-color: #282c34;
+  color: white;
+  padding: 10px;
+}
+
+.body {
+  flex: 1; /* Grow to fill remaining space */
+  padding: 20px; /* Add some padding */
+  background-color: #f0f0f0;
+}
+
+.footer {
+  background-color: #282c34;
+  color: white;
+  padding: 10px;
+}
+
+h2 {
+  font-family: "Lato", sans-serif;
+  font-weight: 300;
+  letter-spacing: 2px;
+  font-size: 48px;
 }
 
 .logo {
