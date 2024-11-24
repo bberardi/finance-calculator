@@ -1,6 +1,6 @@
 import { Box, Button, Card, CardContent, Popover, Slider, TextField, Typography } from "@mui/material";
 import { useState } from "react";
-import { emptyLoan, Loan } from "./loan-model";
+import { emptyLoan, Loan } from "../models/loan-model";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 
@@ -16,7 +16,6 @@ export const AddLoan = (props: AddLoanProps) => {
 
     return (
       <Popover
-        // id={"simple-popover"}
         open={props.open}
         onClose={props.onClose}
         anchorOrigin={{
@@ -83,7 +82,6 @@ export const AddLoan = (props: AddLoanProps) => {
                     StartDate: date?.toDate() ?? new Date(),
                   })
                 }
-                // renderInput={(params) => <TextField {...params} required />}
               />
               <DatePicker
                 label="End Date"
@@ -94,7 +92,6 @@ export const AddLoan = (props: AddLoanProps) => {
                     EndDate: date?.toDate() ?? new Date(),
                   })
                 }
-                // renderInput={(params) => <TextField {...params} required />}
               />
               <Typography gutterBottom>Interest Percentage</Typography>
               <Slider

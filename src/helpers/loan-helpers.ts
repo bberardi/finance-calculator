@@ -1,9 +1,8 @@
-import { Loan, PitLoan } from "../loan/loan-model";
+import { Loan, PitLoan } from "../models/loan-model";
 
 // Returns the number of terms (months) between the start date and end date. 
 // If an inputted date is provided it is used as the end date. 
 export const GetTerms = (loan: Loan, date?: Date): number => {
-  // amortization schedule for x date
   const months =
     (date ?? loan.EndDate).getFullYear() * 12 +
     (date ?? loan.EndDate).getMonth() -
@@ -14,12 +13,14 @@ export const GetTerms = (loan: Loan, date?: Date): number => {
   return months;
 };
 
+// Returns the amortization object given a loan and date in time.
 export const GetRemainingPrincipal = (loan: Loan, date: Date): number => {
-    // amortization schedule for x date
+    // import npm package amortize to perform calcs
     
     return 5000;
 };
 
+// Returns a point-in-time view of a loan given a date.
 export const getPitCalculation = (
   loan: Loan,
   date: Date

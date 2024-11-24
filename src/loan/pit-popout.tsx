@@ -1,6 +1,6 @@
 import { Box, Card, CardContent, Popover, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { defaultPit, Loan, PitLoan } from "./loan-model";
+import { defaultPit, Loan, PitLoan } from "../models/loan-model";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { getPitCalculation } from "../helpers/loan-helpers";
