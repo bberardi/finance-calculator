@@ -68,7 +68,7 @@ export const Body = () => {
         onClose={() => setSelectedPit(undefined)}
       />}
 
-      <Grid container spacing={2} sx={{}}>
+      <Grid container spacing={2} sx={{marginBottom:'25px'}}>
         <Grid item xs={12}>
           <Paper>
             <TableContainer>
