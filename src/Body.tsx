@@ -5,10 +5,12 @@ import { useState } from "react";
 // import { Loan } from "./loan/loan-model";
 import { AddLoan } from "./loan/add-loan";
 import { Loan } from "./loan/loan-model";
+import { PitPopout } from "./loan/pit-popout";
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
+  const [selectedPit, setSelectedPit] = useState<Loan | undefined>();
 
   // interface DataRow {
   //   id: number;
@@ -61,6 +63,11 @@ export const Body = () => {
         }}
       />
 
+      {selectedPit && <PitPopout
+        loan={selectedPit}
+        onClose={() => setSelectedPit(undefined)}
+      />}
+
       <Grid container spacing={2} sx={{}}>
         <Grid item xs={12}>
           <Paper>
@@ -68,28 +75,35 @@ export const Body = () => {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Provider</TableCell>
                     <TableCell>Name</TableCell>
-                    <TableCell>Initial Ammount</TableCell>
-                    <TableCell>Current Amount</TableCell>
                     <TableCell>Interest Rate</TableCell>
+                    <TableCell>Initial Amount</TableCell>
+                    <TableCell>Current Amount</TableCell>
                     <TableCell>Start Date</TableCell>
                     <TableCell>End Date</TableCell>
-                    <TableCell>Provider</TableCell>
+                    <TableCell>PIT Calc.</TableCell>
                     <TableCell>Delete</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loans.map((row) => (
                     <TableRow key={row.Name}>
+                      <TableCell>{row.Provider}</TableCell>
                       <TableCell>{row.Name}</TableCell>
+                      <TableCell>{row.InterestRate}</TableCell>
                       <TableCell>{row.InitialAmount}</TableCell>
                       <TableCell>{row.CurrentAmount}</TableCell>
-                      <TableCell>{row.InterestRate}</TableCell>
                       <TableCell>{row.StartDate.toLocaleDateString()}</TableCell>
                       <TableCell>{row.EndDate.toLocaleDateString()}</TableCell>
-                      <TableCell>{row.Provider}</TableCell>
                       <TableCell>
-                        <Button onClick={() => removeLoan(row)}>Remove
+                        <Button onClick={() => setSelectedPit(row)}>
+                          Calculate
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <Button onClick={() => removeLoan(row)}>
+                          Remove
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -1,20 +1,10 @@
 import { Box, Button, Card, CardContent, Popover, Slider, TextField, Typography } from "@mui/material";
 import { useState } from "react";
-import { Loan } from "./loan-model";
+import { emptyLoan, Loan } from "./loan-model";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 
 export const AddLoan = (props: AddLoanProps) => {
-    const emptyLoan: Loan = {
-      Provider: "",
-      Name: "",
-      InterestRate: 0,
-      StartDate: new Date(),
-      EndDate: new Date(),
-      InitialAmount: 0,
-      CurrentAmount: 0,
-    };
-
     const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
 
     const onSave = () => {
