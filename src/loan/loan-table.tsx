@@ -22,8 +22,9 @@ export const LoanTable = (props: LoanTableProps) => {
                 <TableCell>Provider</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Interest Rate</TableCell>
-                <TableCell>Initial Amount</TableCell>
+                <TableCell>Principal</TableCell>
                 <TableCell>Current Amount</TableCell>
+                <TableCell>Monthly Payment</TableCell>
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
                 <TableCell>PIT Calc.</TableCell>
@@ -36,8 +37,9 @@ export const LoanTable = (props: LoanTableProps) => {
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{row.Name}</TableCell>
                   <TableCell>{row.InterestRate}</TableCell>
-                  <TableCell>{row.InitialAmount}</TableCell>
+                  <TableCell>{row.Principal}</TableCell>
                   <TableCell>{row.CurrentAmount}</TableCell>
+                  <TableCell>{row.MonthlyPayment}</TableCell>
                   <TableCell>{row.StartDate.toLocaleDateString()}</TableCell>
                   <TableCell>{row.EndDate.toLocaleDateString()}</TableCell>
                   <TableCell>

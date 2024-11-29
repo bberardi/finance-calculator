@@ -24,7 +24,7 @@ export const PitPopout = (props: PitPopoutProps) => {
         horizontal: "center",
       }}
       transformOrigin={{
-        vertical: "top",
+        vertical: "center",
         horizontal: "center",
       }}
     >

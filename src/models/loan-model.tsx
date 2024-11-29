@@ -5,8 +5,9 @@ export interface Loan {
     InterestRate: number;
     StartDate: Date;
     EndDate: Date;
-    InitialAmount: number;
+    Principal: number;
     CurrentAmount: number;
+    MonthlyPayment?: number;
 }
 
 export const emptyLoan: Loan = {
@@ -15,8 +16,9 @@ export const emptyLoan: Loan = {
     InterestRate: 0,
     StartDate: new Date(),
     EndDate: new Date(),
-    InitialAmount: 0,
+    Principal: 0,
     CurrentAmount: 0,
+    MonthlyPayment: 0
 };
 
 export type PitLoan = {
