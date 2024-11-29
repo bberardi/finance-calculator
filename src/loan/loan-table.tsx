@@ -2,7 +2,8 @@ import { TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Butto
 import { Loan } from "../models/loan-model"
 import { useState } from "react";
 import { PitPopout } from "./pit-popout";
-
+import { getTerms } from "../helpers/loan-helpers";
+import { Delete, Calculate } from '@mui/icons-material';
 
 export const LoanTable = (props: LoanTableProps) => {
   const [selectedPit, setSelectedPit] = useState<Loan | undefined>();
@@ -27,6 +28,7 @@ export const LoanTable = (props: LoanTableProps) => {
                 <TableCell>Monthly Payment</TableCell>
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
+                <TableCell>Terms</TableCell>
                 <TableCell>PIT Calc.</TableCell>
                 <TableCell>Delete</TableCell>
               </TableRow>
@@ -36,20 +38,48 @@ export const LoanTable = (props: LoanTableProps) => {
                 <TableRow key={row.Name}>
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{row.Name}</TableCell>
-                  <TableCell>{row.InterestRate}</TableCell>
-                  <TableCell>{row.Principal}</TableCell>
-                  <TableCell>{row.CurrentAmount}</TableCell>
-                  <TableCell>{row.MonthlyPayment}</TableCell>
+                  <TableCell>
+                    {(row.InterestRate / 100).toLocaleString(undefined, {
+                      style: "percent",
+                      minimumFractionDigits: 3,
+                      maximumFractionDigits: 3,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {row.Principal.toLocaleString(undefined, {
+                      style: "currency",
+                      currency: "USD",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {row.CurrentAmount.toLocaleString(undefined, {
+                      style: "currency",
+                      currency: "USD",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {row.MonthlyPayment?.toLocaleString(undefined, {
+                      style: "currency",
+                      currency: "USD",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
                   <TableCell>{row.StartDate.toLocaleDateString()}</TableCell>
                   <TableCell>{row.EndDate.toLocaleDateString()}</TableCell>
+                  <TableCell>{getTerms(row)}</TableCell>
                   <TableCell>
                     <Button onClick={() => setSelectedPit(row)}>
-                      Calculate
+                      <Calculate />
                     </Button>
                   </TableCell>
                   <TableCell>
                     <Button onClick={() => props.removeLoan(row)}>
-                      Remove
+                      <Delete />
                     </Button>
                   </TableCell>
                 </TableRow>

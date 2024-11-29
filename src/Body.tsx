@@ -5,7 +5,18 @@ import { Loan } from "./models/loan-model";
 import { LoanTable } from "./loan/loan-table";
 
 export const Body = () => {
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([
+    {
+      Name: "Test Loan 1",
+      Provider: "Fake Provider",
+      InterestRate: 5,
+      Principal: 300000,
+      CurrentAmount: 300000,
+      MonthlyPayment: 1610.46,
+      StartDate: new Date("2024-11-02"),
+      EndDate: new Date("2054-10-02"),
+    },
+  ]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
   
   const onAddLoan = () => {
