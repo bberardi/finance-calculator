@@ -28,7 +28,7 @@ export const getMonthlyPayment = (
 // Returns the amortization object given a loan and date in time.
 export const getRemainingPrincipal = (loan: Loan, date: Date): number => {
     // import npm package amortize to perform calcs
-    
+    console.log(loan, date);
     return 5000;
 };
 
