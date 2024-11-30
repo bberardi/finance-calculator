@@ -1,12 +1,14 @@
-import { TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Button } from "@mui/material";
+import { TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Button, Paper } from "@mui/material";
 import { Loan } from "../models/loan-model"
 import { useState } from "react";
 import { PitPopout } from "./pit-popout";
 import { getTerms } from "../helpers/loan-helpers";
-import { Delete, Calculate } from '@mui/icons-material';
+import { Delete, Calculate, CalendarMonth } from '@mui/icons-material';
+import { AmortizationPopout } from "./amortization-popout";
 
 export const LoanTable = (props: LoanTableProps) => {
   const [selectedPit, setSelectedPit] = useState<Loan | undefined>();
+  const [selectedAmortization, setSelectedAmortization] = useState<Loan | undefined>();
 
     return (
       <>
@@ -16,7 +18,13 @@ export const LoanTable = (props: LoanTableProps) => {
             onClose={() => setSelectedPit(undefined)}
           />
         )}
-        <TableContainer>
+        {selectedAmortization && (
+          <AmortizationPopout
+            loan={selectedAmortization}
+            onClose={() => setSelectedAmortization(undefined)}
+          />
+        )}
+        <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
@@ -29,6 +37,7 @@ export const LoanTable = (props: LoanTableProps) => {
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
                 <TableCell>Terms</TableCell>
+                <TableCell>Amortization Schedule</TableCell>
                 <TableCell>PIT Calc.</TableCell>
                 <TableCell>Delete</TableCell>
               </TableRow>
@@ -72,6 +81,11 @@ export const LoanTable = (props: LoanTableProps) => {
                   <TableCell>{row.StartDate.toLocaleDateString()}</TableCell>
                   <TableCell>{row.EndDate.toLocaleDateString()}</TableCell>
                   <TableCell>{getTerms(row)}</TableCell>
+                  <TableCell>
+                    <Button onClick={() => setSelectedAmortization(row)}>
+                      <CalendarMonth />
+                    </Button>
+                  </TableCell>
                   <TableCell>
                     <Button onClick={() => setSelectedPit(row)}>
                       <Calculate />
