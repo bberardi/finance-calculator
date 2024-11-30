@@ -8,7 +8,10 @@
     "start": "dev",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "clean:lint": "eslint --fix",
+    "clean:prettier": "prettier --write .",
+    "check:lint": "eslint",
+    "check:format": "prettier --check .",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
@@ -20,6 +23,7 @@
     "@mui/material": "^6.1.9",
     "@mui/x-date-pickers": "^7.22.2",
     "dayjs": "^1.11.13",
+    "prettier": "^3.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-number-format": "^5.4.2"

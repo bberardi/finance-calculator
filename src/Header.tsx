@@ -1,5 +1,5 @@
-import { CardMedia, Stack, Typography } from "@mui/material";
-import Logo from "./assets/pathwise.png";
+import { CardMedia, Stack, Typography } from '@mui/material';
+import Logo from './assets/pathwise.png';
 
 export const Header = () => {
   return (

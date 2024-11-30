@@ -1,47 +1,71 @@
-import { Box, Button, Card, CardContent, Popover, Slider, Stack, TextField, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
-import { emptyLoan, Loan } from "../models/loan-model";
-import { DatePicker } from "@mui/x-date-pickers";
-import dayjs from "dayjs";
-import { getMonthlyPayment, getTerms } from "../helpers/loan-helpers";
-import { NumericFormat } from "react-number-format";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Popover,
+  Slider,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { useEffect, useState } from 'react';
+import { emptyLoan, Loan } from '../models/loan-model';
+import { DatePicker } from '@mui/x-date-pickers';
+import dayjs from 'dayjs';
+import { getMonthlyPayment, getTerms } from '../helpers/loan-helpers';
+import { NumericFormat } from 'react-number-format';
 
 export const AddLoan = (props: AddLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
 
   const onSave = () => {
-      // Additional verification
-      props.onSave(newLoan);
-      setNewLoan(emptyLoan);
-      props.onClose();
-  }
+    // Additional verification
+    props.onSave(newLoan);
+    setNewLoan(emptyLoan);
+    props.onClose();
+  };
 
   useEffect(() => {
-    if(newLoan.Principal && newLoan.InterestRate && newLoan.StartDate && newLoan.EndDate) {
+    if (
+      newLoan.Principal &&
+      newLoan.InterestRate &&
+      newLoan.StartDate &&
+      newLoan.EndDate
+    ) {
       setNewLoan({
         ...newLoan,
-        MonthlyPayment: getMonthlyPayment(newLoan.Principal, newLoan.InterestRate, getTerms(newLoan))
-      })
-    } 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newLoan.Principal, newLoan.InterestRate, newLoan.StartDate, newLoan.EndDate])
+        MonthlyPayment: getMonthlyPayment(
+          newLoan.Principal,
+          newLoan.InterestRate,
+          getTerms(newLoan)
+        ),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    newLoan.Principal,
+    newLoan.InterestRate,
+    newLoan.StartDate,
+    newLoan.EndDate,
+  ]);
 
   return (
     <Popover
       open={props.open}
       onClose={props.onClose}
       anchorOrigin={{
-        vertical: "center",
-        horizontal: "center",
+        vertical: 'center',
+        horizontal: 'center',
       }}
       transformOrigin={{
-        vertical: "center",
-        horizontal: "center",
+        vertical: 'center',
+        horizontal: 'center',
       }}
     >
       <Card>
         <CardContent>
-          <Typography variant="h5" gutterBottom textAlign='center'>
+          <Typography variant="h5" gutterBottom textAlign="center">
             Add New Loan
           </Typography>
           <Box display="flex" flexDirection="column" gap={2}>
@@ -64,7 +88,7 @@ export const AddLoan = (props: AddLoanProps) => {
               value={newLoan.Principal}
               thousandSeparator
               decimalScale={2}
-              prefix={"$"}
+              prefix={'$'}
               customInput={TextField}
               onValueChange={(vs) => {
                 setNewLoan({ ...newLoan, Principal: Number(vs.value) });
@@ -76,7 +100,7 @@ export const AddLoan = (props: AddLoanProps) => {
               value={newLoan.CurrentAmount}
               thousandSeparator
               decimalScale={2}
-              prefix={"$"}
+              prefix={'$'}
               customInput={TextField}
               onValueChange={(vs) => {
                 setNewLoan({ ...newLoan, CurrentAmount: Number(vs.value) });
@@ -92,7 +116,7 @@ export const AddLoan = (props: AddLoanProps) => {
                   StartDate: date?.toDate() ?? new Date(),
                 })
               }
-              views={["year", "month", "day"]}
+              views={['year', 'month', 'day']}
               openTo="day"
             />
             <Stack direction="row" spacing={1}>
@@ -105,18 +129,22 @@ export const AddLoan = (props: AddLoanProps) => {
                     EndDate: date?.toDate() ?? new Date(),
                   })
                 }
-                views={["year", "month", "day"]}
+                views={['year', 'month', 'day']}
                 openTo="year"
-                sx={{flex:5}}
+                sx={{ flex: 5 }}
               />
               <TextField
                 label="Terms"
                 value={getTerms(newLoan)}
-                onChange={(e) => setNewLoan({
-                  ...newLoan,
-                  EndDate: dayjs(newLoan.StartDate).add(Number(e.target.value) - 1, "months").toDate(),
-                })}
-                sx={{flex:2}}
+                onChange={(e) =>
+                  setNewLoan({
+                    ...newLoan,
+                    EndDate: dayjs(newLoan.StartDate)
+                      .add(Number(e.target.value) - 1, 'months')
+                      .toDate(),
+                  })
+                }
+                sx={{ flex: 2 }}
               />
             </Stack>
             <Stack>
@@ -136,14 +164,14 @@ export const AddLoan = (props: AddLoanProps) => {
                   step={0.25}
                   min={0}
                   max={30}
-                  sx={{flex:5}}
+                  sx={{ flex: 5 }}
                 />
                 <NumericFormat
                   label="Interest Rate"
                   value={newLoan.InterestRate}
                   thousandSeparator
                   decimalScale={3}
-                  suffix={"%"}
+                  suffix={'%'}
                   customInput={TextField}
                   onValueChange={(vs) => {
                     setNewLoan({
@@ -151,7 +179,7 @@ export const AddLoan = (props: AddLoanProps) => {
                       InterestRate: Number(vs.value),
                     });
                   }}
-                  sx={{flex:2}}
+                  sx={{ flex: 2 }}
                   required
                 />
               </Stack>
@@ -163,12 +191,12 @@ export const AddLoan = (props: AddLoanProps) => {
                 value={newLoan.MonthlyPayment}
                 thousandSeparator
                 decimalScale={2}
-                prefix={"$"}
+                prefix={'$'}
                 customInput={TextField}
                 onValueChange={(vs) => {
                   setNewLoan({ ...newLoan, MonthlyPayment: Number(vs.value) });
                 }}
-                sx={{flex:6}}
+                sx={{ flex: 6 }}
                 required
               />
               <Button
@@ -182,7 +210,7 @@ export const AddLoan = (props: AddLoanProps) => {
                     ),
                   })
                 }
-                  sx={{flex:1}}
+                sx={{ flex: 1 }}
               >
                 Reset
               </Button>
@@ -200,10 +228,10 @@ export const AddLoan = (props: AddLoanProps) => {
       </Card>
     </Popover>
   );
-}
+};
 
 export interface AddLoanProps {
-    open: boolean;
-    onSave: (newLoan: Loan) => void;
-    onClose: () => void;
+  open: boolean;
+  onSave: (newLoan: Loan) => void;
+  onClose: () => void;
 }
