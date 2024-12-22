@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { AddEditLoan } from './loan/add-loan';
 import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
+import { generateAmortizationSchedule } from './helpers/loan-helpers';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([
@@ -38,10 +39,14 @@ export const Body = () => {
   };
 
   const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
+    const updatedLoan: Loan = {
+      ...newLoan,
+      AmortizationSchedule: generateAmortizationSchedule(newLoan),
+    };
     if (!oldLoan) {
-      setLoans([...loans, newLoan]);
+      setLoans([...loans, updatedLoan]);
     } else {
-      setLoans([...loans.filter((l) => l != oldLoan), newLoan]);
+      setLoans([...loans.filter((l) => l != oldLoan), updatedLoan]);
     }
   };
 

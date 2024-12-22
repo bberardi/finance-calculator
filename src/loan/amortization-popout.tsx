@@ -16,7 +16,8 @@ import { generateAmortizationSchedule } from '../helpers/loan-helpers';
 import dayjs from 'dayjs';
 
 export const AmortizationPopout = (props: AmortizationPopoutProps) => {
-  const schedule = generateAmortizationSchedule(props.loan);
+  const schedule =
+    props.loan.AmortizationSchedule ?? generateAmortizationSchedule(props.loan);
 
   return (
     <Popover
