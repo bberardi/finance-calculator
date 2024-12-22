@@ -30,13 +30,14 @@ export const AmortizationPopout = (props: AmortizationPopoutProps) => {
         vertical: 'center',
         horizontal: 'center',
       }}
+      style={{ maxHeight: '90vh' }}
     >
       <Card>
         <CardContent>
           <Typography variant="h5" gutterBottom>
             Amortization Schedule
           </Typography>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} style={{ maxHeight: '75vh' }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>

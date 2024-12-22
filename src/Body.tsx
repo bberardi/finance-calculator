@@ -7,7 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
-import { AddLoan } from './loan/add-loan';
+import { AddEditLoan } from './loan/add-loan';
 import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 
@@ -25,13 +25,24 @@ export const Body = () => {
     },
   ]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
+  const [editLoan, setEditLoan] = useState<Loan>();
 
-  const onAddLoan = () => {
+  const onLoanAddEdit = (loan?: Loan) => {
+    setEditLoan(loan);
     setIsAddLoanOpen(true);
   };
 
-  const removeLoan = (loan: Loan) => {
-    setLoans(loans.filter((l) => l !== loan));
+  const onLoanAddEditClose = () => {
+    setIsAddLoanOpen(false);
+    setEditLoan(undefined);
+  };
+
+  const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
+    if (!oldLoan) {
+      setLoans([...loans, newLoan]);
+    } else {
+      setLoans([...loans.filter((l) => l != oldLoan), newLoan]);
+    }
   };
 
   return (
@@ -50,23 +61,22 @@ export const Body = () => {
             variant="outlined"
             color="inherit"
             style={{ margin: '5px' }}
-            onClick={() => onAddLoan()}
+            onClick={() => onLoanAddEdit()}
           >
             Add Loan
           </Button>
         </Toolbar>
       </AppBar>
 
-      <AddLoan
+      <AddEditLoan
         open={isAddLoanOpen}
-        onSave={(newLoan: Loan) => setLoans([...loans, newLoan])}
-        onClose={() => {
-          setIsAddLoanOpen(false);
-        }}
+        onSave={onLoanAddEditSave}
+        onClose={onLoanAddEditClose}
+        loan={editLoan}
       />
 
       <Paper style={{ marginBottom: '20px', padding: '5px' }}>
-        <LoanTable loans={loans} removeLoan={removeLoan} />
+        <LoanTable loans={loans} onLoanEdit={onLoanAddEdit} />
       </Paper>
 
       <Paper

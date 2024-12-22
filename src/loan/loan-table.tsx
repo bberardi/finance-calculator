@@ -12,7 +12,7 @@ import { Loan } from '../models/loan-model';
 import { useState } from 'react';
 import { PitPopout } from './pit-popout';
 import { getTerms } from '../helpers/loan-helpers';
-import { Delete, Calculate, CalendarMonth } from '@mui/icons-material';
+import { Calculate, CalendarMonth, Edit } from '@mui/icons-material';
 import { AmortizationPopout } from './amortization-popout';
 
 export const LoanTable = (props: LoanTableProps) => {
@@ -50,7 +50,7 @@ export const LoanTable = (props: LoanTableProps) => {
               <TableCell>Terms</TableCell>
               <TableCell>Amortization Schedule</TableCell>
               <TableCell>PIT Calc.</TableCell>
-              <TableCell>Delete</TableCell>
+              <TableCell>Edit</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -103,8 +103,8 @@ export const LoanTable = (props: LoanTableProps) => {
                   </Button>
                 </TableCell>
                 <TableCell>
-                  <Button onClick={() => props.removeLoan(row)}>
-                    <Delete />
+                  <Button onClick={() => props.onLoanEdit(row)}>
+                    <Edit />
                   </Button>
                 </TableCell>
               </TableRow>
@@ -118,5 +118,5 @@ export const LoanTable = (props: LoanTableProps) => {
 
 export type LoanTableProps = {
   loans: Loan[];
-  removeLoan: (loan: Loan) => void;
+  onLoanEdit: (l: Loan) => void;
 };

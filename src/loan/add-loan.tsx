@@ -16,15 +16,18 @@ import dayjs from 'dayjs';
 import { getMonthlyPayment, getTerms } from '../helpers/loan-helpers';
 import { NumericFormat } from 'react-number-format';
 
-export const AddLoan = (props: AddLoanProps) => {
+export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
 
   const onSave = () => {
     // Additional verification
-    props.onSave(newLoan);
-    setNewLoan(emptyLoan);
+    props.onSave(newLoan, props.loan);
     props.onClose();
   };
+
+  useEffect(() => {
+    setNewLoan(props.loan ?? emptyLoan);
+  }, [props.loan]);
 
   useEffect(() => {
     if (
@@ -66,7 +69,7 @@ export const AddLoan = (props: AddLoanProps) => {
       <Card>
         <CardContent>
           <Typography variant="h5" gutterBottom textAlign="center">
-            Add New Loan
+            {!props.loan ? 'Add new loan' : 'Edit loan'}
           </Typography>
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
@@ -215,14 +218,25 @@ export const AddLoan = (props: AddLoanProps) => {
                 Reset
               </Button>
             </Stack>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              onClick={onSave}
-            >
-              Add Loan
-            </Button>
+            <Stack direction="row">
+              <Button
+                type="reset"
+                color="secondary"
+                onClick={props.onClose}
+                sx={{ flex: 2 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                onClick={onSave}
+                sx={{ flex: 4 }}
+              >
+                {!props.loan ? 'Add loan' : 'Save loan'}
+              </Button>
+            </Stack>
           </Box>
         </CardContent>
       </Card>
@@ -230,8 +244,9 @@ export const AddLoan = (props: AddLoanProps) => {
   );
 };
 
-export interface AddLoanProps {
+export interface AddEditLoanProps {
   open: boolean;
-  onSave: (newLoan: Loan) => void;
+  onSave: (newLoan: Loan, oldLoan?: Loan) => void;
   onClose: () => void;
+  loan?: Loan;
 }
