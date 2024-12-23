@@ -15,6 +15,7 @@ import { generateAmortizationSchedule } from './helpers/loan-helpers';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([
+    // TODO delete this starter
     {
       Name: 'Test Loan 1',
       Provider: 'Fake Provider',
@@ -44,10 +45,12 @@ export const Body = () => {
       ...newLoan,
       AmortizationSchedule: generateAmortizationSchedule(newLoan),
     };
+
     if (!oldLoan) {
       setLoans([...loans, updatedLoan]);
     } else {
       const filteredLoans = loans.filter((l) => l != oldLoan);
+
       if (newLoan !== emptyLoan) {
         setLoans([...filteredLoans, updatedLoan]);
       } else {
@@ -93,19 +96,24 @@ export const Body = () => {
       <Paper style={{ marginBottom: '20px', padding: '5px' }}>
         <Divider>Investments</Divider>
         <Typography marginTop="25px" marginBottom="15px">
-          No investments yet, add one from the command bar!
+          {/* No investments yet, add one from the command bar! */}
+          ToDo
         </Typography>
       </Paper>
 
-      <Paper
-        sx={{
-          height: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography variant="h6">Graph placeholder</Typography>
+      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
+        <Divider>What If?</Divider>
+        <Typography marginTop="25px" marginBottom="15px">
+          {/* No loans or investements yet, add one from the command bar! */}
+          ToDo
+        </Typography>
+      </Paper>
+
+      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
+        <Divider>Graphs</Divider>
+        <Typography marginTop="25px" marginBottom="15px">
+          ToDo
+        </Typography>
       </Paper>
 
       <AddEditLoan
