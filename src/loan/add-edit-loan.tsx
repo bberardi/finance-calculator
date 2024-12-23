@@ -15,6 +15,7 @@ import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { getMonthlyPayment, getTerms } from '../helpers/loan-helpers';
 import { NumericFormat } from 'react-number-format';
+import { Delete } from '@mui/icons-material';
 
 export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
@@ -22,6 +23,11 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   const onSave = () => {
     // Additional verification
     props.onSave(newLoan, props.loan);
+    props.onClose();
+  };
+
+  const onDelete = () => {
+    props.onSave(emptyLoan, props.loan);
     props.onClose();
   };
 
@@ -219,11 +225,19 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
               </Button>
             </Stack>
             <Stack direction="row">
+              {props.loan && (
+                <Button
+                  onClick={onDelete}
+                  style={{ backgroundColor: 'indianred' }}
+                >
+                  <Delete color="action" />
+                </Button>
+              )}
               <Button
                 type="reset"
                 color="secondary"
                 onClick={props.onClose}
-                sx={{ flex: 2 }}
+                sx={{ flex: 3 }}
               >
                 Cancel
               </Button>
@@ -232,7 +246,7 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
                 variant="contained"
                 color="primary"
                 onClick={onSave}
-                sx={{ flex: 4 }}
+                sx={{ flex: 5 }}
               >
                 {!props.loan ? 'Add loan' : 'Save loan'}
               </Button>
