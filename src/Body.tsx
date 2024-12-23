@@ -2,13 +2,14 @@ import {
   AppBar,
   Button,
   Container,
+  Divider,
   Paper,
   Toolbar,
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
-import { AddEditLoan } from './loan/add-loan';
-import { Loan } from './models/loan-model';
+import { AddEditLoan } from './loan/add-edit-loan';
+import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { generateAmortizationSchedule } from './helpers/loan-helpers';
 
@@ -46,7 +47,12 @@ export const Body = () => {
     if (!oldLoan) {
       setLoans([...loans, updatedLoan]);
     } else {
-      setLoans([...loans.filter((l) => l != oldLoan), updatedLoan]);
+      const filteredLoans = loans.filter((l) => l != oldLoan);
+      if (newLoan !== emptyLoan) {
+        setLoans([...filteredLoans, updatedLoan]);
+      } else {
+        setLoans(filteredLoans);
+      }
     }
   };
 
@@ -73,15 +79,22 @@ export const Body = () => {
         </Toolbar>
       </AppBar>
 
-      <AddEditLoan
-        open={isAddLoanOpen}
-        onSave={onLoanAddEditSave}
-        onClose={onLoanAddEditClose}
-        loan={editLoan}
-      />
+      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
+        <Divider>Loans</Divider>
+        {loans.length > 0 ? (
+          <LoanTable loans={loans} onLoanEdit={onLoanAddEdit} />
+        ) : (
+          <Typography marginTop="25px" marginBottom="15px">
+            No loans yet, add one from the command bar!
+          </Typography>
+        )}
+      </Paper>
 
       <Paper style={{ marginBottom: '20px', padding: '5px' }}>
-        <LoanTable loans={loans} onLoanEdit={onLoanAddEdit} />
+        <Divider>Investments</Divider>
+        <Typography marginTop="25px" marginBottom="15px">
+          No investments yet, add one from the command bar!
+        </Typography>
       </Paper>
 
       <Paper
@@ -92,8 +105,15 @@ export const Body = () => {
           justifyContent: 'center',
         }}
       >
-        <Typography variant="h6">Graph Placeholder</Typography>
+        <Typography variant="h6">Graph placeholder</Typography>
       </Paper>
+
+      <AddEditLoan
+        open={isAddLoanOpen}
+        onSave={onLoanAddEditSave}
+        onClose={onLoanAddEditClose}
+        loan={editLoan}
+      />
     </Container>
   );
 };
