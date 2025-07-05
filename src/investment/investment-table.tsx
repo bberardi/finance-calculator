@@ -15,7 +15,7 @@ import {
   useMediaQuery,
   IconButton,
 } from '@mui/material';
-import { Investment } from '../models/investment-model';
+import { Investment, CompoundingFrequency } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { Calculate, Edit, TrendingUp } from '@mui/icons-material';
 
@@ -36,13 +36,13 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     return `${rate.toFixed(3)}%`;
   };
 
-  const getCompoundingText = (period: 'monthly' | 'quarterly' | 'annually') => {
+  const getCompoundingText = (period: CompoundingFrequency) => {
     switch (period) {
-      case 'monthly':
+      case CompoundingFrequency.Monthly:
         return 'Monthly';
-      case 'quarterly':
+      case CompoundingFrequency.Quarterly:
         return 'Quarterly';
-      case 'annually':
+      case CompoundingFrequency.Annually:
         return 'Annually';
       default:
         return period;
@@ -83,7 +83,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
         </Typography>
         <Box sx={{ marginBottom: 1 }}>
           <Grid container spacing={2}>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <Typography variant="body2">
                 <strong>Starting Balance:</strong>
               </Typography>
@@ -91,7 +91,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 {formatCurrency(investment.StartingBalance)}
               </Typography>
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <Typography variant="body2">
                 <strong>Return Rate:</strong>
               </Typography>
@@ -99,7 +99,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 {formatPercent(investment.AverageReturnRate)}
               </Typography>
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <Typography variant="body2">
                 <strong>Compounding:</strong>
               </Typography>
@@ -107,7 +107,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 {getCompoundingText(investment.CompoundingPeriod)}
               </Typography>
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <Typography variant="body2">
                 <strong>Recurring:</strong>
               </Typography>
@@ -119,7 +119,13 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
             </Grid>
           </Grid>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 0 }
+        }}>
           <Typography variant="body2">
             <strong>Periods:</strong> {getInvestmentPeriods(investment)}
           </Typography>

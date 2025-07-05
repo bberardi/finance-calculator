@@ -1,12 +1,18 @@
+export enum CompoundingFrequency {
+  Monthly = 'monthly',
+  Quarterly = 'quarterly',
+  Annually = 'annually'
+}
+
 export interface Investment {
   Provider: string;
   Name: string;
   StartDate: Date;
   StartingBalance: number;
   AverageReturnRate: number; // Annual percentage
-  CompoundingPeriod: 'monthly' | 'quarterly' | 'annually';
+  CompoundingPeriod: CompoundingFrequency;
   RecurringContribution?: number;
-  ContributionFrequency?: 'monthly' | 'quarterly' | 'annually';
+  ContributionFrequency?: CompoundingFrequency;
   CurrentValue?: number; // Calculated field
   ProjectedGrowth?: InvestmentGrowthEntry[]; // Calculated field
 }
@@ -17,9 +23,9 @@ export const emptyInvestment: Investment = {
   StartDate: new Date(),
   StartingBalance: 0,
   AverageReturnRate: 0,
-  CompoundingPeriod: 'annually',
+  CompoundingPeriod: CompoundingFrequency.Annually,
   RecurringContribution: 0,
-  ContributionFrequency: 'monthly',
+  ContributionFrequency: CompoundingFrequency.Monthly,
 };
 
 export type InvestmentGrowthEntry = {

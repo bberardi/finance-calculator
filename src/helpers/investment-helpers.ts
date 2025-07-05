@@ -1,13 +1,13 @@
-import { Investment, InvestmentGrowthEntry, PitInvestment } from '../models/investment-model';
+import { Investment, InvestmentGrowthEntry, PitInvestment, CompoundingFrequency } from '../models/investment-model';
 
 // Returns the number of compounding periods per year based on frequency
-export const getPeriodsPerYear = (frequency: 'monthly' | 'quarterly' | 'annually'): number => {
+export const getPeriodsPerYear = (frequency: CompoundingFrequency): number => {
   switch (frequency) {
-    case 'monthly':
+    case CompoundingFrequency.Monthly:
       return 12;
-    case 'quarterly':
+    case CompoundingFrequency.Quarterly:
       return 4;
-    case 'annually':
+    case CompoundingFrequency.Annually:
       return 1;
     default:
       return 1;
@@ -29,12 +29,36 @@ export const getInvestmentPeriods = (investment: Investment, endDate?: Date): nu
   }
 
   const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
-  const yearsDiff = (end.getFullYear() - start.getFullYear()) + 
-                   (end.getMonth() - start.getMonth()) / 12 +
-                   (end.getDate() - start.getDate()) / 365;
+  
+  // Calculate the exact number of periods based on the compounding frequency
+  let periods = 0;
+  
+  if (periodsPerYear === 12) { // Monthly
+    periods = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    // Add partial month if we've passed the start day
+    if (end.getDate() >= start.getDate()) {
+      periods += 1;
+    }
+  } else if (periodsPerYear === 4) { // Quarterly
+    const startQuarter = Math.floor(start.getMonth() / 3);
+    const endQuarter = Math.floor(end.getMonth() / 3);
+    periods = (end.getFullYear() - start.getFullYear()) * 4 + (endQuarter - startQuarter);
+    // Add partial quarter if we've passed the quarter start
+    const quarterStartMonth = endQuarter * 3;
+    const quarterStartDate = new Date(end.getFullYear(), quarterStartMonth, start.getDate());
+    if (end >= quarterStartDate) {
+      periods += 1;
+    }
+  } else { // Annually
+    periods = end.getFullYear() - start.getFullYear();
+    // Add partial year if we've passed the anniversary
+    const anniversary = new Date(end.getFullYear(), start.getMonth(), start.getDate());
+    if (end >= anniversary) {
+      periods += 1;
+    }
+  }
   
   // Return at least 1 period if the start date is today or in the past
-  const periods = Math.floor(yearsDiff * periodsPerYear);
   return Math.max(periods, start <= end ? 1 : 0);
 };
 
@@ -42,10 +66,10 @@ export const getInvestmentPeriods = (investment: Investment, endDate?: Date): nu
 export const calculateInvestmentValue = (
   principal: number,
   annualRate: number,
-  compoundingPeriod: 'monthly' | 'quarterly' | 'annually',
+  compoundingPeriod: CompoundingFrequency,
   periods: number,
   recurringContribution: number = 0,
-  contributionFrequency: 'monthly' | 'quarterly' | 'annually' = 'monthly'
+  contributionFrequency: CompoundingFrequency = CompoundingFrequency.Monthly
 ): number => {
   if (principal <= 0 || annualRate < 0 || periods <= 0) {
     return principal;
@@ -63,9 +87,16 @@ export const calculateInvestmentValue = (
 
     // Add recurring contribution if applicable
     // Check if this period aligns with contribution frequency
-    const contributionPeriodRatio = periodsPerYear / contributionPeriodsPerYear;
-    if (recurringContribution > 0 && period % contributionPeriodRatio === 0) {
-      totalValue += recurringContribution;
+    // The contribution should happen based on how many contribution periods have elapsed
+    if (recurringContribution > 0) {
+      // Calculate how many contribution periods should have occurred by this compounding period
+      const contributionPeriodsElapsed = Math.floor((period * periodsPerYear) / contributionPeriodsPerYear);
+      const previousContributionPeriodsElapsed = Math.floor(((period - 1) * periodsPerYear) / contributionPeriodsPerYear);
+      
+      // If we've crossed into a new contribution period, add the contribution
+      if (contributionPeriodsElapsed > previousContributionPeriodsElapsed) {
+        totalValue += recurringContribution;
+      }
     }
   }
 
@@ -79,7 +110,7 @@ export const generateInvestmentGrowth = (
 ): InvestmentGrowthEntry[] => {
   const growth: InvestmentGrowthEntry[] = [];
   const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
-  const contributionPeriodsPerYear = getPeriodsPerYear(investment.ContributionFrequency || 'monthly');
+  const contributionPeriodsPerYear = getPeriodsPerYear(investment.ContributionFrequency || CompoundingFrequency.Monthly);
   const periodRate = investment.AverageReturnRate / 100 / periodsPerYear;
   const totalPeriods = periods ?? getInvestmentPeriods(investment);
   
@@ -95,11 +126,17 @@ export const generateInvestmentGrowth = (
 
     // Add recurring contribution if applicable
     let contributionThisPeriod = 0;
-    const contributionPeriodRatio = periodsPerYear / contributionPeriodsPerYear;
-    if ((investment.RecurringContribution || 0) > 0 && period % contributionPeriodRatio === 0) {
-      contributionThisPeriod = investment.RecurringContribution || 0;
-      currentValue += contributionThisPeriod;
-      totalContributions += contributionThisPeriod;
+    if ((investment.RecurringContribution || 0) > 0) {
+      // Calculate how many contribution periods should have occurred by this compounding period
+      const contributionPeriodsElapsed = Math.floor((period * periodsPerYear) / contributionPeriodsPerYear);
+      const previousContributionPeriodsElapsed = Math.floor(((period - 1) * periodsPerYear) / contributionPeriodsPerYear);
+      
+      // If we've crossed into a new contribution period, add the contribution
+      if (contributionPeriodsElapsed > previousContributionPeriodsElapsed) {
+        contributionThisPeriod = investment.RecurringContribution || 0;
+        currentValue += contributionThisPeriod;
+        totalContributions += contributionThisPeriod;
+      }
     }
 
     growth.push({

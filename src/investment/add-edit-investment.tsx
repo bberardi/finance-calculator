@@ -13,7 +13,7 @@ import {
   Select,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { emptyInvestment, Investment } from '../models/investment-model';
+import { emptyInvestment, Investment, CompoundingFrequency } from '../models/investment-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { NumericFormat } from 'react-number-format';
@@ -84,11 +84,15 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
         paper: {
           sx: {
             backgroundColor: 'rgba(0, 0, 0, 0.1)',
+            width: { xs: '95vw', sm: '90vw', md: '600px' },
+            maxWidth: '600px',
+            maxHeight: { xs: '95vh', sm: '90vh' },
+            overflow: 'auto',
           },
         },
       }}
     >
-      <Card sx={{ minWidth: '400px', maxWidth: '600px', margin: '20px' }}>
+      <Card sx={{ width: '100%', margin: { xs: '10px', sm: '20px' } }}>
         <CardContent>
           <Typography variant="h6" component="div" sx={{ marginBottom: '15px' }}>
             {!props.investment ? 'Add Investment' : 'Edit Investment'}
@@ -164,13 +168,13 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                 onChange={(e) =>
                   setNewInvestment({
                     ...newInvestment,
-                    CompoundingPeriod: e.target.value as 'monthly' | 'quarterly' | 'annually',
+                    CompoundingPeriod: e.target.value as CompoundingFrequency,
                   })
                 }
               >
-                <MenuItem value="monthly">Monthly</MenuItem>
-                <MenuItem value="quarterly">Quarterly</MenuItem>
-                <MenuItem value="annually">Annually</MenuItem>
+                <MenuItem value={CompoundingFrequency.Monthly}>Monthly</MenuItem>
+                <MenuItem value={CompoundingFrequency.Quarterly}>Quarterly</MenuItem>
+                <MenuItem value={CompoundingFrequency.Annually}>Annually</MenuItem>
               </Select>
             </FormControl>
             <NumericFormat
@@ -187,22 +191,22 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                 });
               }}
             />
-            {newInvestment.RecurringContribution && newInvestment.RecurringContribution > 0 && (
+              {newInvestment.RecurringContribution && newInvestment.RecurringContribution > 0 && (
               <FormControl fullWidth>
                 <InputLabel>Contribution Frequency</InputLabel>
                 <Select
-                  value={newInvestment.ContributionFrequency || 'monthly'}
+                  value={newInvestment.ContributionFrequency || CompoundingFrequency.Monthly}
                   label="Contribution Frequency"
                   onChange={(e) =>
                     setNewInvestment({
                       ...newInvestment,
-                      ContributionFrequency: e.target.value as 'monthly' | 'quarterly' | 'annually',
+                      ContributionFrequency: e.target.value as CompoundingFrequency,
                     })
                   }
                 >
-                  <MenuItem value="monthly">Monthly</MenuItem>
-                  <MenuItem value="quarterly">Quarterly</MenuItem>
-                  <MenuItem value="annually">Annually</MenuItem>
+                  <MenuItem value={CompoundingFrequency.Monthly}>Monthly</MenuItem>
+                  <MenuItem value={CompoundingFrequency.Quarterly}>Quarterly</MenuItem>
+                  <MenuItem value={CompoundingFrequency.Annually}>Annually</MenuItem>
                 </Select>
               </FormControl>
             )}
