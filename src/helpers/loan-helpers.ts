@@ -54,7 +54,7 @@ export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
   const paidTerms = getTerms(loan, date);
   const relevantAmortization =
     loan.AmortizationSchedule ?? generateAmortizationSchedule(loan, paidTerms);
-  const lastEntry = relevantAmortization[relevantAmortization.length - 1];
+  const lastEntry = relevantAmortization[paidTerms - 1];
 
   return {
     PaidTerms: lastEntry.Term,
