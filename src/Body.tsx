@@ -7,7 +7,7 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AddEditLoan } from './loan/add-edit-loan';
 import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
@@ -32,11 +32,6 @@ export const Body = () => {
     // },
   ]);
   const [investments, setInvestments] = useState<Investment[]>([]);
-
-  // Debug effect to track investments state changes
-  useEffect(() => {
-    console.log('Investments state changed:', investments);
-  }, [investments]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
   const [isAddInvestmentOpen, setIsAddInvestmentOpen] = useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
@@ -82,35 +77,21 @@ export const Body = () => {
   };
 
   const onInvestmentAddEditSave = (newInvestment: Investment, oldInvestment?: Investment) => {
-    console.log('onInvestmentAddEditSave called:', { newInvestment, oldInvestment });
-    
-    try {
-      const projectedGrowth = generateInvestmentGrowth(newInvestment);
-      console.log('projectedGrowth:', projectedGrowth);
-      
-      const updatedInvestment: Investment = {
-        ...newInvestment,
-        ProjectedGrowth: projectedGrowth,
-      };
-      
-      console.log('updatedInvestment:', updatedInvestment);
+    const updatedInvestment: Investment = {
+      ...newInvestment,
+      ProjectedGrowth: generateInvestmentGrowth(newInvestment),
+    };
 
-      if (!oldInvestment) {
-        console.log('Adding new investment to list, current investments:', investments);
-        const newInvestments = [...investments, updatedInvestment];
-        console.log('newInvestments array:', newInvestments);
-        setInvestments(newInvestments);
+    if (!oldInvestment) {
+      setInvestments([...investments, updatedInvestment]);
+    } else {
+      const filteredInvestments = investments.filter((i) => i != oldInvestment);
+
+      if (newInvestment !== emptyInvestment) {
+        setInvestments([...filteredInvestments, updatedInvestment]);
       } else {
-        const filteredInvestments = investments.filter((i) => i != oldInvestment);
-
-        if (newInvestment !== emptyInvestment) {
-          setInvestments([...filteredInvestments, updatedInvestment]);
-        } else {
-          setInvestments(filteredInvestments);
-        }
+        setInvestments(filteredInvestments);
       }
-    } catch (error) {
-      console.error('Error in onInvestmentAddEditSave:', error);
     }
   };
 
