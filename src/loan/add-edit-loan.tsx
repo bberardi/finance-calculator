@@ -228,9 +228,9 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
               {props.loan && (
                 <Button
                   onClick={onDelete}
-                  style={{ backgroundColor: 'indianred' }}
+                  sx={{ backgroundColor: 'error.main', color: 'white' }}
                 >
-                  <Delete color="action" />
+                  <Delete />
                 </Button>
               )}
               <Button

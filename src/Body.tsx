@@ -14,19 +14,7 @@ import { LoanTable } from './loan/loan-table';
 import { generateAmortizationSchedule } from './helpers/loan-helpers';
 
 export const Body = () => {
-  const [loans, setLoans] = useState<Loan[]>([
-    // TODO delete this starter
-    {
-      Name: 'Test Loan 1',
-      Provider: 'Fake Provider',
-      InterestRate: 5,
-      Principal: 300000,
-      CurrentAmount: 300000,
-      MonthlyPayment: 1610.46,
-      StartDate: new Date('2024-11-02'),
-      EndDate: new Date('2054-10-02'),
-    },
-  ]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
 
@@ -74,7 +62,7 @@ export const Body = () => {
           <Button
             variant="outlined"
             color="inherit"
-            style={{ margin: '5px' }}
+            sx={{ margin: '5px' }}
             onClick={() => onLoanAddEdit()}
           >
             Add Loan
@@ -82,38 +70,15 @@ export const Body = () => {
         </Toolbar>
       </AppBar>
 
-      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
+      <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
         <Divider>Loans</Divider>
         {loans.length > 0 ? (
           <LoanTable loans={loans} onLoanEdit={onLoanAddEdit} />
         ) : (
-          <Typography marginTop="25px" marginBottom="15px">
+          <Typography sx={{ marginTop: '25px', marginBottom: '15px' }}>
             No loans yet, add one from the command bar!
           </Typography>
         )}
-      </Paper>
-
-      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
-        <Divider>Investments</Divider>
-        <Typography marginTop="25px" marginBottom="15px">
-          {/* No investments yet, add one from the command bar! */}
-          ToDo
-        </Typography>
-      </Paper>
-
-      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
-        <Divider>What If?</Divider>
-        <Typography marginTop="25px" marginBottom="15px">
-          {/* No loans or investements yet, add one from the command bar! */}
-          ToDo
-        </Typography>
-      </Paper>
-
-      <Paper style={{ marginBottom: '20px', padding: '5px' }}>
-        <Divider>Graphs</Divider>
-        <Typography marginTop="25px" marginBottom="15px">
-          ToDo
-        </Typography>
       </Paper>
 
       <AddEditLoan

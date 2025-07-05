@@ -1,5 +1,5 @@
 export interface Loan {
-  Provider: string | null | undefined;
+  Provider: string;
   Name: string;
   InterestRate: number;
   StartDate: Date;
@@ -8,8 +8,6 @@ export interface Loan {
   CurrentAmount: number;
   MonthlyPayment?: number;
   AmortizationSchedule?: AmortizationScheduleEntry[];
-  // TODO
-  // add actual monthly payment (taxes, insurance, etc)
 }
 
 export const emptyLoan: Loan = {
