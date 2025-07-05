@@ -23,15 +23,19 @@ export const getInvestmentPeriods = (investment: Investment, endDate?: Date): nu
   const end = endDate ?? new Date();
   const start = investment.StartDate;
   
+  // If the investment started in the future, return 0 periods elapsed so far
   if (end < start) {
     return 0;
   }
 
   const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
   const yearsDiff = (end.getFullYear() - start.getFullYear()) + 
-                   (end.getMonth() - start.getMonth()) / 12;
+                   (end.getMonth() - start.getMonth()) / 12 +
+                   (end.getDate() - start.getDate()) / 365;
   
-  return Math.max(0, Math.floor(yearsDiff * periodsPerYear));
+  // Return at least 1 period if the start date is today or in the past
+  const periods = Math.floor(yearsDiff * periodsPerYear);
+  return Math.max(periods, start <= end ? 1 : 0);
 };
 
 // Calculate compound interest with optional recurring contributions
