@@ -1,5 +1,5 @@
 export interface Loan {
-  Provider: string | null | undefined;
+  Provider: string;
   Name: string;
   InterestRate: number;
   StartDate: Date;

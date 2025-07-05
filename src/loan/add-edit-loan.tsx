@@ -20,8 +20,23 @@ import { Delete } from '@mui/icons-material';
 export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
 
+  const isFormValid = () => {
+    return (
+      newLoan.Name.trim() !== '' &&
+      newLoan.Provider.trim() !== '' &&
+      newLoan.Principal > 0 &&
+      newLoan.CurrentAmount > 0 &&
+      newLoan.InterestRate > 0 &&
+      newLoan.StartDate &&
+      newLoan.EndDate &&
+      newLoan.StartDate < newLoan.EndDate
+    );
+  };
+
   const onSave = () => {
-    // Additional verification
+    if (!isFormValid()) {
+      return;
+    }
     props.onSave(newLoan, props.loan);
     props.onClose();
   };
@@ -228,9 +243,9 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
               {props.loan && (
                 <Button
                   onClick={onDelete}
-                  style={{ backgroundColor: 'indianred' }}
+                  sx={{ backgroundColor: 'error.main', color: 'white' }}
                 >
-                  <Delete color="action" />
+                  <Delete />
                 </Button>
               )}
               <Button
@@ -246,6 +261,7 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
                 variant="contained"
                 color="primary"
                 onClick={onSave}
+                disabled={!isFormValid()}
                 sx={{ flex: 5 }}
               >
                 {!props.loan ? 'Add loan' : 'Save loan'}

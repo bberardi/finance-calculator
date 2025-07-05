@@ -5,8 +5,15 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  Button,
   Paper,
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  useTheme,
+  useMediaQuery,
+  IconButton,
 } from '@mui/material';
 import { Loan } from '../models/loan-model';
 import { useState } from 'react';
@@ -20,6 +27,115 @@ export const LoanTable = (props: LoanTableProps) => {
   const [selectedAmortization, setSelectedAmortization] = useState<
     Loan | undefined
   >();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const formatPercent = (rate: number) => {
+    return (rate / 100).toLocaleString(undefined, {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const LoanActions = ({
+    loan,
+    isMobile = false,
+  }: {
+    loan: Loan;
+    isMobile?: boolean;
+  }) => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: isMobile ? 'space-around' : 'flex-start',
+        gap: isMobile ? 0 : 1,
+      }}
+    >
+      <IconButton
+        onClick={() => setSelectedAmortization(loan)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="View Amortization Schedule"
+      >
+        <CalendarMonth />
+      </IconButton>
+      <IconButton
+        onClick={() => setSelectedPit(loan)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="Point-in-Time Calculator"
+      >
+        <Calculate />
+      </IconButton>
+      <IconButton
+        onClick={() => props.onLoanEdit(loan)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="Edit Loan"
+      >
+        <Edit />
+      </IconButton>
+    </Box>
+  );
+
+  const LoanCard = ({ loan }: { loan: Loan }) => (
+    <Card sx={{ marginBottom: 2 }}>
+      <CardContent>
+        <Typography variant="h6" component="div" gutterBottom>
+          {loan.Name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          {loan.Provider}
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={6}>
+            <Typography variant="body2">
+              <strong>Principal:</strong> {formatCurrency(loan.Principal)}
+            </Typography>
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="body2">
+              <strong>Current:</strong> {formatCurrency(loan.CurrentAmount)}
+            </Typography>
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="body2">
+              <strong>Interest:</strong> {formatPercent(loan.InterestRate)}
+            </Typography>
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="body2">
+              <strong>Payment:</strong>{' '}
+              {formatCurrency(loan.MonthlyPayment || 0)}
+            </Typography>
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="body2">
+              <strong>Terms:</strong> {getTerms(loan)} months
+            </Typography>
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="body2">
+              <strong>End Date:</strong> {loan.EndDate.toLocaleDateString()}
+            </Typography>
+          </Grid>
+        </Grid>
+        <Box sx={{ marginTop: 2 }}>
+          <LoanActions loan={loan} isMobile={true} />
+        </Box>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <>
@@ -35,83 +151,47 @@ export const LoanTable = (props: LoanTableProps) => {
           onClose={() => setSelectedAmortization(undefined)}
         />
       )}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Provider</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Interest Rate</TableCell>
-              <TableCell>Principal</TableCell>
-              <TableCell>Current Amount</TableCell>
-              <TableCell>Monthly Payment</TableCell>
-              <TableCell>Start Date</TableCell>
-              <TableCell>End Date</TableCell>
-              <TableCell>Terms</TableCell>
-              <TableCell>Amortization Schedule</TableCell>
-              <TableCell>PIT Calc.</TableCell>
-              <TableCell>Edit</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {props.loans.map((row) => (
-              <TableRow key={row.Name}>
-                <TableCell>{row.Provider}</TableCell>
-                <TableCell>{row.Name}</TableCell>
-                <TableCell>
-                  {(row.InterestRate / 100).toLocaleString(undefined, {
-                    style: 'percent',
-                    minimumFractionDigits: 3,
-                    maximumFractionDigits: 3,
-                  })}
-                </TableCell>
-                <TableCell>
-                  {row.Principal.toLocaleString(undefined, {
-                    style: 'currency',
-                    currency: 'USD',
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </TableCell>
-                <TableCell>
-                  {row.CurrentAmount.toLocaleString(undefined, {
-                    style: 'currency',
-                    currency: 'USD',
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </TableCell>
-                <TableCell>
-                  {row.MonthlyPayment?.toLocaleString(undefined, {
-                    style: 'currency',
-                    currency: 'USD',
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </TableCell>
-                <TableCell>{row.StartDate.toLocaleDateString()}</TableCell>
-                <TableCell>{row.EndDate.toLocaleDateString()}</TableCell>
-                <TableCell>{getTerms(row)}</TableCell>
-                <TableCell>
-                  <Button onClick={() => setSelectedAmortization(row)}>
-                    <CalendarMonth />
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <Button onClick={() => setSelectedPit(row)}>
-                    <Calculate />
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <Button onClick={() => props.onLoanEdit(row)}>
-                    <Edit />
-                  </Button>
-                </TableCell>
+
+      {isMobile ? (
+        <Box>
+          {props.loans.map((loan) => (
+            <LoanCard key={loan.Name} loan={loan} />
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Provider</TableCell>
+                <TableCell>Principal</TableCell>
+                <TableCell>Interest Rate</TableCell>
+                <TableCell>Monthly Payment</TableCell>
+                <TableCell>Terms</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {props.loans.map((row) => (
+                <TableRow key={row.Name}>
+                  <TableCell>{row.Name}</TableCell>
+                  <TableCell>{row.Provider}</TableCell>
+                  <TableCell>{formatCurrency(row.Principal)}</TableCell>
+                  <TableCell>{formatPercent(row.InterestRate)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(row.MonthlyPayment || 0)}
+                  </TableCell>
+                  <TableCell>{getTerms(row)} months</TableCell>
+                  <TableCell>
+                    <LoanActions loan={row} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </>
   );
 };
