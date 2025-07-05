@@ -62,81 +62,149 @@ export const getInvestmentPeriods = (investment: Investment, endDate?: Date): nu
   return Math.max(periods, start <= end ? 1 : 0);
 };
 
-// Calculate compound interest with optional recurring contributions
+// Get the next compounding date based on frequency
+export const getNextCompoundingDate = (currentDate: Date, frequency: CompoundingFrequency): Date => {
+  const nextDate = new Date(currentDate.getTime());
+  
+  switch (frequency) {
+    case CompoundingFrequency.Monthly:
+      nextDate.setMonth(nextDate.getMonth() + 1);
+      break;
+    case CompoundingFrequency.Quarterly:
+      nextDate.setMonth(nextDate.getMonth() + 3);
+      break;
+    case CompoundingFrequency.Annually:
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+      break;
+  }
+  
+  return nextDate;
+};
+
+// Count how many contributions occur between two dates (exclusive of end date)
+export const getContributionsInPeriod = (
+  startDate: Date,
+  endDate: Date,
+  contributionFrequency: CompoundingFrequency
+): number => {
+  let count = 0;
+  let currentDate = new Date(startDate.getTime());
+  
+  // Count contributions that occur on or after start date and before end date
+  while (currentDate < endDate) {
+    count++;
+    currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
+  }
+  
+  return count;
+};
+
+// Calculate compound interest with optional recurring contributions using date-based approach
 export const calculateInvestmentValue = (
   principal: number,
   annualRate: number,
   compoundingPeriod: CompoundingFrequency,
-  periods: number,
+  startDate: Date,
+  endDate: Date,
   recurringContribution: number = 0,
   contributionFrequency: CompoundingFrequency = CompoundingFrequency.Monthly
 ): number => {
-  if (principal <= 0 || annualRate < 0 || periods <= 0) {
+  if (principal <= 0 || annualRate < 0 || endDate <= startDate) {
     return principal;
   }
 
   const periodsPerYear = getPeriodsPerYear(compoundingPeriod);
-  const contributionPeriodsPerYear = getPeriodsPerYear(contributionFrequency);
   const periodRate = annualRate / 100 / periodsPerYear;
 
   let totalValue = principal;
+  let currentDate = new Date(startDate.getTime());
 
-  for (let period = 1; period <= periods; period++) {
-    // Apply compound interest
-    totalValue *= (1 + periodRate);
-
-    // Add recurring contribution if applicable
-    // Check if this period aligns with contribution frequency
-    // The contribution should happen based on how many contribution periods have elapsed
+  // Process each compounding period
+  while (currentDate < endDate) {
+    const nextCompoundDate = getNextCompoundingDate(currentDate, compoundingPeriod);
+    const periodEndDate = nextCompoundDate > endDate ? endDate : nextCompoundDate;
+    
+    // Add all contributions that occur in this compounding period
     if (recurringContribution > 0) {
-      // Calculate how many contribution periods should have occurred by this compounding period
-      const contributionPeriodsElapsed = Math.floor((period * periodsPerYear) / contributionPeriodsPerYear);
-      const previousContributionPeriodsElapsed = Math.floor(((period - 1) * periodsPerYear) / contributionPeriodsPerYear);
-      
-      // If we've crossed into a new contribution period, add the contribution
-      if (contributionPeriodsElapsed > previousContributionPeriodsElapsed) {
-        totalValue += recurringContribution;
-      }
+      const contributionsInPeriod = getContributionsInPeriod(
+        currentDate,
+        periodEndDate,
+        contributionFrequency
+      );
+      totalValue += contributionsInPeriod * recurringContribution;
     }
+
+    // Apply compound interest for this period (only if we've completed a full period)
+    if (nextCompoundDate <= endDate) {
+      totalValue *= (1 + periodRate);
+    } else {
+      // For partial periods, apply pro-rated interest
+      const totalDays = nextCompoundDate.getTime() - currentDate.getTime();
+      const actualDays = endDate.getTime() - currentDate.getTime();
+      const partialRate = periodRate * (actualDays / totalDays);
+      totalValue *= (1 + partialRate);
+    }
+    
+    currentDate = nextCompoundDate;
   }
 
   return Math.round(totalValue * 100) / 100;
 };
 
-// Generate growth projection for an investment
+// Generate growth projection for an investment using date-based calculations
 export const generateInvestmentGrowth = (
   investment: Investment,
-  periods?: number
+  endDate?: Date
 ): InvestmentGrowthEntry[] => {
   const growth: InvestmentGrowthEntry[] = [];
+  const end = endDate ?? new Date();
+  
+  if (!investment.StartDate || end <= investment.StartDate) {
+    return growth;
+  }
+
   const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
-  const contributionPeriodsPerYear = getPeriodsPerYear(investment.ContributionFrequency || CompoundingFrequency.Monthly);
   const periodRate = investment.AverageReturnRate / 100 / periodsPerYear;
-  const totalPeriods = periods ?? getInvestmentPeriods(investment);
   
   let currentValue = investment.StartingBalance;
-  let totalContributions = investment.StartingBalance;
+  let currentDate = new Date(investment.StartDate.getTime());
+  let period = 0;
 
-  for (let period = 1; period <= totalPeriods; period++) {
+  // Process each compounding period
+  while (currentDate < end) {
+    const nextCompoundDate = getNextCompoundingDate(currentDate, investment.CompoundingPeriod);
+    const periodEndDate = nextCompoundDate > end ? end : nextCompoundDate;
+    
+    period++;
     const startingPeriodValue = currentValue;
     
-    // Apply compound interest
-    currentValue *= (1 + periodRate);
-    const interestEarned = currentValue - startingPeriodValue;
-
-    // Add recurring contribution if applicable
+    // Calculate contributions in this period
     let contributionThisPeriod = 0;
-    if ((investment.RecurringContribution || 0) > 0) {
-      // Calculate how many contribution periods should have occurred by this compounding period
-      const contributionPeriodsElapsed = Math.floor((period * periodsPerYear) / contributionPeriodsPerYear);
-      const previousContributionPeriodsElapsed = Math.floor(((period - 1) * periodsPerYear) / contributionPeriodsPerYear);
+    if ((investment.RecurringContribution || 0) > 0 && investment.ContributionFrequency) {
+      contributionThisPeriod = getContributionsInPeriod(
+        currentDate, 
+        periodEndDate, 
+        investment.ContributionFrequency
+      ) * (investment.RecurringContribution || 0);
       
-      // If we've crossed into a new contribution period, add the contribution
-      if (contributionPeriodsElapsed > previousContributionPeriodsElapsed) {
-        contributionThisPeriod = investment.RecurringContribution || 0;
-        currentValue += contributionThisPeriod;
-        totalContributions += contributionThisPeriod;
-      }
+      currentValue += contributionThisPeriod;
+    }
+    
+    // Apply compound interest (full period or pro-rated)
+    let interestEarned = 0;
+    if (nextCompoundDate <= end) {
+      // Full compounding period
+      const valueBeforeInterest = currentValue;
+      currentValue *= (1 + periodRate);
+      interestEarned = currentValue - valueBeforeInterest;
+    } else {
+      // Partial compounding period
+      const totalDays = nextCompoundDate.getTime() - currentDate.getTime();
+      const actualDays = end.getTime() - currentDate.getTime();
+      const partialRate = periodRate * (actualDays / totalDays);
+      const valueBeforeInterest = currentValue;
+      currentValue *= (1 + partialRate);
+      interestEarned = currentValue - valueBeforeInterest;
     }
 
     growth.push({
@@ -145,15 +213,18 @@ export const generateInvestmentGrowth = (
       InterestEarned: Math.round(interestEarned * 100) / 100,
       TotalValue: Math.round(currentValue * 100) / 100,
     });
+    
+    currentDate = nextCompoundDate;
   }
 
   return growth;
 };
 
-// Returns a point-in-time view of an investment
+// Returns a point-in-time view of an investment using date-based calculations
 export const getPitInvestmentCalculation = (investment: Investment, date?: Date): PitInvestment => {
-  const currentPeriods = getInvestmentPeriods(investment, date);
-  const growthEntries = generateInvestmentGrowth(investment, currentPeriods);
+  const endDate = date ?? new Date();
+  const currentPeriods = getInvestmentPeriods(investment, endDate);
+  const growthEntries = generateInvestmentGrowth(investment, endDate);
   
   const totalContributions = investment.StartingBalance + 
     (growthEntries.reduce((sum, entry) => sum + entry.ContributionAmount, 0));
