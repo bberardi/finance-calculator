@@ -8,6 +8,8 @@ export interface Loan {
   CurrentAmount: number;
   MonthlyPayment?: number;
   AmortizationSchedule?: AmortizationScheduleEntry[];
+  // TODO
+  // add actual monthly payment (taxes, insurance, etc)
 }
 
 export const emptyLoan: Loan = {

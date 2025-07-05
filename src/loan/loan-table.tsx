@@ -47,6 +47,47 @@ export const LoanTable = (props: LoanTableProps) => {
     });
   };
 
+  const LoanActions = ({
+    loan,
+    isMobile = false,
+  }: {
+    loan: Loan;
+    isMobile?: boolean;
+  }) => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: isMobile ? 'space-around' : 'flex-start',
+        gap: isMobile ? 0 : 1,
+      }}
+    >
+      <IconButton
+        onClick={() => setSelectedAmortization(loan)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="View Amortization Schedule"
+      >
+        <CalendarMonth />
+      </IconButton>
+      <IconButton
+        onClick={() => setSelectedPit(loan)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="Point-in-Time Calculator"
+      >
+        <Calculate />
+      </IconButton>
+      <IconButton
+        onClick={() => props.onLoanEdit(loan)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="Edit Loan"
+      >
+        <Edit />
+      </IconButton>
+    </Box>
+  );
+
   const LoanCard = ({ loan }: { loan: Loan }) => (
     <Card sx={{ marginBottom: 2 }}>
       <CardContent>
@@ -89,21 +130,8 @@ export const LoanTable = (props: LoanTableProps) => {
             </Typography>
           </Grid>
         </Grid>
-        <Box
-          sx={{ display: 'flex', justifyContent: 'space-around', marginTop: 2 }}
-        >
-          <IconButton
-            onClick={() => setSelectedAmortization(loan)}
-            color="primary"
-          >
-            <CalendarMonth />
-          </IconButton>
-          <IconButton onClick={() => setSelectedPit(loan)} color="primary">
-            <Calculate />
-          </IconButton>
-          <IconButton onClick={() => props.onLoanEdit(loan)} color="primary">
-            <Edit />
-          </IconButton>
+        <Box sx={{ marginTop: 2 }}>
+          <LoanActions loan={loan} isMobile={true} />
         </Box>
       </CardContent>
     </Card>
@@ -156,29 +184,7 @@ export const LoanTable = (props: LoanTableProps) => {
                   </TableCell>
                   <TableCell>{getTerms(row)} months</TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        onClick={() => setSelectedAmortization(row)}
-                        size="small"
-                        title="View Amortization Schedule"
-                      >
-                        <CalendarMonth />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => setSelectedPit(row)}
-                        size="small"
-                        title="Point-in-Time Calculator"
-                      >
-                        <Calculate />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => props.onLoanEdit(row)}
-                        size="small"
-                        title="Edit Loan"
-                      >
-                        <Edit />
-                      </IconButton>
-                    </Box>
+                    <LoanActions loan={row} />
                   </TableCell>
                 </TableRow>
               ))}

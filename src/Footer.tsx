@@ -1,7 +1,7 @@
 export const Footer = () => {
   return (
     <div className="footer">
-      <p>Version 0.0.4</p>
+      <p>Version {APP_VERSION}</p>
     </div>
   );
 };
