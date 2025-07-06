@@ -12,6 +12,10 @@ import { AddEditLoan } from './loan/add-edit-loan';
 import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { generateAmortizationSchedule } from './helpers/loan-helpers';
+import { AddEditInvestment } from './investment/add-edit-investment';
+import { emptyInvestment, Investment } from './models/investment-model';
+import { InvestmentTable } from './investment/investment-table';
+import { generateInvestmentGrowth } from './helpers/investment-helpers';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([
@@ -27,8 +31,11 @@ export const Body = () => {
     //   EndDate: new Date('2054-10-02'),
     // },
   ]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
+  const [isAddInvestmentOpen, setIsAddInvestmentOpen] = useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
+  const [editInvestment, setEditInvestment] = useState<Investment>();
 
   const onLoanAddEdit = (loan?: Loan) => {
     setEditLoan(loan);
@@ -59,6 +66,35 @@ export const Body = () => {
     }
   };
 
+  const onInvestmentAddEdit = (investment?: Investment) => {
+    setEditInvestment(investment);
+    setIsAddInvestmentOpen(true);
+  };
+
+  const onInvestmentAddEditClose = () => {
+    setIsAddInvestmentOpen(false);
+    setEditInvestment(undefined);
+  };
+
+  const onInvestmentAddEditSave = (newInvestment: Investment, oldInvestment?: Investment) => {
+    const updatedInvestment: Investment = {
+      ...newInvestment,
+      ProjectedGrowth: generateInvestmentGrowth(newInvestment),
+    };
+
+    if (!oldInvestment) {
+      setInvestments([...investments, updatedInvestment]);
+    } else {
+      const filteredInvestments = investments.filter((i) => i != oldInvestment);
+
+      if (newInvestment !== emptyInvestment) {
+        setInvestments([...filteredInvestments, updatedInvestment]);
+      } else {
+        setInvestments(filteredInvestments);
+      }
+    }
+  };
+
   return (
     <Container>
       <AppBar
@@ -79,6 +115,14 @@ export const Body = () => {
           >
             Add Loan
           </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            sx={{ margin: '5px' }}
+            onClick={() => onInvestmentAddEdit()}
+          >
+            Add Investment
+          </Button>
         </Toolbar>
       </AppBar>
 
@@ -93,11 +137,29 @@ export const Body = () => {
         )}
       </Paper>
 
+      <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
+        <Divider>Investments</Divider>
+        {investments.length > 0 ? (
+          <InvestmentTable investments={investments} onInvestmentEdit={onInvestmentAddEdit} />
+        ) : (
+          <Typography sx={{ marginTop: '25px', marginBottom: '15px' }}>
+            No investments yet, add one from the command bar!
+          </Typography>
+        )}
+      </Paper>
+
       <AddEditLoan
         open={isAddLoanOpen}
         onSave={onLoanAddEditSave}
         onClose={onLoanAddEditClose}
         loan={editLoan}
+      />
+
+      <AddEditInvestment
+        open={isAddInvestmentOpen}
+        onSave={onInvestmentAddEditSave}
+        onClose={onInvestmentAddEditClose}
+        investment={editInvestment}
       />
     </Container>
   );
