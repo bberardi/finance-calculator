@@ -39,11 +39,13 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
     }
     props.onSave(newLoan, props.loan);
     props.onClose();
+    setNewLoan(emptyLoan);
   };
 
   const onDelete = () => {
     props.onSave(emptyLoan, props.loan);
     props.onClose();
+    setNewLoan(emptyLoan);
   };
 
   useEffect(() => {

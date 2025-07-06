@@ -13,7 +13,11 @@ import {
   Select,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { emptyInvestment, Investment, CompoundingFrequency } from '../models/investment-model';
+import {
+  emptyInvestment,
+  Investment,
+  CompoundingFrequency,
+} from '../models/investment-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { NumericFormat } from 'react-number-format';
@@ -21,7 +25,8 @@ import { Delete } from '@mui/icons-material';
 import { generateInvestmentGrowth } from '../helpers/investment-helpers';
 
 export const AddEditInvestment = (props: AddEditInvestmentProps) => {
-  const [newInvestment, setNewInvestment] = useState<Investment>(emptyInvestment);
+  const [newInvestment, setNewInvestment] =
+    useState<Investment>(emptyInvestment);
 
   const isFormValid = () => {
     return (
@@ -39,11 +44,13 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
     }
     props.onSave(newInvestment, props.investment);
     props.onClose();
+    setNewInvestment(emptyInvestment);
   };
 
   const onDelete = () => {
     props.onSave(emptyInvestment, props.investment);
     props.onClose();
+    setNewInvestment(emptyInvestment);
   };
 
   useEffect(() => {
@@ -74,37 +81,22 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   return (
     <Popover
       open={props.open}
-      anchorReference="none"
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+      onClose={props.onClose}
+      anchorOrigin={{
+        vertical: 'center',
+        horizontal: 'center',
       }}
-      slotProps={{
-        paper: {
-          sx: {
-            backgroundColor: 'rgba(0, 0, 0, 0.1)',
-            width: { xs: '95vw', sm: '90vw', md: '600px' },
-            maxWidth: '600px',
-            maxHeight: { xs: '95vh', sm: '90vh' },
-            overflow: 'auto',
-          },
-        },
+      transformOrigin={{
+        vertical: 'center',
+        horizontal: 'center',
       }}
     >
-      <Card sx={{ width: '100%', margin: { xs: '10px', sm: '20px' } }}>
+      <Card>
         <CardContent>
-          <Typography variant="h6" component="div" sx={{ marginBottom: '15px' }}>
+          <Typography variant="h5" gutterBottom textAlign="center">
             {!props.investment ? 'Add Investment' : 'Edit Investment'}
           </Typography>
-          <Box
-            component="form"
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
+          <Box display="flex" flexDirection="column" gap={2}>
             <TextField
               label="Investment Name"
               value={newInvestment.Name}
@@ -129,7 +121,10 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
               prefix={'$'}
               customInput={TextField}
               onValueChange={(vs) => {
-                setNewInvestment({ ...newInvestment, StartingBalance: Number(vs.value) });
+                setNewInvestment({
+                  ...newInvestment,
+                  StartingBalance: Number(vs.value),
+                });
               }}
               required
             />
@@ -172,9 +167,11 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                   })
                 }
               >
-                <MenuItem value={CompoundingFrequency.Monthly}>Monthly</MenuItem>
-                <MenuItem value={CompoundingFrequency.Quarterly}>Quarterly</MenuItem>
-                <MenuItem value={CompoundingFrequency.Annually}>Annually</MenuItem>
+                {Object.entries(CompoundingFrequency).map(([key, value]) => (
+                  <MenuItem key={key} value={value}>
+                    {key}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
             <NumericFormat
@@ -185,31 +182,42 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
               prefix={'$'}
               customInput={TextField}
               onValueChange={(vs) => {
-                setNewInvestment({ 
-                  ...newInvestment, 
-                  RecurringContribution: vs.value ? Number(vs.value) : undefined 
+                setNewInvestment({
+                  ...newInvestment,
+                  RecurringContribution: vs.value
+                    ? Number(vs.value)
+                    : undefined,
                 });
               }}
             />
-              {newInvestment.RecurringContribution && newInvestment.RecurringContribution > 0 && (
-              <FormControl fullWidth>
-                <InputLabel>Contribution Frequency</InputLabel>
-                <Select
-                  value={newInvestment.ContributionFrequency || CompoundingFrequency.Monthly}
-                  label="Contribution Frequency"
-                  onChange={(e) =>
-                    setNewInvestment({
-                      ...newInvestment,
-                      ContributionFrequency: e.target.value as CompoundingFrequency,
-                    })
-                  }
-                >
-                  <MenuItem value={CompoundingFrequency.Monthly}>Monthly</MenuItem>
-                  <MenuItem value={CompoundingFrequency.Quarterly}>Quarterly</MenuItem>
-                  <MenuItem value={CompoundingFrequency.Annually}>Annually</MenuItem>
-                </Select>
-              </FormControl>
-            )}
+            {typeof newInvestment.RecurringContribution === 'number' &&
+              newInvestment.RecurringContribution > 0 && (
+                <FormControl fullWidth>
+                  <InputLabel>Contribution Frequency</InputLabel>
+                  <Select
+                    value={
+                      newInvestment.ContributionFrequency ||
+                      CompoundingFrequency.Monthly
+                    }
+                    label="Contribution Frequency"
+                    onChange={(e) =>
+                      setNewInvestment({
+                        ...newInvestment,
+                        ContributionFrequency: e.target
+                          .value as CompoundingFrequency,
+                      })
+                    }
+                  >
+                    {Object.entries(CompoundingFrequency).map(
+                      ([key, value]) => (
+                        <MenuItem key={key} value={value}>
+                          {key}
+                        </MenuItem>
+                      )
+                    )}
+                  </Select>
+                </FormControl>
+              )}
             <Stack direction="row">
               {props.investment && (
                 <Button
