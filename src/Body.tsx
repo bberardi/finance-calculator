@@ -6,6 +6,8 @@ import {
   Paper,
   Toolbar,
   Typography,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import { useState } from 'react';
 import { AddEditLoan } from './loan/add-edit-loan';
@@ -13,27 +15,95 @@ import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { generateAmortizationSchedule } from './helpers/loan-helpers';
 import { AddEditInvestment } from './investment/add-edit-investment';
-import { emptyInvestment, Investment } from './models/investment-model';
+import {
+  CompoundingFrequency,
+  emptyInvestment,
+  Investment,
+} from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { generateInvestmentGrowth } from './helpers/investment-helpers';
 
 export const Body = () => {
-  const [loans, setLoans] = useState<Loan[]>([
-    // TODO delete this starter
-    // {
-    //   Name: 'Test Loan 1',
-    //   Provider: 'Fake Provider',
-    //   InterestRate: 5,
-    //   Principal: 300000,
-    //   CurrentAmount: 300000,
-    //   MonthlyPayment: 1610.46,
-    //   StartDate: new Date('2024-11-02'),
-    //   EndDate: new Date('2054-10-02'),
-    // },
-  ]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [testDataEnabled, setTestDataEnabled] = useState<boolean>(false);
+
+  // Fake data for testing
+  const fakeLoans: Loan[] = [
+    {
+      Name: 'Test Loan 1',
+      Provider: 'Fake Provider',
+      InterestRate: 5,
+      Principal: 300000,
+      CurrentAmount: 300000,
+      MonthlyPayment: 1610.46,
+      StartDate: new Date('2024-11-02'),
+      EndDate: new Date('2054-10-02'),
+      AmortizationSchedule: [],
+    },
+    {
+      Name: 'Test Loan 2',
+      Provider: 'Sample Bank',
+      InterestRate: 3.5,
+      Principal: 150000,
+      CurrentAmount: 120000,
+      MonthlyPayment: 900.12,
+      StartDate: new Date('2022-01-01'),
+      EndDate: new Date('2042-01-01'),
+      AmortizationSchedule: [],
+    },
+  ];
+
+  const fakeInvestments: Investment[] = [
+    {
+      Name: 'Test Investment 1',
+      Provider: 'Fake Investment Co.',
+      StartingBalance: 10000,
+      CurrentValue: 12500,
+      AverageReturnRate: 5.5,
+      CompoundingPeriod: CompoundingFrequency.Annually,
+      StartDate: new Date('2020-01-01'),
+      ProjectedGrowth: [],
+    },
+    {
+      Name: 'Test Investment 2',
+      Provider: 'Sample Fund',
+      StartingBalance: 5000,
+      AverageReturnRate: 2.1,
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+      StartDate: new Date('2021-06-15'),
+      ProjectedGrowth: [],
+      RecurringContribution: 50,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    },
+  ];
+
+  // Toggle handler for test data
+  const handleToggleTestData = () => {
+    if (!testDataEnabled) {
+      // Add fake data
+      setLoans(
+        fakeLoans.map((l) => ({
+          ...l,
+          AmortizationSchedule: generateAmortizationSchedule(l),
+        }))
+      );
+      setInvestments(
+        fakeInvestments.map((i) => ({
+          ...i,
+          ProjectedGrowth: generateInvestmentGrowth(i),
+        }))
+      );
+    } else {
+      // Remove all data
+      setLoans([]);
+      setInvestments([]);
+    }
+    setTestDataEnabled(!testDataEnabled);
+  };
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
-  const [isAddInvestmentOpen, setIsAddInvestmentOpen] = useState<boolean>(false);
+  const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
+    useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
   const [editInvestment, setEditInvestment] = useState<Investment>();
 
@@ -76,7 +146,10 @@ export const Body = () => {
     setEditInvestment(undefined);
   };
 
-  const onInvestmentAddEditSave = (newInvestment: Investment, oldInvestment?: Investment) => {
+  const onInvestmentAddEditSave = (
+    newInvestment: Investment,
+    oldInvestment?: Investment
+  ) => {
     const updatedInvestment: Investment = {
       ...newInvestment,
       ProjectedGrowth: generateInvestmentGrowth(newInvestment),
@@ -123,6 +196,19 @@ export const Body = () => {
           >
             Add Investment
           </Button>
+          <div style={{ flex: 1 }} />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={testDataEnabled}
+                onChange={handleToggleTestData}
+                color="secondary"
+              />
+            }
+            label={'Test Data'}
+            labelPlacement="start"
+            sx={{ margin: '5px' }}
+          />
         </Toolbar>
       </AppBar>
 
@@ -140,7 +226,10 @@ export const Body = () => {
       <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
         <Divider>Investments</Divider>
         {investments.length > 0 ? (
-          <InvestmentTable investments={investments} onInvestmentEdit={onInvestmentAddEdit} />
+          <InvestmentTable
+            investments={investments}
+            onInvestmentEdit={onInvestmentAddEdit}
+          />
         ) : (
           <Typography sx={{ marginTop: '25px', marginBottom: '15px' }}>
             No investments yet, add one from the command bar!
