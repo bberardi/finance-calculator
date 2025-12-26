@@ -18,10 +18,13 @@ import {
 import { Investment, CompoundingFrequency } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { Calculate, Edit, TrendingUp } from '@mui/icons-material';
+import { useState } from 'react';
+import { PitPopout } from './pit-popout';
+import { GrowthSchedulePopout } from './growth-schedule-popout';
 
 export const InvestmentTable = (props: InvestmentTableProps) => {
-  // const [selectedPit, setSelectedPit] = useState<Investment | undefined>();
-  // const [selectedGrowth, setSelectedGrowth] = useState<Investment | undefined>();
+  const [selectedPit, setSelectedPit] = useState<Investment | undefined>();
+  const [selectedGrowth, setSelectedGrowth] = useState<Investment | undefined>();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -52,22 +55,25 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   const InvestmentActions = ({ investment }: { investment: Investment }) => (
     <Box>
       <IconButton
-        onClick={() => props.onInvestmentEdit(investment)}
+        onClick={() => setSelectedGrowth(investment)}
         color="primary"
+        title="View Growth Schedule"
       >
-        <Edit />
+        <TrendingUp />
       </IconButton>
       <IconButton
-        onClick={() => {/* TODO: setSelectedPit(investment) */}}
-        color="secondary"
+        onClick={() => setSelectedPit(investment)}
+        color="primary"
+        title="Point-in-Time Calculator"
       >
         <Calculate />
       </IconButton>
       <IconButton
-        onClick={() => {/* TODO: setSelectedGrowth(investment) */}}
-        color="info"
+        onClick={() => props.onInvestmentEdit(investment)}
+        color="primary"
+        title="Edit Investment"
       >
-        <TrendingUp />
+        <Edit />
       </IconButton>
     </Box>
   );
@@ -137,8 +143,19 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 
   return (
     <>
-      {/* TODO: Add PIT and Growth popouts similar to loans when needed */}
-      
+      {selectedPit && (
+        <PitPopout
+          investment={selectedPit}
+          onClose={() => setSelectedPit(undefined)}
+        />
+      )}
+      {selectedGrowth && (
+        <GrowthSchedulePopout
+          investment={selectedGrowth}
+          onClose={() => setSelectedGrowth(undefined)}
+        />
+      )}
+
       {isMobile ? (
         <Box>
           {props.investments.map((investment) => (

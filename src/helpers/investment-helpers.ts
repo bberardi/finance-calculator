@@ -176,7 +176,6 @@ export const generateInvestmentGrowth = (
     const periodEndDate = nextCompoundDate > end ? end : nextCompoundDate;
     
     period++;
-    const startingPeriodValue = currentValue;
     
     // Calculate contributions in this period
     let contributionThisPeriod = 0;
