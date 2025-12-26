@@ -65,7 +65,7 @@ export const PitPopout = (props: PitPopoutProps) => {
                 label="Projection Date"
                 value={dayjs(selectedDate)}
                 onChange={(date: Dayjs | null) =>
-                  setSelectedDate(date?.toDate() ?? new Date())
+                  setSelectedDate(date?.toDate() ?? props.investment.StartDate)
                 }
                 minDate={dayjs(props.investment.StartDate)}
                 views={['year']}

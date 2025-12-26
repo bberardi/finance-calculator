@@ -52,11 +52,24 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     }
   };
 
-  const InvestmentActions = ({ investment }: { investment: Investment }) => (
-    <Box>
+  const InvestmentActions = ({ 
+    investment,
+    isMobile = false,
+  }: { 
+    investment: Investment;
+    isMobile?: boolean;
+  }) => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: isMobile ? 'space-around' : 'flex-start',
+        gap: isMobile ? 0 : 1,
+      }}
+    >
       <IconButton
         onClick={() => setSelectedGrowth(investment)}
         color="primary"
+        size={isMobile ? 'medium' : 'small'}
         title="View Growth Schedule"
       >
         <TrendingUp />
@@ -64,6 +77,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
       <IconButton
         onClick={() => setSelectedPit(investment)}
         color="primary"
+        size={isMobile ? 'medium' : 'small'}
         title="Point-in-Time Calculator"
       >
         <Calculate />
@@ -71,6 +85,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
       <IconButton
         onClick={() => props.onInvestmentEdit(investment)}
         color="primary"
+        size={isMobile ? 'medium' : 'small'}
         title="Edit Investment"
       >
         <Edit />
@@ -135,7 +150,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
           <Typography variant="body2">
             <strong>Periods:</strong> {getInvestmentPeriods(investment)}
           </Typography>
-          <InvestmentActions investment={investment} />
+          <InvestmentActions investment={investment} isMobile={isMobile} />
         </Box>
       </CardContent>
     </Card>
@@ -190,7 +205,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                       : 'None'}
                   </TableCell>
                   <TableCell>
-                    <InvestmentActions investment={row} />
+                    <InvestmentActions investment={row} isMobile={false} />
                   </TableCell>
                 </TableRow>
               ))}

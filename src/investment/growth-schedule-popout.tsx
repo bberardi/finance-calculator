@@ -47,7 +47,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
       acc[yearIndex] = {
         year: yearIndex + 1,
         date: periodDate.format('YYYY'),
-        totalInvested: props.investment.StartingBalance,
+        totalInvested: 0,
         interestAccrued: 0,
         balance: 0,
       };
@@ -60,6 +60,11 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
     
     return acc;
   }, []);
+  
+  // Add starting balance to the first year only
+  if (yearlySchedule.length > 0) {
+    yearlySchedule[0].totalInvested += props.investment.StartingBalance;
+  }
 
   return (
     <Popover
