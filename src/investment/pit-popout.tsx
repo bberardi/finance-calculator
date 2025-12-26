@@ -62,7 +62,7 @@ export const PitPopout = (props: PitPopoutProps) => {
           <Box display="flex" flexDirection="column" gap={2}>
             <Stack direction="row">
               <DatePicker
-                label="Date"
+                label="Projection Date"
                 value={dayjs(selectedDate)}
                 onChange={(date: Dayjs | null) =>
                   setSelectedDate(date?.toDate() ?? new Date())
