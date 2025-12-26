@@ -15,12 +15,20 @@ import { Investment } from '../models/investment-model';
 import { generateInvestmentGrowth, getPeriodsPerYear } from '../helpers/investment-helpers';
 import dayjs from 'dayjs';
 
+type YearlyScheduleEntry = {
+  year: number;
+  date: string;
+  totalInvested: number;
+  interestAccrued: number;
+  balance: number;
+};
+
 export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   const schedule = props.investment.ProjectedGrowth ?? generateInvestmentGrowth(props.investment);
   const periodsPerYear = getPeriodsPerYear(props.investment.CompoundingPeriod);
 
   // Group by year and show yearly totals
-  const yearlySchedule = schedule.reduce((acc: any[], entry) => {
+  const yearlySchedule = schedule.reduce((acc: YearlyScheduleEntry[], entry) => {
     const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
     // Calculate period date based on frequency
     let periodDate = dayjs(props.investment.StartDate);

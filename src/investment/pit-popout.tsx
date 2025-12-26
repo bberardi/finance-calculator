@@ -10,9 +10,9 @@ import {
 import { useEffect, useState } from 'react';
 import { defaultPitInvestment, Investment, PitInvestment } from '../models/investment-model';
 import { DatePicker } from '@mui/x-date-pickers';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import { getPitInvestmentCalculation } from '../helpers/investment-helpers';
-import { NumericFormat } from 'react-number-format';
+import { NumericFormat, NumberFormatValues } from 'react-number-format';
 
 export const PitPopout = (props: PitPopoutProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -64,7 +64,7 @@ export const PitPopout = (props: PitPopoutProps) => {
               <DatePicker
                 label="Date"
                 value={dayjs(selectedDate)}
-                onChange={(date: any) =>
+                onChange={(date: Dayjs | null) =>
                   setSelectedDate(date?.toDate() ?? new Date())
                 }
                 minDate={dayjs(props.investment.StartDate)}
@@ -77,7 +77,7 @@ export const PitPopout = (props: PitPopoutProps) => {
                 thousandSeparator
                 decimalScale={2}
                 customInput={TextField}
-                onValueChange={(vs: any) => {
+                onValueChange={(vs: NumberFormatValues) => {
                   handleYearsChange(Number(vs.value));
                 }}
                 sx={{ flex: 2 }}
