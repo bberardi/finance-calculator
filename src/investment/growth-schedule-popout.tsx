@@ -24,7 +24,7 @@ type YearlyScheduleEntry = {
 };
 
 export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
-  // Generate 30-year projection from current date
+  // Generate schedule from investment start through 30 years into the future from today
   const endDate = dayjs().add(30, 'years').toDate();
   // Always generate fresh schedule with 30-year projection
   const schedule = generateInvestmentGrowth(props.investment, endDate);
