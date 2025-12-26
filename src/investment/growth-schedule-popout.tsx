@@ -24,7 +24,10 @@ type YearlyScheduleEntry = {
 };
 
 export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
-  const schedule = props.investment.ProjectedGrowth ?? generateInvestmentGrowth(props.investment);
+  // Generate 30-year projection from current date
+  const endDate = dayjs().add(30, 'years').toDate();
+  // Always generate fresh schedule with 30-year projection
+  const schedule = generateInvestmentGrowth(props.investment, endDate);
   const periodsPerYear = getPeriodsPerYear(props.investment.CompoundingPeriod);
 
   // Group by year and show yearly totals
