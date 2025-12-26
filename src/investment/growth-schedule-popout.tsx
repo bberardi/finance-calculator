@@ -33,13 +33,13 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   // Group by year and show yearly totals
   const yearlySchedule = schedule.reduce((acc: YearlyScheduleEntry[], entry) => {
     const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
-    // Calculate period date based on frequency
+    // Calculate period date based on compounding frequency
     let periodDate = dayjs(props.investment.StartDate);
-    if (periodsPerYear === 12) {
-      periodDate = periodDate.add(entry.Period - 1, 'months');
-    } else if (periodsPerYear === 4) {
-      periodDate = periodDate.add((entry.Period - 1) * 3, 'months');
+    if (periodsPerYear > 0 && 12 % periodsPerYear === 0) {
+      const monthsPerPeriod = 12 / periodsPerYear;
+      periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
     } else {
+      // Fallback: treat as yearly compounding to preserve previous behavior
       periodDate = periodDate.add(entry.Period - 1, 'years');
     }
     
