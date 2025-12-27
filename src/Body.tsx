@@ -169,7 +169,7 @@ export const Body = () => {
   };
 
   return (
-    <Container>
+    <Container className="body" sx={{ height: '100%', overflow: 'auto' }}>
       <AppBar
         position="static"
         sx={{

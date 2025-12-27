@@ -17,6 +17,7 @@ function App() {
               flexGrow: 1,
               display: 'flex',
               flexDirection: 'column',
+              overflow: 'hidden',
             }}
           >
             <Body />
