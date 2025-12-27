@@ -24,14 +24,8 @@ type YearlyScheduleEntry = {
 };
 
 export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
-  // NOTE:
-  // This growth schedule is designed to always project 30 years into the future
-  // from "today" (the time the schedule is generated), not 30 years from the
-  // investment StartDate. As a result, if the investment started in the past,
-  // the schedule can include more than 30 years of data (historical + 30 future).
-  // This differs from loan amortization schedules (which usually run strictly
-  // from loan start to loan end), but is intentional so users always see a
-  // 30‑year forward-looking projection from the current date.
+  // Project 30 years from today (when the schedule is generated), not from StartDate,
+  // so investments that started in the past can show historical periods plus 30 future years.
   const endDate = dayjs().add(30, 'years').toDate();
   // Always generate fresh schedule with 30-year projection (from "today")
   const schedule = generateInvestmentGrowth(props.investment, endDate);

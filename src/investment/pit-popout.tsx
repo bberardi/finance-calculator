@@ -19,15 +19,11 @@ export const PitPopout = (props: PitPopoutProps) => {
   const [pitInvestment, setPitInvestment] = useState<PitInvestment>(defaultPitInvestment);
 
   const handleYearsChange = (newYears: number) => {
-    if (newYears < 0) {
-      setSelectedDate(dayjs(props.investment.StartDate).toDate());
-    } else {
-      setSelectedDate(
-        dayjs(props.investment.StartDate)
-          .add(newYears, 'years')
-          .toDate()
-      );
-    }
+    setSelectedDate(
+      dayjs(props.investment.StartDate)
+        .add(newYears, 'years')
+        .toDate()
+    );
   };
 
   const getYearsFromStart = (date: Date): number => {
@@ -68,7 +64,7 @@ export const PitPopout = (props: PitPopoutProps) => {
                   setSelectedDate(date?.toDate() ?? props.investment.StartDate)
                 }
                 minDate={dayjs(props.investment.StartDate).startOf('year')}
-                views={['year']}
+                views={['year', 'month']}
                 sx={{ flex: 4 }}
               />
               <NumericFormat
