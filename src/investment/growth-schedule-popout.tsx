@@ -12,7 +12,10 @@ import {
   Typography,
 } from '@mui/material';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
-import { generateInvestmentGrowth, getPeriodsPerYear } from '../helpers/investment-helpers';
+import {
+  generateInvestmentGrowth,
+  getPeriodsPerYear,
+} from '../helpers/investment-helpers';
 import dayjs from 'dayjs';
 
 type ScheduleEntry = {
@@ -64,10 +67,14 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   const scheduleEntries: ScheduleEntry[] = schedule.map((entry) => {
     const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
     // Period 0 is the initial state, so use start date
-    let periodDate = entry.Period === 0 
-      ? dayjs(props.investment.StartDate)
-      : dayjs(props.investment.StartDate).add((entry.Period) * monthsPerPeriod, 'months');
-    
+    let periodDate =
+      entry.Period === 0
+        ? dayjs(props.investment.StartDate)
+        : dayjs(props.investment.StartDate).add(
+            entry.Period * monthsPerPeriod,
+            'months'
+          );
+
     // For end-of-period calculations, we want to show the end of the period
     // E.g., if start is 6/15/2022, period 1 should show end of first period
     // Period 0 uses the start date as-is

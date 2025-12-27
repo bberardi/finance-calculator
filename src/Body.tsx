@@ -177,7 +177,8 @@ export const Body = () => {
           marginTop: '15px',
           marginBottom: '15px',
           overflow: 'hidden',
-          background: 'linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 50%, #1e3a5f 100%)',
+          background:
+            'linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 50%, #1e3a5f 100%)',
           boxShadow: '0 8px 32px rgba(58, 123, 200, 0.3)',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.1)',

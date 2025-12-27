@@ -187,7 +187,8 @@ export const LoanTable = (props: LoanTableProps) => {
             <TableHead>
               <TableRow
                 sx={{
-                  background: 'linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 100%)',
+                  background:
+                    'linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 100%)',
                   '& .MuiTableCell-head': {
                     color: 'white',
                     fontWeight: 600,
