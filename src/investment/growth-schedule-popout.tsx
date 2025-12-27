@@ -34,7 +34,8 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   // Group by year and show yearly totals
   const yearlyScheduleMap = schedule.reduce(
     (acc: Map<number, YearlyScheduleEntry>, entry) => {
-      const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
+      // Period 0 is the initial state, subsequent periods map to years
+      const yearIndex = entry.Period === 0 ? 0 : Math.floor((entry.Period - 1) / periodsPerYear) + 1;
       // Calculate period date based on compounding frequency.
       // getPeriodsPerYear currently returns values that evenly divide 12 (e.g., 1, 4, 12),
       // so we can safely compute monthsPerPeriod directly.
@@ -45,7 +46,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
       let yearEntry = acc.get(yearIndex);
       if (!yearEntry) {
         yearEntry = {
-          year: yearIndex + 1,
+          year: yearIndex,
           date: periodDate.format('YYYY'),
           totalInvested: 0,
           interestAccrued: 0,
@@ -68,8 +69,8 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
     (a, b) => a.year - b.year
   );
   
-  // Add starting balance to the first year only
-  if (yearlySchedule.length > 0) {
+  // Add starting balance to Period 0 (year 0)
+  if (yearlySchedule.length > 0 && yearlySchedule[0].year === 0) {
     yearlySchedule[0].totalInvested += props.investment.StartingBalance;
   }
 

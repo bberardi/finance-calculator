@@ -170,6 +170,14 @@ export const generateInvestmentGrowth = (
   let currentDate = new Date(investment.StartDate.getTime());
   let period = 0;
 
+  // Add Period 0 - the initial state with no interest accrued
+  growth.push({
+    Period: 0,
+    ContributionAmount: 0,
+    InterestEarned: 0,
+    TotalValue: Math.round(currentValue * 100) / 100,
+  });
+
   // Process each compounding period
   while (currentDate < end) {
     const nextCompoundDate = getNextCompoundingDate(currentDate, investment.CompoundingPeriod);
