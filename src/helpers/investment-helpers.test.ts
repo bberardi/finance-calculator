@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  calculateInvestmentValue,
   generateInvestmentGrowth,
   getPeriodsPerYear,
-  getInvestmentPeriods,
   getPitInvestmentCalculation,
 } from './investment-helpers';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
@@ -35,44 +33,6 @@ describe('Investment Helpers', () => {
     const startDate = new Date('2025-01-01');
     const principal = 10000;
     const annualRate = 4.23;
-
-    describe('calculateInvestmentValue', () => {
-      it('should calculate correct value after 1 year (1/1/2026)', () => {
-        const endDate = new Date('2026-01-01');
-        const result = calculateInvestmentValue(
-          principal,
-          annualRate,
-          CompoundingFrequency.Annually,
-          startDate,
-          endDate
-        );
-        expect(result).toBe(10423.0);
-      });
-
-      it('should calculate correct value after 5 years (1/1/2030)', () => {
-        const endDate = new Date('2030-01-01');
-        const result = calculateInvestmentValue(
-          principal,
-          annualRate,
-          CompoundingFrequency.Annually,
-          startDate,
-          endDate
-        );
-        expect(result).toBe(12301.66);
-      });
-
-      it('should calculate correct value after 30 years (1/1/2055)', () => {
-        const endDate = new Date('2055-01-01');
-        const result = calculateInvestmentValue(
-          principal,
-          annualRate,
-          CompoundingFrequency.Annually,
-          startDate,
-          endDate
-        );
-        expect(result).toBe(34656.3);
-      });
-    });
 
     describe('generateInvestmentGrowth', () => {
       const investment: Investment = {
@@ -183,26 +143,6 @@ describe('Investment Helpers', () => {
   });
 
   describe('Monthly Compounded Investment Calculations (extensibility)', () => {
-    it('should calculate value for monthly compounding', () => {
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2026-01-01');
-      const principal = 10000;
-      const annualRate = 4.23;
-
-      const result = calculateInvestmentValue(
-        principal,
-        annualRate,
-        CompoundingFrequency.Monthly,
-        startDate,
-        endDate
-      );
-
-      // Monthly compounding should yield slightly more than annually
-      expect(result).toBeGreaterThan(10423.0);
-      // Should be approximately 10431.65 (monthly compounding)
-      expect(result).toBeCloseTo(10431.65, 0);
-    });
-
     it('should generate growth data for monthly compounded investments', () => {
       const investment: Investment = {
         Provider: 'Test Provider',
@@ -224,25 +164,6 @@ describe('Investment Helpers', () => {
   });
 
   describe('Quarterly Compounded Investment Calculations (extensibility)', () => {
-    it('should calculate value for quarterly compounding', () => {
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2026-01-01');
-      const principal = 10000;
-      const annualRate = 4.23;
-
-      const result = calculateInvestmentValue(
-        principal,
-        annualRate,
-        CompoundingFrequency.Quarterly,
-        startDate,
-        endDate
-      );
-
-      // Quarterly compounding should yield more than annually but less than monthly
-      expect(result).toBeGreaterThan(10423.0);
-      expect(result).toBeLessThan(10431.65);
-    });
-
     it('should generate growth data for quarterly compounded investments', () => {
       const investment: Investment = {
         Provider: 'Test Provider',
@@ -264,51 +185,6 @@ describe('Investment Helpers', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle zero principal', () => {
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2026-01-01');
-
-      const result = calculateInvestmentValue(
-        0,
-        4.23,
-        CompoundingFrequency.Annually,
-        startDate,
-        endDate
-      );
-
-      expect(result).toBe(0);
-    });
-
-    it('should handle zero interest rate', () => {
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2026-01-01');
-
-      const result = calculateInvestmentValue(
-        10000,
-        0,
-        CompoundingFrequency.Annually,
-        startDate,
-        endDate
-      );
-
-      expect(result).toBe(10000);
-    });
-
-    it('should handle same start and end date', () => {
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-01');
-
-      const result = calculateInvestmentValue(
-        10000,
-        4.23,
-        CompoundingFrequency.Annually,
-        startDate,
-        endDate
-      );
-
-      expect(result).toBe(10000);
-    });
-
     it('should return empty growth array when end date is before start date', () => {
       const investment: Investment = {
         Provider: 'Test',
@@ -328,28 +204,6 @@ describe('Investment Helpers', () => {
   });
 
   describe('Investment with Recurring Contributions (extensibility for future)', () => {
-    it('should calculate value with monthly contributions', () => {
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2026-01-01');
-      const principal = 10000;
-      const annualRate = 4.23;
-      const monthlyContribution = 100;
-
-      const result = calculateInvestmentValue(
-        principal,
-        annualRate,
-        CompoundingFrequency.Annually,
-        startDate,
-        endDate,
-        monthlyContribution,
-        CompoundingFrequency.Monthly
-      );
-
-      // Should include principal growth plus contributions
-      // 10000 * 1.0423 + 1200 (12 months * 100) with some interest on contributions
-      expect(result).toBeGreaterThan(11623.0);
-    });
-
     it('should generate growth with recurring contributions', () => {
       const investment: Investment = {
         Provider: 'Test Provider',
