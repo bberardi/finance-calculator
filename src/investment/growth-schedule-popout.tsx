@@ -41,15 +41,12 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   const yearlyScheduleMap = schedule.reduce(
     (acc: Map<number, YearlyScheduleEntry>, entry) => {
       const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
-      // Calculate period date based on compounding frequency
+      // Calculate period date based on compounding frequency.
+      // getPeriodsPerYear currently returns values that evenly divide 12 (e.g., 1, 4, 12),
+      // so we can safely compute monthsPerPeriod directly.
       let periodDate = dayjs(props.investment.StartDate);
-      if (periodsPerYear > 0 && 12 % periodsPerYear === 0) {
-        const monthsPerPeriod = 12 / periodsPerYear;
-        periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
-      } else {
-        // Fallback: treat as yearly compounding to preserve previous behavior
-        periodDate = periodDate.add(entry.Period - 1, 'years');
-      }
+      const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
+      periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
 
       let yearEntry = acc.get(yearIndex);
       if (!yearEntry) {
@@ -108,7 +105,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
                   <TableCell>Year</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Total Invested</TableCell>
-                  <TableCell>Interest Accrued</TableCell>
+                  <TableCell>Interest This Year</TableCell>
                   <TableCell>Balance</TableCell>
                 </TableRow>
               </TableHead>

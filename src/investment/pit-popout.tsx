@@ -80,6 +80,10 @@ export const PitPopout = (props: PitPopoutProps) => {
                 onValueChange={(vs: NumberFormatValues) => {
                   handleYearsChange(Number(vs.value));
                 }}
+                isAllowed={(values) => {
+                  const { floatValue } = values;
+                  return floatValue === undefined || floatValue >= 0;
+                }}
                 sx={{ flex: 2 }}
               />
             </Stack>
