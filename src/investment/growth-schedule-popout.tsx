@@ -60,27 +60,36 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   };
 
   // For monthly and quarterly, show individual periods; for annual, group by year
+  let cumulativeInvested = props.investment.StartingBalance;
   const scheduleEntries: ScheduleEntry[] = schedule.map((entry) => {
     const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
     let periodDate = dayjs(props.investment.StartDate).add((entry.Period - 1) * monthsPerPeriod, 'months');
     
     // For end-of-period calculations, we want to show the end of the period
     // E.g., if start is 6/15/2022, period 1 should show end of first period
-    periodDate = periodDate.endOf('month');
+    switch (props.investment.CompoundingPeriod) {
+      case CompoundingFrequency.Monthly:
+        periodDate = periodDate.endOf('month');
+        break;
+      case CompoundingFrequency.Quarterly:
+        // For quarterly, end of the quarter month
+        periodDate = periodDate.endOf('month');
+        break;
+      case CompoundingFrequency.Annually:
+        periodDate = periodDate.endOf('year');
+        break;
+    }
+
+    cumulativeInvested += entry.ContributionAmount;
 
     return {
       period: entry.Period,
       date: periodDate.format(getDateFormat()),
-      totalInvested: entry.ContributionAmount,
+      totalInvested: cumulativeInvested,
       interestAccrued: entry.InterestEarned,
       balance: entry.TotalValue,
     };
   });
-
-  // Add starting balance to the first period only
-  if (scheduleEntries.length > 0) {
-    scheduleEntries[0].totalInvested += props.investment.StartingBalance;
-  }
 
   return (
     <Popover
