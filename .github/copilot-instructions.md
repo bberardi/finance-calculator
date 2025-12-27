@@ -9,7 +9,7 @@ PathWise is a finance calculator web application that allows users to view and p
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
 - **UI Library**: Material-UI (MUI) v6
-- **Date Handling**: Day.js with MUI Date Pickers
+- **Date Handling**: Day.js with MUI X Date Pickers
 - **Styling**: Emotion (CSS-in-JS via MUI)
 - **Deployment**: GitHub Pages
 
