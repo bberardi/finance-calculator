@@ -99,58 +99,6 @@ export const getContributionsInPeriod = (
   return count;
 };
 
-// Calculate compound interest with optional recurring contributions using date-based approach
-export const calculateInvestmentValue = (
-  principal: number,
-  annualRate: number,
-  compoundingPeriod: CompoundingFrequency,
-  startDate: Date,
-  endDate: Date,
-  recurringContribution: number = 0,
-  contributionFrequency: CompoundingFrequency = CompoundingFrequency.Monthly
-): number => {
-  if (principal <= 0 || annualRate < 0 || endDate <= startDate) {
-    return principal;
-  }
-
-  const periodsPerYear = getPeriodsPerYear(compoundingPeriod);
-  const periodRate = annualRate / 100 / periodsPerYear;
-
-  let totalValue = principal;
-  let currentDate = new Date(startDate.getTime());
-
-  // Process each compounding period
-  while (currentDate < endDate) {
-    const nextCompoundDate = getNextCompoundingDate(currentDate, compoundingPeriod);
-    const periodEndDate = nextCompoundDate > endDate ? endDate : nextCompoundDate;
-    
-    // Add all contributions that occur in this compounding period
-    if (recurringContribution > 0) {
-      const contributionsInPeriod = getContributionsInPeriod(
-        currentDate,
-        periodEndDate,
-        contributionFrequency
-      );
-      totalValue += contributionsInPeriod * recurringContribution;
-    }
-
-    // Apply compound interest for this period (only if we've completed a full period)
-    if (nextCompoundDate <= endDate) {
-      totalValue *= (1 + periodRate);
-    } else {
-      // For partial periods, apply pro-rated interest
-      const totalDays = nextCompoundDate.getTime() - currentDate.getTime();
-      const actualDays = endDate.getTime() - currentDate.getTime();
-      const partialRate = periodRate * (actualDays / totalDays);
-      totalValue *= (1 + partialRate);
-    }
-    
-    currentDate = nextCompoundDate;
-  }
-
-  return Math.round(totalValue * 100) / 100;
-};
-
 // Generate growth projection for an investment using date-based calculations
 export const generateInvestmentGrowth = (
   investment: Investment,
