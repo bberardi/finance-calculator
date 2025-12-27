@@ -55,8 +55,8 @@ export const PitPopout = (props: PitPopoutProps) => {
       case CompoundingFrequency.Monthly:
         return Math.max(0, end.diff(start, 'month', true));
       case CompoundingFrequency.Quarterly:
-        // Use quarter difference directly from dayjs
-        return Math.max(0, end.diff(start, 'quarter', true));
+        // Calculate quarters from months
+        return Math.max(0, end.diff(start, 'month', true) / 3);
       case CompoundingFrequency.Annually:
         return Math.max(0, end.diff(start, 'year', true));
       default:
