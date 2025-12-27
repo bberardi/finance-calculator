@@ -141,16 +141,17 @@ npm run deploy     # Deploy to GitHub Pages
 8. **Tables**: Use MUI Table components for displaying loan/investment data
 9. **Documentation**: After making changes, review and update this file and other documentation (README.md, etc.) to keep it current
 10. **Testing**: Write tests for new business logic in helpers; run tests before submitting code
-11. **Versioning**: If ANY code is changed, increment the version in `package.json` following semantic versioning (major.minor.patch format)
+11. **Versioning**: When you change application behavior, public APIs, or user-facing features, increment the version in `package.json` following semantic versioning (major.minor.patch). Purely non-functional changes (comments, documentation-only edits, formatting, or test refactors that do not change behavior) do not require a version bump.
 
 ## Development Workflow
 
-**Important**: If you make ANY code changes, you must increment the version in `package.json` following semantic versioning:
+**Important**: If your changes affect application behavior, public APIs, or user-facing features, you must increment the version in `package.json` following semantic versioning:
 
 - **Major** (x.0.0): Breaking changes or major new features
 - **Minor** (0.x.0): New features that are backward compatible
-- **Patch** (0.0.x): Bug fixes and minor changes
+- **Patch** (0.0.x): Bug fixes and other non-breaking functional changes
 
+Purely non-functional changes (e.g., comment updates, documentation-only edits, code formatting, or test refactors that do not change runtime behavior) generally do **not** require a version bump.
 Before submitting code for draft PRs or after completing work, always run:
 
 ```bash
