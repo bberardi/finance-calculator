@@ -18,10 +18,13 @@ import {
 import { Investment, CompoundingFrequency } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { Calculate, Edit, TrendingUp } from '@mui/icons-material';
+import { useState } from 'react';
+import { PitPopout } from './pit-popout';
+import { GrowthSchedulePopout } from './growth-schedule-popout';
 
 export const InvestmentTable = (props: InvestmentTableProps) => {
-  // const [selectedPit, setSelectedPit] = useState<Investment | undefined>();
-  // const [selectedGrowth, setSelectedGrowth] = useState<Investment | undefined>();
+  const [selectedPit, setSelectedPit] = useState<Investment | undefined>();
+  const [selectedGrowth, setSelectedGrowth] = useState<Investment | undefined>();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -49,25 +52,43 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     }
   };
 
-  const InvestmentActions = ({ investment }: { investment: Investment }) => (
-    <Box>
+  const InvestmentActions = ({ 
+    investment,
+    isMobile = false,
+  }: { 
+    investment: Investment;
+    isMobile?: boolean;
+  }) => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: isMobile ? 'space-around' : 'flex-start',
+        gap: isMobile ? 0 : 1,
+      }}
+    >
       <IconButton
-        onClick={() => props.onInvestmentEdit(investment)}
+        onClick={() => setSelectedGrowth(investment)}
         color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="View Growth Schedule"
       >
-        <Edit />
+        <TrendingUp />
       </IconButton>
       <IconButton
-        onClick={() => {/* TODO: setSelectedPit(investment) */}}
-        color="secondary"
+        onClick={() => setSelectedPit(investment)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="Point-in-Time Calculator"
       >
         <Calculate />
       </IconButton>
       <IconButton
-        onClick={() => {/* TODO: setSelectedGrowth(investment) */}}
-        color="info"
+        onClick={() => props.onInvestmentEdit(investment)}
+        color="primary"
+        size={isMobile ? 'medium' : 'small'}
+        title="Edit Investment"
       >
-        <TrendingUp />
+        <Edit />
       </IconButton>
     </Box>
   );
@@ -129,7 +150,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
           <Typography variant="body2">
             <strong>Periods:</strong> {getInvestmentPeriods(investment)}
           </Typography>
-          <InvestmentActions investment={investment} />
+          <InvestmentActions investment={investment} isMobile={isMobile} />
         </Box>
       </CardContent>
     </Card>
@@ -137,8 +158,19 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 
   return (
     <>
-      {/* TODO: Add PIT and Growth popouts similar to loans when needed */}
-      
+      {selectedPit && (
+        <PitPopout
+          investment={selectedPit}
+          onClose={() => setSelectedPit(undefined)}
+        />
+      )}
+      {selectedGrowth && (
+        <GrowthSchedulePopout
+          investment={selectedGrowth}
+          onClose={() => setSelectedGrowth(undefined)}
+        />
+      )}
+
       {isMobile ? (
         <Box>
           {props.investments.map((investment) => (
@@ -173,7 +205,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                       : 'None'}
                   </TableCell>
                   <TableCell>
-                    <InvestmentActions investment={row} />
+                    <InvestmentActions investment={row} isMobile={false} />
                   </TableCell>
                 </TableRow>
               ))}
