@@ -38,35 +38,44 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   const periodsPerYear = getPeriodsPerYear(props.investment.CompoundingPeriod);
 
   // Group by year and show yearly totals
-  const yearlySchedule = schedule.reduce((acc: YearlyScheduleEntry[], entry) => {
-    const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
-    // Calculate period date based on compounding frequency
-    let periodDate = dayjs(props.investment.StartDate);
-    if (periodsPerYear > 0 && 12 % periodsPerYear === 0) {
-      const monthsPerPeriod = 12 / periodsPerYear;
-      periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
-    } else {
-      // Fallback: treat as yearly compounding to preserve previous behavior
-      periodDate = periodDate.add(entry.Period - 1, 'years');
-    }
-    
-    if (!acc[yearIndex]) {
-      acc[yearIndex] = {
-        year: yearIndex + 1,
-        date: periodDate.format('YYYY'),
-        totalInvested: 0,
-        interestAccrued: 0,
-        balance: 0,
-      };
-    }
-    
-    acc[yearIndex].totalInvested += entry.ContributionAmount;
-    acc[yearIndex].interestAccrued += entry.InterestEarned;
-    acc[yearIndex].balance = entry.TotalValue;
-    acc[yearIndex].date = periodDate.format('YYYY');
-    
-    return acc;
-  }, []);
+  const yearlyScheduleMap = schedule.reduce(
+    (acc: Map<number, YearlyScheduleEntry>, entry) => {
+      const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
+      // Calculate period date based on compounding frequency
+      let periodDate = dayjs(props.investment.StartDate);
+      if (periodsPerYear > 0 && 12 % periodsPerYear === 0) {
+        const monthsPerPeriod = 12 / periodsPerYear;
+        periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
+      } else {
+        // Fallback: treat as yearly compounding to preserve previous behavior
+        periodDate = periodDate.add(entry.Period - 1, 'years');
+      }
+
+      let yearEntry = acc.get(yearIndex);
+      if (!yearEntry) {
+        yearEntry = {
+          year: yearIndex + 1,
+          date: periodDate.format('YYYY'),
+          totalInvested: 0,
+          interestAccrued: 0,
+          balance: 0,
+        };
+        acc.set(yearIndex, yearEntry);
+      }
+
+      yearEntry.totalInvested += entry.ContributionAmount;
+      yearEntry.interestAccrued += entry.InterestEarned;
+      yearEntry.balance = entry.TotalValue;
+      yearEntry.date = periodDate.format('YYYY');
+
+      return acc;
+    },
+    new Map<number, YearlyScheduleEntry>()
+  );
+
+  const yearlySchedule = Array.from(yearlyScheduleMap.values()).sort(
+    (a, b) => a.year - b.year
+  );
   
   // Add starting balance to the first year only
   if (yearlySchedule.length > 0) {
