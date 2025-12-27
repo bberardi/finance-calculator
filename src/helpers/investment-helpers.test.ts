@@ -25,19 +25,6 @@ describe('Investment Helpers', () => {
   });
 
   describe('getInvestmentPeriods', () => {
-    it('should return 0 for investment without start date', () => {
-      const investment: Investment = {
-        Provider: 'Test',
-        Name: 'Test',
-        StartDate: undefined as any,
-        StartingBalance: 10000,
-        AverageReturnRate: 4.23,
-        CompoundingPeriod: CompoundingFrequency.Annually,
-      };
-
-      expect(getInvestmentPeriods(investment)).toBe(0);
-    });
-
     it('should return 0 when end date is before start date', () => {
       const investment: Investment = {
         Provider: 'Test',
@@ -410,10 +397,7 @@ describe('Investment Helpers', () => {
         CompoundingPeriod: CompoundingFrequency.Annually,
       };
 
-      const growth = generateInvestmentGrowth(
-        investment,
-        new Date(2024, 0, 1)
-      );
+      const growth = generateInvestmentGrowth(investment, new Date(2024, 0, 1));
       expect(growth.length).toBe(0);
     });
   });

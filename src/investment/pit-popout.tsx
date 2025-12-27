@@ -8,7 +8,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { defaultPitInvestment, Investment, PitInvestment, CompoundingFrequency } from '../models/investment-model';
+import {
+  defaultPitInvestment,
+  Investment,
+  PitInvestment,
+  CompoundingFrequency,
+} from '../models/investment-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs, { Dayjs } from 'dayjs';
 import { getPitInvestmentCalculation } from '../helpers/investment-helpers';
@@ -16,7 +21,8 @@ import { NumericFormat, NumberFormatValues } from 'react-number-format';
 
 export const PitPopout = (props: PitPopoutProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [pitInvestment, setPitInvestment] = useState<PitInvestment>(defaultPitInvestment);
+  const [pitInvestment, setPitInvestment] =
+    useState<PitInvestment>(defaultPitInvestment);
 
   // Get the appropriate date picker views based on compounding frequency
   const getDatePickerViews = (): Array<'year' | 'month' | 'day'> => {
@@ -50,7 +56,7 @@ export const PitPopout = (props: PitPopoutProps) => {
   const getPeriodsFromStart = (date: Date): number => {
     const start = dayjs(props.investment.StartDate);
     const end = dayjs(date);
-    
+
     switch (props.investment.CompoundingPeriod) {
       case CompoundingFrequency.Monthly:
         return Math.max(0, end.diff(start, 'month', true));
@@ -68,7 +74,7 @@ export const PitPopout = (props: PitPopoutProps) => {
   const handlePeriodChange = (newPeriods: number) => {
     const start = dayjs(props.investment.StartDate);
     let newDate: Dayjs;
-    
+
     switch (props.investment.CompoundingPeriod) {
       case CompoundingFrequency.Monthly:
         newDate = start.add(newPeriods, 'month');
@@ -82,13 +88,15 @@ export const PitPopout = (props: PitPopoutProps) => {
       default:
         newDate = start.add(newPeriods, 'month');
     }
-    
+
     setSelectedDate(newDate.toDate());
   };
 
   useEffect(() => {
     if (props.investment) {
-      setPitInvestment(getPitInvestmentCalculation(props.investment, selectedDate));
+      setPitInvestment(
+        getPitInvestmentCalculation(props.investment, selectedDate)
+      );
     }
   }, [props.investment, selectedDate]);
 
@@ -120,7 +128,12 @@ export const PitPopout = (props: PitPopoutProps) => {
                 }
                 minDate={dayjs(props.investment.StartDate)}
                 views={getDatePickerViews()}
-                openTo={props.investment.CompoundingPeriod === CompoundingFrequency.Annually ? 'year' : 'month'}
+                openTo={
+                  props.investment.CompoundingPeriod ===
+                  CompoundingFrequency.Annually
+                    ? 'year'
+                    : 'month'
+                }
                 sx={{ flex: 4 }}
               />
               <NumericFormat

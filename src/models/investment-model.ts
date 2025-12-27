@@ -1,7 +1,7 @@
 export enum CompoundingFrequency {
   Monthly = 'monthly',
   Quarterly = 'quarterly',
-  Annually = 'annually'
+  Annually = 'annually',
 }
 
 export interface Investment {

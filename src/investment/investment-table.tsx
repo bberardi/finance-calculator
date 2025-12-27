@@ -24,7 +24,9 @@ import { GrowthSchedulePopout } from './growth-schedule-popout';
 
 export const InvestmentTable = (props: InvestmentTableProps) => {
   const [selectedPit, setSelectedPit] = useState<Investment | undefined>();
-  const [selectedGrowth, setSelectedGrowth] = useState<Investment | undefined>();
+  const [selectedGrowth, setSelectedGrowth] = useState<
+    Investment | undefined
+  >();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -52,10 +54,10 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     }
   };
 
-  const InvestmentActions = ({ 
+  const InvestmentActions = ({
     investment,
     isMobile = false,
-  }: { 
+  }: {
     investment: Investment;
     isMobile?: boolean;
   }) => (
@@ -133,20 +135,22 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 <strong>Recurring:</strong>
               </Typography>
               <Typography variant="body2">
-                {investment.RecurringContribution 
+                {investment.RecurringContribution
                   ? formatCurrency(investment.RecurringContribution)
                   : 'None'}
               </Typography>
             </Grid>
           </Grid>
         </Box>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1, sm: 0 }
-        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1, sm: 0 },
+          }}
+        >
           <Typography variant="body2">
             <strong>Periods:</strong> {getInvestmentPeriods(investment)}
           </Typography>
@@ -198,9 +202,11 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{formatCurrency(row.StartingBalance)}</TableCell>
                   <TableCell>{formatPercent(row.AverageReturnRate)}</TableCell>
-                  <TableCell>{getCompoundingText(row.CompoundingPeriod)}</TableCell>
                   <TableCell>
-                    {row.RecurringContribution 
+                    {getCompoundingText(row.CompoundingPeriod)}
+                  </TableCell>
+                  <TableCell>
+                    {row.RecurringContribution
                       ? formatCurrency(row.RecurringContribution)
                       : 'None'}
                   </TableCell>
