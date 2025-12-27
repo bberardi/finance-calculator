@@ -66,7 +66,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
     // Period 0 is the initial state, so use start date
     let periodDate = entry.Period === 0 
       ? dayjs(props.investment.StartDate)
-      : dayjs(props.investment.StartDate).add((entry.Period - 1) * monthsPerPeriod, 'months');
+      : dayjs(props.investment.StartDate).add((entry.Period) * monthsPerPeriod, 'months');
     
     // For end-of-period calculations, we want to show the end of the period
     // E.g., if start is 6/15/2022, period 1 should show end of first period
