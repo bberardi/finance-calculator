@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -8,4 +8,9 @@ export default defineConfig({
   define: {
     APP_VERSION: JSON.stringify(process.env.npm_package_version),
   },
-});
+  test: {
+    globals: true,
+    environment: 'node',
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any);
