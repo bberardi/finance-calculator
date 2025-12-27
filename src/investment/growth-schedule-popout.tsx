@@ -41,7 +41,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
       let periodDate = dayjs(props.investment.StartDate);
       if (entry.Period > 0) {
         const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
-        periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
+        periodDate = periodDate.add(entry.Period * monthsPerPeriod, 'months');
       }
 
       let yearEntry = acc.get(yearIndex);
