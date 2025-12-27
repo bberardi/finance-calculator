@@ -8,8 +8,8 @@ PathWise is a finance calculator web application that allows users to view and p
 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
-- **UI Library**: Material-UI (MUI) v6
-- **Date Handling**: Day.js with MUI X Date Pickers
+- **UI Library**: Material-UI (MUI) v6.1
+- **Date Handling**: Day.js with MUI X Date Pickers v7
 - **Styling**: Emotion (CSS-in-JS via MUI)
 - **Deployment**: GitHub Pages
 
@@ -137,6 +137,6 @@ npm run deploy     # Deploy to GitHub Pages
 ## Testing
 
 Currently, there is no test infrastructure in the project. When adding tests in the future:
-- Consider using Vitest (compatible with Vite)
+- Consider using Vitest (compatible with Vite and provides Jest-like API)
 - Test business logic in helpers thoroughly
 - Consider component testing for complex UI interactions
