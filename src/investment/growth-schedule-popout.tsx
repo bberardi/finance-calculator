@@ -63,21 +63,27 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   let cumulativeInvested = props.investment.StartingBalance;
   const scheduleEntries: ScheduleEntry[] = schedule.map((entry) => {
     const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
-    let periodDate = dayjs(props.investment.StartDate).add((entry.Period - 1) * monthsPerPeriod, 'months');
+    // Period 0 is the initial state, so use start date
+    let periodDate = entry.Period === 0 
+      ? dayjs(props.investment.StartDate)
+      : dayjs(props.investment.StartDate).add((entry.Period - 1) * monthsPerPeriod, 'months');
     
     // For end-of-period calculations, we want to show the end of the period
     // E.g., if start is 6/15/2022, period 1 should show end of first period
-    switch (props.investment.CompoundingPeriod) {
-      case CompoundingFrequency.Monthly:
-        periodDate = periodDate.endOf('month');
-        break;
-      case CompoundingFrequency.Quarterly:
-        // For quarterly, end of the quarter month
-        periodDate = periodDate.endOf('month');
-        break;
-      case CompoundingFrequency.Annually:
-        periodDate = periodDate.endOf('year');
-        break;
+    // Period 0 uses the start date as-is
+    if (entry.Period > 0) {
+      switch (props.investment.CompoundingPeriod) {
+        case CompoundingFrequency.Monthly:
+          periodDate = periodDate.endOf('month');
+          break;
+        case CompoundingFrequency.Quarterly:
+          // For quarterly, end of the quarter month
+          periodDate = periodDate.endOf('month');
+          break;
+        case CompoundingFrequency.Annually:
+          periodDate = periodDate.endOf('year');
+          break;
+      }
     }
 
     cumulativeInvested += entry.ContributionAmount;
