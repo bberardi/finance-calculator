@@ -37,11 +37,12 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
       // Period 0 is the initial state, subsequent periods map to years
       const yearIndex = entry.Period === 0 ? 0 : Math.floor((entry.Period - 1) / periodsPerYear) + 1;
       // Calculate period date based on compounding frequency.
-      // getPeriodsPerYear currently returns values that evenly divide 12 (e.g., 1, 4, 12),
-      // so we can safely compute monthsPerPeriod directly.
+      // For Period 0, use the start date. For other periods, add the appropriate number of months.
       let periodDate = dayjs(props.investment.StartDate);
-      const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
-      periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
+      if (entry.Period > 0) {
+        const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
+        periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
+      }
 
       let yearEntry = acc.get(yearIndex);
       if (!yearEntry) {
