@@ -141,8 +141,15 @@ npm run deploy     # Deploy to GitHub Pages
 8. **Tables**: Use MUI Table components for displaying loan/investment data
 9. **Documentation**: After making changes, review and update this file and other documentation (README.md, etc.) to keep it current
 10. **Testing**: Write tests for new business logic in helpers; run tests before submitting code
+11. **Versioning**: If ANY code is changed, increment the version in `package.json` following semantic versioning (major.minor.patch format)
 
 ## Development Workflow
+
+**Important**: If you make ANY code changes, you must increment the version in `package.json` following semantic versioning:
+
+- **Major** (x.0.0): Breaking changes or major new features
+- **Minor** (0.x.0): New features that are backward compatible
+- **Patch** (0.0.x): Bug fixes and minor changes
 
 Before submitting code for draft PRs or after completing work, always run:
 
