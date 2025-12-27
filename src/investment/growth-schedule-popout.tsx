@@ -11,12 +11,12 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { Investment } from '../models/investment-model';
+import { Investment, CompoundingFrequency } from '../models/investment-model';
 import { generateInvestmentGrowth, getPeriodsPerYear } from '../helpers/investment-helpers';
 import dayjs from 'dayjs';
 
-type YearlyScheduleEntry = {
-  year: number;
+type ScheduleEntry = {
+  period: number;
   date: string;
   totalInvested: number;
   interestAccrued: number;
@@ -31,46 +31,55 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   const schedule = generateInvestmentGrowth(props.investment, endDate);
   const periodsPerYear = getPeriodsPerYear(props.investment.CompoundingPeriod);
 
-  // Group by year and show yearly totals
-  const yearlyScheduleMap = schedule.reduce(
-    (acc: Map<number, YearlyScheduleEntry>, entry) => {
-      const yearIndex = Math.floor((entry.Period - 1) / periodsPerYear);
-      // Calculate period date based on compounding frequency.
-      // getPeriodsPerYear currently returns values that evenly divide 12 (e.g., 1, 4, 12),
-      // so we can safely compute monthsPerPeriod directly.
-      let periodDate = dayjs(props.investment.StartDate);
-      const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
-      periodDate = periodDate.add((entry.Period - 1) * monthsPerPeriod, 'months');
+  // Get period label based on compounding frequency
+  const getPeriodLabel = (): string => {
+    switch (props.investment.CompoundingPeriod) {
+      case CompoundingFrequency.Monthly:
+        return 'Month';
+      case CompoundingFrequency.Quarterly:
+        return 'Quarter';
+      case CompoundingFrequency.Annually:
+        return 'Year';
+      default:
+        return 'Period';
+    }
+  };
 
-      let yearEntry = acc.get(yearIndex);
-      if (!yearEntry) {
-        yearEntry = {
-          year: yearIndex + 1,
-          date: periodDate.format('YYYY'),
-          totalInvested: 0,
-          interestAccrued: 0,
-          balance: 0,
-        };
-        acc.set(yearIndex, yearEntry);
-      }
+  // Get date format based on compounding frequency
+  const getDateFormat = (): string => {
+    switch (props.investment.CompoundingPeriod) {
+      case CompoundingFrequency.Monthly:
+        return 'MMM YYYY';
+      case CompoundingFrequency.Quarterly:
+        return '[Q]Q YYYY';
+      case CompoundingFrequency.Annually:
+        return 'YYYY';
+      default:
+        return 'MMM YYYY';
+    }
+  };
 
-      yearEntry.totalInvested += entry.ContributionAmount;
-      yearEntry.interestAccrued += entry.InterestEarned;
-      yearEntry.balance = entry.TotalValue;
-      yearEntry.date = periodDate.format('YYYY');
+  // For monthly and quarterly, show individual periods; for annual, group by year
+  const scheduleEntries: ScheduleEntry[] = schedule.map((entry) => {
+    const monthsPerPeriod = periodsPerYear ? 12 / periodsPerYear : 12;
+    let periodDate = dayjs(props.investment.StartDate).add((entry.Period - 1) * monthsPerPeriod, 'months');
+    
+    // For end-of-period calculations, we want to show the end of the period
+    // E.g., if start is 6/15/2022, period 1 should show end of first period
+    periodDate = periodDate.endOf('month');
 
-      return acc;
-    },
-    new Map<number, YearlyScheduleEntry>()
-  );
+    return {
+      period: entry.Period,
+      date: periodDate.format(getDateFormat()),
+      totalInvested: entry.ContributionAmount,
+      interestAccrued: entry.InterestEarned,
+      balance: entry.TotalValue,
+    };
+  });
 
-  const yearlySchedule = Array.from(yearlyScheduleMap.values()).sort(
-    (a, b) => a.year - b.year
-  );
-  
-  // Add starting balance to the first year only
-  if (yearlySchedule.length > 0) {
-    yearlySchedule[0].totalInvested += props.investment.StartingBalance;
+  // Add starting balance to the first period only
+  if (scheduleEntries.length > 0) {
+    scheduleEntries[0].totalInvested += props.investment.StartingBalance;
   }
 
   return (
@@ -96,17 +105,17 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Year</TableCell>
+                  <TableCell>{getPeriodLabel()}</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Total Invested</TableCell>
-                  <TableCell>Interest This Year</TableCell>
+                  <TableCell>Interest This Period</TableCell>
                   <TableCell>Balance</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {yearlySchedule.map((entry) => (
-                  <TableRow key={entry.year}>
-                    <TableCell>{entry.year}</TableCell>
+                {scheduleEntries.map((entry) => (
+                  <TableRow key={entry.period}>
+                    <TableCell>{entry.period}</TableCell>
                     <TableCell>{entry.date}</TableCell>
                     <TableCell>
                       {entry.totalInvested.toLocaleString(undefined, {
