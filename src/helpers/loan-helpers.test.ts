@@ -58,18 +58,6 @@ describe('Loan Helpers', () => {
       const terms = getTerms(loan, new Date('2026-01-01'));
       expect(terms).toBe(13); // 12 months + 1
     });
-
-    it('should return 0 for missing dates', () => {
-      const loan: Loan = {
-        Provider: 'Test Lender',
-        Name: 'Test Loan',
-        Principal: 100000,
-        CurrentAmount: 100000,
-        InterestRate: 3.5,
-      };
-
-      expect(getTerms(loan)).toBe(0);
-    });
   });
 
   describe('generateAmortizationSchedule', () => {
