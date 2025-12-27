@@ -48,31 +48,22 @@ h1 {
 }
 
 button {
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid transparent;
-  padding: 0.6em 1.4em;
+  padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background: linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 100%);
-  color: white;
+  background-color: #1a1a1a;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(58, 123, 200, 0.3);
+  transition: border-color 0.25s;
 }
 button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(58, 123, 200, 0.4);
-  background: linear-gradient(135deg, #4a8bd8 0%, #3d6a9c 100%);
-}
-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(58, 123, 200, 0.3);
+  border-color: #646cff;
 }
 button:focus,
 button:focus-visible {
-  outline: 2px solid rgba(58, 123, 200, 0.5);
-  outline-offset: 2px;
+  outline: 4px auto -webkit-focus-ring-color;
 }
 
 @media (prefers-color-scheme: light) {

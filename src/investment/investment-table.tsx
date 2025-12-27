@@ -234,10 +234,11 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 <TableRow
                   key={row.Name}
                   sx={{
-                    transition: 'all 0.2s ease',
+                    transition:
+                      'background-color 0.2s ease, box-shadow 0.2s ease',
                     '&:hover': {
                       backgroundColor: 'rgba(58, 123, 200, 0.08)',
-                      transform: 'scale(1.01)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                     },
                     '&:last-child td, &:last-child th': { border: 0 },
                   }}

@@ -33,7 +33,6 @@ export const Header = () => {
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              textShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
               letterSpacing: '1px',
               '@supports not (background-clip: text)': {
                 color: '#ffffff',
@@ -51,7 +50,7 @@ export const Header = () => {
               letterSpacing: '0.5px',
             }}
           >
-            Your financial calculator and forecastor
+            Your financial calculator and forecaster
           </Typography>
         </Stack>
       </Stack>
