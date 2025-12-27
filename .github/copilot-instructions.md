@@ -152,6 +152,7 @@ npm run deploy     # Deploy to GitHub Pages
 - **Patch** (0.0.x): Bug fixes and other non-breaking functional changes
 
 Purely non-functional changes (e.g., comment updates, documentation-only edits, code formatting, or test refactors that do not change runtime behavior) generally do **not** require a version bump.
+
 Before submitting code for draft PRs or after completing work, always run:
 
 ```bash
