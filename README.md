@@ -6,6 +6,33 @@
 
 **Purpose**: To view and perform what-ifs on loans and (simpler) investments to view the overall financial position, without math done by the user.
 
+## Development
+
+### Running Tests
+
+The project includes comprehensive test coverage for investment and loan calculations. Tests are built using Vitest.
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests with UI
+npm run test:ui
+```
+
+### Running the Application
+
+```bash
+# Start development server
+npm start
+
+# Build for production
+npm run build
+```
+
 ## Glossary
 
 Describe terms here...
