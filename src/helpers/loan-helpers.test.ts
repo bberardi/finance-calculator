@@ -31,11 +31,12 @@ describe('Loan Helpers', () => {
   describe('getTerms', () => {
     it('should calculate number of months between dates', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
         EndDate: new Date('2026-01-01'),
         Principal: 100000,
+        CurrentAmount: 100000,
         InterestRate: 3.5,
       };
 
@@ -45,11 +46,12 @@ describe('Loan Helpers', () => {
 
     it('should calculate terms up to a specific date', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
         EndDate: new Date('2030-01-01'),
         Principal: 100000,
+        CurrentAmount: 100000,
         InterestRate: 3.5,
       };
 
@@ -59,9 +61,10 @@ describe('Loan Helpers', () => {
 
     it('should return 0 for missing dates', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         Principal: 100000,
+        CurrentAmount: 100000,
         InterestRate: 3.5,
       };
 
@@ -72,11 +75,12 @@ describe('Loan Helpers', () => {
   describe('generateAmortizationSchedule', () => {
     it('should generate amortization schedule', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
         EndDate: new Date('2025-12-01'),
         Principal: 10000,
+        CurrentAmount: 10000,
         InterestRate: 6,
         MonthlyPayment: 860.66,
       };
@@ -97,11 +101,12 @@ describe('Loan Helpers', () => {
 
     it('should return empty array for undefined monthly payment', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
         EndDate: new Date('2026-01-01'),
         Principal: 10000,
+        CurrentAmount: 10000,
         InterestRate: 6,
       };
 
@@ -111,11 +116,12 @@ describe('Loan Helpers', () => {
 
     it('should generate partial schedule when terms provided', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
         EndDate: new Date('2025-12-01'),
         Principal: 10000,
+        CurrentAmount: 10000,
         InterestRate: 6,
         MonthlyPayment: 860.66,
       };
@@ -131,11 +137,12 @@ describe('Loan Helpers', () => {
   describe('getPitCalculation', () => {
     it('should calculate point-in-time loan values', () => {
       const loan: Loan = {
-        Lender: 'Test Lender',
+        Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
         EndDate: new Date('2026-01-01'),
         Principal: 10000,
+        CurrentAmount: 10000,
         InterestRate: 6,
         MonthlyPayment: 860.66,
       };
