@@ -173,17 +173,34 @@ export const Body = () => {
       <AppBar
         position="static"
         sx={{
-          borderRadius: '30px',
+          borderRadius: '20px',
           marginTop: '15px',
           marginBottom: '15px',
           overflow: 'hidden',
+          background: 'linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 50%, #1e3a5f 100%)',
+          boxShadow: '0 8px 32px rgba(58, 123, 200, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
         <Toolbar>
           <Button
             variant="outlined"
             color="inherit"
-            sx={{ margin: '5px' }}
+            sx={{
+              margin: '5px',
+              borderRadius: '12px',
+              borderWidth: '2px',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                borderWidth: '2px',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              },
+            }}
             onClick={() => onLoanAddEdit()}
           >
             Add Loan
@@ -191,7 +208,20 @@ export const Body = () => {
           <Button
             variant="outlined"
             color="inherit"
-            sx={{ margin: '5px' }}
+            sx={{
+              margin: '5px',
+              borderRadius: '12px',
+              borderWidth: '2px',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                borderWidth: '2px',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              },
+            }}
             onClick={() => onInvestmentAddEdit()}
           >
             Add Investment
@@ -212,7 +242,17 @@ export const Body = () => {
         </Toolbar>
       </AppBar>
 
-      <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
+      <Paper
+        sx={{
+          marginBottom: '20px',
+          padding: '20px',
+          borderRadius: '16px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+        }}
+      >
         <Divider>Loans</Divider>
         {loans.length > 0 ? (
           <LoanTable loans={loans} onLoanEdit={onLoanAddEdit} />
@@ -223,7 +263,17 @@ export const Body = () => {
         )}
       </Paper>
 
-      <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
+      <Paper
+        sx={{
+          marginBottom: '20px',
+          padding: '20px',
+          borderRadius: '16px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+        }}
+      >
         <Divider>Investments</Divider>
         {investments.length > 0 ? (
           <InvestmentTable

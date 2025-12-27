@@ -94,7 +94,21 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   );
 
   const InvestmentCard = ({ investment }: { investment: Investment }) => (
-    <Card sx={{ marginBottom: 2 }}>
+    <Card
+      sx={{
+        marginBottom: 2,
+        borderRadius: '12px',
+        background: 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+        border: '1px solid rgba(255, 255, 255, 0.5)',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: '0 8px 24px rgba(58, 123, 200, 0.15)',
+        },
+      }}
+    >
       <CardContent>
         <Typography variant="h6" component="div">
           {investment.Name}
@@ -178,10 +192,29 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
           ))}
         </Box>
       ) : (
-        <TableContainer component={Paper}>
+        <TableContainer
+          component={Paper}
+          sx={{
+            borderRadius: '12px',
+            background: 'rgba(255, 255, 255, 0.5)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
+          }}
+        >
           <Table>
             <TableHead>
-              <TableRow>
+              <TableRow
+                sx={{
+                  background: 'linear-gradient(135deg, #3a7bc8 0%, #2d5a8c 100%)',
+                  '& .MuiTableCell-head': {
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    letterSpacing: '0.5px',
+                  },
+                }}
+              >
                 <TableCell>Name</TableCell>
                 <TableCell>Provider</TableCell>
                 <TableCell>Starting Balance</TableCell>
@@ -193,7 +226,17 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
             </TableHead>
             <TableBody>
               {props.investments.map((row) => (
-                <TableRow key={row.Name}>
+                <TableRow
+                  key={row.Name}
+                  sx={{
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'rgba(58, 123, 200, 0.08)',
+                      transform: 'scale(1.01)',
+                    },
+                    '&:last-child td, &:last-child th': { border: 0 },
+                  }}
+                >
                   <TableCell>{row.Name}</TableCell>
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{formatCurrency(row.StartingBalance)}</TableCell>

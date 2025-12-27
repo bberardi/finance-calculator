@@ -14,21 +14,49 @@
 }
 
 .header {
-  background-color: #282c34;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8c 50%, #3a7bc8 100%);
   color: white;
-  padding: 20px;
+  padding: 30px 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: headerGlow 15s ease-in-out infinite;
+}
+
+@keyframes headerGlow {
+  0%, 100% {
+    transform: translate(0, 0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-20px, -20px);
+    opacity: 0.6;
+  }
 }
 
 .body {
-  flex: 1; /* Grow to fill remaining space */
-  padding: 20px; /* Add some padding */
-  background-color: #f0f0f0;
+  flex: 1;
+  padding: 20px;
+  background: linear-gradient(to bottom, #f5f7fa 0%, #e8ecf1 100%);
+  min-height: 100%;
 }
 
 .footer {
-  background-color: #282c34;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8c 100%);
   color: white;
-  padding: 10px;
+  padding: 15px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
 h2 {
