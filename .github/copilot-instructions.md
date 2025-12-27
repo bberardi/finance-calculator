@@ -8,6 +8,7 @@ PathWise is a finance calculator web application that allows users to view and p
 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
+- **Testing**: Vitest with globals enabled
 - **UI Library**: Material-UI (MUI) v6.1
 - **Date Handling**: Day.js with MUI X Date Pickers v7
 - **Styling**: Emotion (CSS-in-JS via MUI)
@@ -26,7 +27,9 @@ src/
 │   └── investment-model.ts
 ├── helpers/             # Business logic and calculations
 │   ├── loan-helpers.ts
-│   └── investment-helpers.ts
+│   ├── loan-helpers.test.ts
+│   ├── investment-helpers.ts
+│   └── investment-helpers.test.ts
 ├── loan/                # Loan-related components
 │   ├── loan-table.tsx
 │   ├── add-edit-loan.tsx
@@ -96,6 +99,9 @@ src/
 npm start          # Start development server (alias for npm run dev)
 npm run dev        # Start Vite development server
 npm run build      # Build for production (TypeScript compilation + Vite build)
+npm test           # Run tests once
+npm run test:watch # Run tests in watch mode (re-runs on file changes)
+npm run test:ui    # Run tests with UI
 npm run preview    # Preview production build locally
 npm run deploy     # Deploy to GitHub Pages
 ```
@@ -133,10 +139,62 @@ npm run deploy     # Deploy to GitHub Pages
 6. **Date Handling**: Use Day.js for all date operations
 7. **Forms**: Use MUI form components with proper validation
 8. **Tables**: Use MUI Table components for displaying loan/investment data
+9. **Documentation**: After making changes, review and update this file and other documentation (README.md, etc.) to keep it current
+10. **Testing**: Write tests for new business logic in helpers; run tests before submitting code
+
+## Development Workflow
+
+Before submitting code for draft PRs or after completing work, always run:
+
+```bash
+npm test              # Run tests to ensure functionality
+npm run build         # Verify the build succeeds
+npm run check:lint    # Check for linting issues
+npm run check:format  # Check code formatting
+```
+
+Fix any issues found before submitting your changes.
 
 ## Testing
 
-Currently, there is no test infrastructure in the project. When adding tests in the future:
-- Consider using Vitest (compatible with Vite and provides Jest-like API)
-- Test business logic in helpers thoroughly
-- Consider component testing for complex UI interactions
+The project uses **Vitest** as its testing framework, configured with globals enabled and a Node environment.
+
+### Test Structure
+
+- Test files are co-located with source files using `.test.ts` suffix (e.g., `loan-helpers.test.ts`)
+- Comprehensive test coverage exists for business logic in helpers
+- Tests use Vitest's `describe`, `it`, and `expect` APIs (Jest-like syntax)
+
+### Testing Best Practices
+
+- **Always write tests** for new business logic in helpers
+- Test edge cases and invalid inputs
+- Use `toBeCloseTo()` for floating-point comparisons
+- Group related tests using `describe` blocks
+- Write descriptive test names that explain what is being tested
+
+### Running Tests
+
+```bash
+npm test              # Run all tests once
+npm run test:watch    # Watch mode - re-runs tests on file changes
+npm run test:ui       # Interactive UI for running and debugging tests
+```
+
+### Example Test Structure
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { myFunction } from './my-helpers';
+
+describe('MyFunction', () => {
+  it('should handle valid inputs correctly', () => {
+    const result = myFunction(validInput);
+    expect(result).toBe(expectedValue);
+  });
+
+  it('should return 0 for invalid inputs', () => {
+    expect(myFunction(invalidInput)).toBe(0);
+  });
+});
+```
