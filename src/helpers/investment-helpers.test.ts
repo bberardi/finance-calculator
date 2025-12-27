@@ -46,7 +46,7 @@ describe('Investment Helpers', () => {
           startDate,
           endDate
         );
-        expect(result).toBe(10423.00);
+        expect(result).toBe(10423.0);
       });
 
       it('should calculate correct value after 5 years (1/1/2030)', () => {
@@ -70,7 +70,7 @@ describe('Investment Helpers', () => {
           startDate,
           endDate
         );
-        expect(result).toBe(34656.30);
+        expect(result).toBe(34656.3);
       });
     });
 
@@ -87,28 +87,28 @@ describe('Investment Helpers', () => {
       it('should generate correct growth data for 1/1/2026', () => {
         const endDate = new Date('2026-01-01');
         const growth = generateInvestmentGrowth(investment, endDate);
-        
+
         // Should have period 0 (initial) and period 1 (after 1 year)
         expect(growth.length).toBe(2);
-        
+
         // Period 0 - initial state
         expect(growth[0].Period).toBe(0);
-        expect(growth[0].TotalValue).toBe(10000.00);
+        expect(growth[0].TotalValue).toBe(10000.0);
         expect(growth[0].InterestEarned).toBe(0);
-        
+
         // Period 1 - after 1 year
         expect(growth[1].Period).toBe(1);
-        expect(growth[1].TotalValue).toBe(10423.00);
-        expect(growth[1].InterestEarned).toBe(423.00);
+        expect(growth[1].TotalValue).toBe(10423.0);
+        expect(growth[1].InterestEarned).toBe(423.0);
       });
 
       it('should generate correct growth data for 1/1/2030', () => {
         const endDate = new Date('2030-01-01');
         const growth = generateInvestmentGrowth(investment, endDate);
-        
+
         // Should have 6 periods (0-5, representing years 2025-2030)
         expect(growth.length).toBe(6);
-        
+
         // Period 5 - after 5 years (1/1/2030)
         const lastPeriod = growth[5];
         expect(lastPeriod.Period).toBe(5);
@@ -119,14 +119,14 @@ describe('Investment Helpers', () => {
       it('should generate correct growth data for 1/1/2055', () => {
         const endDate = new Date('2055-01-01');
         const growth = generateInvestmentGrowth(investment, endDate);
-        
+
         // Should have 31 periods (0-30, representing years 2025-2055)
         expect(growth.length).toBe(31);
-        
+
         // Period 30 - after 30 years (1/1/2055)
         const lastPeriod = growth[30];
         expect(lastPeriod.Period).toBe(30);
-        expect(lastPeriod.TotalValue).toBe(34656.30);
+        expect(lastPeriod.TotalValue).toBe(34656.3);
         expect(lastPeriod.InterestEarned).toBe(1406.47);
       });
     });
@@ -144,21 +144,21 @@ describe('Investment Helpers', () => {
       it('should calculate correct PIT values for 1/1/2026', () => {
         const endDate = new Date('2026-01-01');
         const pit = getPitInvestmentCalculation(investment, endDate);
-        
+
         // CurrentPeriods counts inclusively (includes the period being calculated)
         expect(pit.CurrentPeriods).toBe(2);
-        expect(pit.TotalContributions).toBe(10000.00);
-        expect(pit.CurrentValue).toBe(10423.00);
-        expect(pit.TotalInterestEarned).toBe(423.00);
+        expect(pit.TotalContributions).toBe(10000.0);
+        expect(pit.CurrentValue).toBe(10423.0);
+        expect(pit.TotalInterestEarned).toBe(423.0);
       });
 
       it('should calculate correct PIT values for 1/1/2030', () => {
         const endDate = new Date('2030-01-01');
         const pit = getPitInvestmentCalculation(investment, endDate);
-        
+
         // CurrentPeriods counts inclusively (includes the period being calculated)
         expect(pit.CurrentPeriods).toBe(6);
-        expect(pit.TotalContributions).toBe(10000.00);
+        expect(pit.TotalContributions).toBe(10000.0);
         expect(pit.CurrentValue).toBe(12301.66);
         expect(pit.TotalInterestEarned).toBe(2301.66);
       });
@@ -166,12 +166,12 @@ describe('Investment Helpers', () => {
       it('should calculate correct PIT values for 1/1/2055', () => {
         const endDate = new Date('2055-01-01');
         const pit = getPitInvestmentCalculation(investment, endDate);
-        
+
         // CurrentPeriods counts inclusively (includes the period being calculated)
         expect(pit.CurrentPeriods).toBe(31);
-        expect(pit.TotalContributions).toBe(10000.00);
-        expect(pit.CurrentValue).toBe(34656.30);
-        expect(pit.TotalInterestEarned).toBe(24656.30);
+        expect(pit.TotalContributions).toBe(10000.0);
+        expect(pit.CurrentValue).toBe(34656.3);
+        expect(pit.TotalInterestEarned).toBe(24656.3);
       });
     });
   });
@@ -192,7 +192,7 @@ describe('Investment Helpers', () => {
       );
 
       // Monthly compounding should yield slightly more than annually
-      expect(result).toBeGreaterThan(10423.00);
+      expect(result).toBeGreaterThan(10423.0);
       // Should be approximately 10431.65 (monthly compounding)
       expect(result).toBeCloseTo(10431.65, 0);
     });
@@ -233,7 +233,7 @@ describe('Investment Helpers', () => {
       );
 
       // Quarterly compounding should yield more than annually but less than monthly
-      expect(result).toBeGreaterThan(10423.00);
+      expect(result).toBeGreaterThan(10423.0);
       expect(result).toBeLessThan(10431.65);
     });
 
@@ -261,7 +261,7 @@ describe('Investment Helpers', () => {
     it('should handle zero principal', () => {
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2026-01-01');
-      
+
       const result = calculateInvestmentValue(
         0,
         4.23,
@@ -269,14 +269,14 @@ describe('Investment Helpers', () => {
         startDate,
         endDate
       );
-      
+
       expect(result).toBe(0);
     });
 
     it('should handle zero interest rate', () => {
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2026-01-01');
-      
+
       const result = calculateInvestmentValue(
         10000,
         0,
@@ -284,14 +284,14 @@ describe('Investment Helpers', () => {
         startDate,
         endDate
       );
-      
+
       expect(result).toBe(10000);
     });
 
     it('should handle same start and end date', () => {
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-01');
-      
+
       const result = calculateInvestmentValue(
         10000,
         4.23,
@@ -299,7 +299,7 @@ describe('Investment Helpers', () => {
         startDate,
         endDate
       );
-      
+
       expect(result).toBe(10000);
     });
 
@@ -313,7 +313,10 @@ describe('Investment Helpers', () => {
         CompoundingPeriod: CompoundingFrequency.Annually,
       };
 
-      const growth = generateInvestmentGrowth(investment, new Date('2024-01-01'));
+      const growth = generateInvestmentGrowth(
+        investment,
+        new Date('2024-01-01')
+      );
       expect(growth.length).toBe(0);
     });
   });
@@ -338,7 +341,7 @@ describe('Investment Helpers', () => {
 
       // Should include principal growth plus contributions
       // 10000 * 1.0423 + 1200 (12 months * 100) with some interest on contributions
-      expect(result).toBeGreaterThan(11623.00);
+      expect(result).toBeGreaterThan(11623.0);
     });
 
     it('should generate growth with recurring contributions', () => {
@@ -358,10 +361,10 @@ describe('Investment Helpers', () => {
 
       // First period should show contributions
       expect(growth[1].ContributionAmount).toBeGreaterThan(0);
-      
+
       // Final value should include contributions
       const finalValue = growth[growth.length - 1].TotalValue;
-      expect(finalValue).toBeGreaterThan(10423.00);
+      expect(finalValue).toBeGreaterThan(10423.0);
     });
   });
 });

@@ -15,7 +15,7 @@ describe('Loan Helpers', () => {
       const terms = 360; // 30 years
 
       const payment = getMonthlyPayment(principal, interestRate, terms);
-      
+
       // Expected monthly payment for 100k at 3.5% for 30 years
       expect(payment).toBeCloseTo(449.04, 0);
     });
@@ -82,15 +82,15 @@ describe('Loan Helpers', () => {
       };
 
       const schedule = generateAmortizationSchedule(loan);
-      
+
       // Should have 12 entries (12 months)
       expect(schedule.length).toBe(12);
-      
+
       // First payment should pay some interest and principal
       expect(schedule[0].Term).toBe(1);
       expect(schedule[0].InterestPayment).toBeGreaterThan(0);
       expect(schedule[0].PrincipalPayment).toBeGreaterThan(0);
-      
+
       // Last payment should have remaining balance of 0
       expect(schedule[11].RemainingBalance).toBe(0);
     });
@@ -121,7 +121,7 @@ describe('Loan Helpers', () => {
       };
 
       const schedule = generateAmortizationSchedule(loan, 6);
-      
+
       // Should have only 6 entries
       expect(schedule.length).toBe(6);
       expect(schedule[5].Term).toBe(6);
@@ -141,7 +141,7 @@ describe('Loan Helpers', () => {
       };
 
       const pit = getPitCalculation(loan, new Date('2025-07-01'));
-      
+
       // After 6 months, should have paid some principal and interest
       expect(pit.PaidTerms).toBe(7);
       expect(pit.PaidPrincipal).toBeGreaterThan(0);
