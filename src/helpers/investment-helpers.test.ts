@@ -3,6 +3,9 @@ import {
   generateInvestmentGrowth,
   getPeriodsPerYear,
   getPitInvestmentCalculation,
+  getInvestmentPeriods,
+  getNextCompoundingDate,
+  getContributionsInPeriod,
 } from './investment-helpers';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
 
@@ -18,6 +21,218 @@ describe('Investment Helpers', () => {
 
     it('should return 1 for annually compounding', () => {
       expect(getPeriodsPerYear(CompoundingFrequency.Annually)).toBe(1);
+    });
+  });
+
+  describe('getInvestmentPeriods', () => {
+    it('should return 0 for investment without start date', () => {
+      const investment: Investment = {
+        Provider: 'Test',
+        Name: 'Test',
+        StartDate: undefined as any,
+        StartingBalance: 10000,
+        AverageReturnRate: 4.23,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+      };
+
+      expect(getInvestmentPeriods(investment)).toBe(0);
+    });
+
+    it('should return 0 when end date is before start date', () => {
+      const investment: Investment = {
+        Provider: 'Test',
+        Name: 'Test',
+        StartDate: new Date('2025-01-01'),
+        StartingBalance: 10000,
+        AverageReturnRate: 4.23,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+      };
+
+      expect(getInvestmentPeriods(investment, new Date('2024-01-01'))).toBe(0);
+    });
+
+    it('should calculate periods correctly for annual compounding', () => {
+      const investment: Investment = {
+        Provider: 'Test',
+        Name: 'Test',
+        StartDate: new Date('2025-01-01'),
+        StartingBalance: 10000,
+        AverageReturnRate: 4.23,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+      };
+
+      // After 1 year
+      expect(getInvestmentPeriods(investment, new Date('2026-01-01'))).toBe(2);
+      // After 5 years
+      expect(getInvestmentPeriods(investment, new Date('2030-01-01'))).toBe(6);
+      // Same day should return at least 1
+      expect(getInvestmentPeriods(investment, new Date('2025-01-01'))).toBe(1);
+    });
+
+    it('should calculate periods correctly for monthly compounding', () => {
+      const investment: Investment = {
+        Provider: 'Test',
+        Name: 'Test',
+        StartDate: new Date('2025-01-01'),
+        StartingBalance: 10000,
+        AverageReturnRate: 4.23,
+        CompoundingPeriod: CompoundingFrequency.Monthly,
+      };
+
+      // After 1 month
+      expect(getInvestmentPeriods(investment, new Date('2025-02-01'))).toBe(2);
+      // After 12 months
+      expect(getInvestmentPeriods(investment, new Date('2026-01-01'))).toBe(13);
+      // Before completing a month (partial)
+      expect(getInvestmentPeriods(investment, new Date('2025-01-15'))).toBe(1);
+    });
+
+    it('should calculate periods correctly for quarterly compounding', () => {
+      const investment: Investment = {
+        Provider: 'Test',
+        Name: 'Test',
+        StartDate: new Date('2025-01-01'),
+        StartingBalance: 10000,
+        AverageReturnRate: 4.23,
+        CompoundingPeriod: CompoundingFrequency.Quarterly,
+      };
+
+      // After 1 quarter
+      expect(getInvestmentPeriods(investment, new Date('2025-04-01'))).toBe(2);
+      // After 4 quarters (1 year)
+      expect(getInvestmentPeriods(investment, new Date('2026-01-01'))).toBe(5);
+    });
+  });
+
+  describe('getNextCompoundingDate', () => {
+    it('should return next month for monthly compounding', () => {
+      const current = new Date('2025-01-15');
+      const next = getNextCompoundingDate(
+        current,
+        CompoundingFrequency.Monthly
+      );
+
+      expect(next.getFullYear()).toBe(2025);
+      expect(next.getMonth()).toBe(1); // February (0-indexed)
+      expect(next.getDate()).toBe(15);
+    });
+
+    it('should roll over year for monthly compounding', () => {
+      const current = new Date('2025-12-15');
+      const next = getNextCompoundingDate(
+        current,
+        CompoundingFrequency.Monthly
+      );
+
+      expect(next.getFullYear()).toBe(2026);
+      expect(next.getMonth()).toBe(0); // January (0-indexed)
+      expect(next.getDate()).toBe(15);
+    });
+
+    it('should return next quarter for quarterly compounding', () => {
+      const current = new Date('2025-01-15');
+      const next = getNextCompoundingDate(
+        current,
+        CompoundingFrequency.Quarterly
+      );
+
+      expect(next.getFullYear()).toBe(2025);
+      expect(next.getMonth()).toBe(3); // April (0-indexed)
+      expect(next.getDate()).toBe(15);
+    });
+
+    it('should roll over year for quarterly compounding', () => {
+      const current = new Date('2025-11-15');
+      const next = getNextCompoundingDate(
+        current,
+        CompoundingFrequency.Quarterly
+      );
+
+      expect(next.getFullYear()).toBe(2026);
+      expect(next.getMonth()).toBe(1); // February (0-indexed)
+      expect(next.getDate()).toBe(15);
+    });
+
+    it('should return next year for annual compounding', () => {
+      const current = new Date('2025-01-15');
+      const next = getNextCompoundingDate(
+        current,
+        CompoundingFrequency.Annually
+      );
+
+      expect(next.getFullYear()).toBe(2026);
+      expect(next.getMonth()).toBe(0); // January (0-indexed)
+      expect(next.getDate()).toBe(15);
+    });
+  });
+
+  describe('getContributionsInPeriod', () => {
+    it('should count monthly contributions correctly', () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-04-01');
+
+      const count = getContributionsInPeriod(
+        startDate,
+        endDate,
+        CompoundingFrequency.Monthly
+      );
+
+      // Jan 1, Feb 1, Mar 1 (Apr 1 is exclusive)
+      expect(count).toBe(3);
+    });
+
+    it('should count quarterly contributions correctly', () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2026-01-01');
+
+      const count = getContributionsInPeriod(
+        startDate,
+        endDate,
+        CompoundingFrequency.Quarterly
+      );
+
+      // Q1, Q2, Q3, Q4
+      expect(count).toBe(4);
+    });
+
+    it('should count annual contributions correctly', () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2028-01-01');
+
+      const count = getContributionsInPeriod(
+        startDate,
+        endDate,
+        CompoundingFrequency.Annually
+      );
+
+      // 2025, 2026, 2027
+      expect(count).toBe(3);
+    });
+
+    it('should return 0 for same start and end date', () => {
+      const date = new Date('2025-01-01');
+
+      const count = getContributionsInPeriod(
+        date,
+        date,
+        CompoundingFrequency.Monthly
+      );
+
+      expect(count).toBe(0);
+    });
+
+    it('should return 1 for period with single contribution', () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-15');
+
+      const count = getContributionsInPeriod(
+        startDate,
+        endDate,
+        CompoundingFrequency.Monthly
+      );
+
+      // Only Jan 1
+      expect(count).toBe(1);
     });
   });
 
