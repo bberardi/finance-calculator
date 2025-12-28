@@ -6,7 +6,7 @@ export const Header = () => {
     <div className="header">
       <Stack
         direction="row"
-        spacing={3}
+        spacing={2}
         justifyContent="center"
         alignItems="center"
         sx={{ position: 'relative', zIndex: 1 }}
@@ -14,8 +14,8 @@ export const Header = () => {
         <CardMedia
           image={Logo}
           sx={{
-            height: 200,
-            width: 200,
+            height: 120,
+            width: 120,
             filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2))',
             transition: 'transform 0.3s ease',
             '&:hover': {
@@ -23,9 +23,9 @@ export const Header = () => {
             },
           }}
         />
-        <Stack spacing={2}>
+        <Stack spacing={0.5}>
           <Typography
-            variant="h2"
+            variant="h3"
             sx={{
               fontWeight: 700,
               color: '#ffffff',
@@ -43,7 +43,7 @@ export const Header = () => {
             PathWise
           </Typography>
           <Typography
-            variant="h5"
+            variant="body1"
             sx={{
               fontWeight: 300,
               color: 'rgba(255, 255, 255, 0.9)',

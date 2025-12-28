@@ -16,7 +16,7 @@
 .header {
   background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8c 50%, #3a7bc8 100%);
   color: white;
-  padding: 30px 20px;
+  padding: 15px 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   position: relative;
   overflow: hidden;
@@ -66,7 +66,7 @@
 .footer {
   background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8c 100%);
   color: white;
-  padding: 15px;
+  padding: 8px;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   text-align: center;
   z-index: 10;
