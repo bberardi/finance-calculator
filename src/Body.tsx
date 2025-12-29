@@ -22,6 +22,7 @@ import {
 } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { generateInvestmentGrowth } from './helpers/investment-helpers';
+import { FinancialVisualization } from './visualization/financial-visualization';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -211,6 +212,8 @@ export const Body = () => {
           />
         </Toolbar>
       </AppBar>
+
+      <FinancialVisualization loans={loans} investments={investments} />
 
       <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
         <Divider>Loans</Divider>

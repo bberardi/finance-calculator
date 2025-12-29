@@ -2,7 +2,7 @@
   "homepage": "https://bberardi.github.io/finance-calculator/",
   "name": "finance-calculator",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "start": "npm run dev",
@@ -24,6 +24,7 @@
     "@emotion/styled": "^11.13.5",
     "@mui/icons-material": "^6.1.9",
     "@mui/material": "^6.1.9",
+    "@mui/x-charts": "^8.23.0",
     "@mui/x-date-pickers": "^7.22.2",
     "dayjs": "^1.11.13",
     "prettier": "^3.4.1",
