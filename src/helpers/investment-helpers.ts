@@ -155,14 +155,36 @@ export const getInvestmentYear = (
   currentDate: Date,
   startDate: Date
 ): number => {
+  // If currentDate is before startDate, return 1 (investment hasn't started yet, treat as year 1)
+  if (currentDate < startDate) {
+    return 1;
+  }
+
   // Calculate years elapsed since start
   const yearsElapsed = currentDate.getFullYear() - startDate.getFullYear();
+
+  // Handle leap year edge case: if start date is Feb 29, use Feb 28 for non-leap years
+  const anniversaryMonth = startDate.getMonth();
+  let anniversaryDay = startDate.getDate();
+
+  // Check if start date is Feb 29 (leap day)
+  if (anniversaryMonth === 1 && anniversaryDay === 29) {
+    // Check if current year is a leap year
+    const currentYear = currentDate.getFullYear();
+    const isLeapYear =
+      (currentYear % 4 === 0 && currentYear % 100 !== 0) ||
+      currentYear % 400 === 0;
+    if (!isLeapYear) {
+      // Use Feb 28 for non-leap years
+      anniversaryDay = 28;
+    }
+  }
 
   // Check if we've passed the anniversary this calendar year
   const anniversaryThisYear = new Date(
     currentDate.getFullYear(),
-    startDate.getMonth(),
-    startDate.getDate()
+    anniversaryMonth,
+    anniversaryDay
   );
 
   if (currentDate >= anniversaryThisYear) {

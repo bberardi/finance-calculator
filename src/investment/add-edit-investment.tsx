@@ -260,6 +260,7 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                   value={newInvestment.ContributionStepUpAmount || ''}
                   thousandSeparator
                   decimalScale={2}
+                  allowNegative={false}
                   prefix={
                     newInvestment.ContributionStepUpType === StepUpType.Flat
                       ? '$'

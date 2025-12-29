@@ -475,6 +475,47 @@ describe('Investment Helpers', () => {
           100
         );
       });
+
+      it('should return base contribution for negative step-up amounts', () => {
+        // Negative step-up amounts should return base contribution
+        expect(getContributionForYear(100, 3, -10, StepUpType.Flat)).toBe(100);
+        expect(getContributionForYear(100, 3, -10, StepUpType.Percentage)).toBe(
+          100
+        );
+        expect(getContributionForYear(100, 5, -50, StepUpType.Flat)).toBe(100);
+        expect(getContributionForYear(100, 5, -50, StepUpType.Percentage)).toBe(
+          100
+        );
+      });
+
+      it('should handle large percentage step-ups correctly', () => {
+        // 100% step-up doubles each year
+        expect(
+          getContributionForYear(100, 2, 100, StepUpType.Percentage)
+        ).toBeCloseTo(200, 2);
+        expect(
+          getContributionForYear(100, 3, 100, StepUpType.Percentage)
+        ).toBeCloseTo(400, 2);
+        expect(
+          getContributionForYear(100, 4, 100, StepUpType.Percentage)
+        ).toBeCloseTo(800, 2);
+
+        // 200% step-up triples each year
+        expect(
+          getContributionForYear(100, 2, 200, StepUpType.Percentage)
+        ).toBeCloseTo(300, 2);
+        expect(
+          getContributionForYear(100, 3, 200, StepUpType.Percentage)
+        ).toBeCloseTo(900, 2);
+
+        // Very large step-up (500%)
+        expect(
+          getContributionForYear(100, 2, 500, StepUpType.Percentage)
+        ).toBeCloseTo(600, 2);
+        expect(
+          getContributionForYear(100, 3, 500, StepUpType.Percentage)
+        ).toBeCloseTo(3600, 2);
+      });
     });
 
     describe('getInvestmentYear', () => {
@@ -498,6 +539,35 @@ describe('Investment Helpers', () => {
         // On/after anniversary in 2026
         expect(getInvestmentYear(new Date(2026, 5, 15), startDate)).toBe(2);
         expect(getInvestmentYear(new Date(2026, 6, 1), startDate)).toBe(2);
+      });
+
+      it('should return 1 when currentDate is before startDate', () => {
+        const startDate = new Date(2025, 5, 15); // June 15, 2025
+        // Dates before the investment start should return year 1
+        expect(getInvestmentYear(new Date(2025, 0, 1), startDate)).toBe(1);
+        expect(getInvestmentYear(new Date(2024, 11, 31), startDate)).toBe(1);
+        expect(getInvestmentYear(new Date(2020, 0, 1), startDate)).toBe(1);
+      });
+
+      it('should handle leap year (Feb 29) start dates correctly', () => {
+        // Start on Feb 29, 2024 (leap year)
+        const startDate = new Date(2024, 1, 29);
+
+        // On the start date itself
+        expect(getInvestmentYear(new Date(2024, 1, 29), startDate)).toBe(1);
+
+        // Feb 28, 2025 (non-leap year) should be year 2 since Feb 29 doesn't exist
+        // The anniversary in 2025 is Feb 28
+        expect(getInvestmentYear(new Date(2025, 1, 28), startDate)).toBe(2);
+
+        // Feb 27, 2025 should still be year 1 (before anniversary)
+        expect(getInvestmentYear(new Date(2025, 1, 27), startDate)).toBe(1);
+
+        // March 1, 2025 should be year 2
+        expect(getInvestmentYear(new Date(2025, 2, 1), startDate)).toBe(2);
+
+        // Feb 29, 2028 (leap year) should be year 5
+        expect(getInvestmentYear(new Date(2028, 1, 29), startDate)).toBe(5);
       });
     });
 
