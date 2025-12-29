@@ -1,4 +1,5 @@
 export interface Loan {
+  Id: string;
   Provider: string;
   Name: string;
   InterestRate: number;
@@ -13,6 +14,7 @@ export interface Loan {
 }
 
 export const emptyLoan: Loan = {
+  Id: '',
   Provider: '',
   Name: '',
   InterestRate: 0,
