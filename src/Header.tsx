@@ -10,7 +10,12 @@ export const Header = () => {
         justifyContent="center"
         alignItems="center"
       >
-        <CardMedia image={Logo} sx={{ height: 60, width: 60 }} />
+        <CardMedia
+          image={Logo}
+          role="img"
+          aria-label="PathWise logo"
+          sx={{ height: 60, width: 60 }}
+        />
         <Stack spacing={0.5}>
           <Typography variant="h4" sx={{ fontWeight: 400 }}>
             PathWise
