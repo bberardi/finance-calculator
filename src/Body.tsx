@@ -8,8 +8,10 @@ import {
   Typography,
   Switch,
   FormControlLabel,
+  Alert,
+  Snackbar,
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { AddEditLoan } from './loan/add-edit-loan';
 import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
@@ -22,14 +24,26 @@ import {
 } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { generateInvestmentGrowth } from './helpers/investment-helpers';
+import {
+  generateUniqueId,
+  exportToJson,
+  importFromJson,
+  mergeData,
+} from './helpers/data-helpers';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import DownloadIcon from '@mui/icons-material/Download';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [testDataEnabled, setTestDataEnabled] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fake data for testing
   const fakeLoans: Loan[] = [
     {
+      Id: generateUniqueId(),
       Name: 'Test Loan 1',
       Provider: 'Fake Provider',
       InterestRate: 5,
@@ -41,6 +55,7 @@ export const Body = () => {
       AmortizationSchedule: [],
     },
     {
+      Id: generateUniqueId(),
       Name: 'Test Loan 2',
       Provider: 'Sample Bank',
       InterestRate: 3.5,
@@ -55,6 +70,7 @@ export const Body = () => {
 
   const fakeInvestments: Investment[] = [
     {
+      Id: generateUniqueId(),
       Name: 'Test Investment 1',
       Provider: 'Fake Investment Co.',
       StartingBalance: 10000,
@@ -65,6 +81,7 @@ export const Body = () => {
       ProjectedGrowth: [],
     },
     {
+      Id: generateUniqueId(),
       Name: 'Test Investment 2',
       Provider: 'Sample Fund',
       StartingBalance: 5000,
@@ -120,6 +137,7 @@ export const Body = () => {
   const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
     const updatedLoan: Loan = {
       ...newLoan,
+      Id: newLoan.Id || generateUniqueId(),
       AmortizationSchedule: generateAmortizationSchedule(newLoan),
     };
 
@@ -152,6 +170,7 @@ export const Body = () => {
   ) => {
     const updatedInvestment: Investment = {
       ...newInvestment,
+      Id: newInvestment.Id || generateUniqueId(),
       ProjectedGrowth: generateInvestmentGrowth(newInvestment),
     };
 
@@ -167,6 +186,91 @@ export const Body = () => {
       }
     }
   };
+
+  const handleExport = () => {
+    try {
+      const jsonData = exportToJson(loans, investments);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pathwise-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccessMessage('Data exported successfully!');
+    } catch {
+      setErrorMessage('Failed to export data. Please try again.');
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.json')) {
+      setErrorMessage('Please upload a JSON file (.json)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const { loans: importedLoans, investments: importedInvestments } =
+          importFromJson(content);
+
+        // Merge the imported data with existing data
+        const mergedLoans = mergeData(loans, importedLoans);
+        const mergedInvestments = mergeData(investments, importedInvestments);
+
+        // Regenerate calculated fields
+        const updatedLoans = mergedLoans.map((loan) => ({
+          ...loan,
+          AmortizationSchedule: generateAmortizationSchedule(loan),
+        }));
+
+        const updatedInvestments = mergedInvestments.map((investment) => ({
+          ...investment,
+          ProjectedGrowth: generateInvestmentGrowth(investment),
+        }));
+
+        setLoans(updatedLoans);
+        setInvestments(updatedInvestments);
+        setSuccessMessage(
+          `Data imported successfully! ${importedLoans.length} loans and ${importedInvestments.length} investments processed.`
+        );
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Failed to import data'
+        );
+      }
+    };
+
+    reader.onerror = () => {
+      setErrorMessage('Failed to read file. Please try again.');
+    };
+
+    reader.readAsText(file);
+
+    // Reset the input so the same file can be uploaded again
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
+
+  const hasData = loans.length > 0 || investments.length > 0;
 
   return (
     <Container>
@@ -196,6 +300,32 @@ export const Body = () => {
           >
             Add Investment
           </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            sx={{ margin: '5px' }}
+            onClick={handleUploadClick}
+            startIcon={<UploadFileIcon />}
+          >
+            Upload
+          </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            sx={{ margin: '5px' }}
+            onClick={handleExport}
+            disabled={!hasData}
+            startIcon={<DownloadIcon />}
+          >
+            Export
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
+          />
           <div style={{ flex: 1 }} />
           <FormControlLabel
             control={
@@ -250,6 +380,36 @@ export const Body = () => {
         onClose={onInvestmentAddEditClose}
         investment={editInvestment}
       />
+
+      <Snackbar
+        open={!!errorMessage}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity="error"
+          sx={{ width: '100%' }}
+        >
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

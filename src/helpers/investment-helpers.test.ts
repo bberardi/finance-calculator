@@ -27,6 +27,7 @@ describe('Investment Helpers', () => {
   describe('getInvestmentPeriods', () => {
     it('should return 0 when end date is before start date', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test',
         Name: 'Test',
         StartDate: new Date(2025, 0, 1),
@@ -40,6 +41,7 @@ describe('Investment Helpers', () => {
 
     it('should calculate periods correctly for annual compounding', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test',
         Name: 'Test',
         StartDate: new Date(2025, 0, 1),
@@ -58,6 +60,7 @@ describe('Investment Helpers', () => {
 
     it('should calculate periods correctly for monthly compounding', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test',
         Name: 'Test',
         StartDate: new Date(2025, 0, 1),
@@ -76,6 +79,7 @@ describe('Investment Helpers', () => {
 
     it('should calculate periods correctly for quarterly compounding', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test',
         Name: 'Test',
         StartDate: new Date(2025, 0, 1),
@@ -238,6 +242,7 @@ describe('Investment Helpers', () => {
 
     describe('generateInvestmentGrowth', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test Provider',
         Name: 'Test Investment',
         StartDate: startDate,
@@ -298,6 +303,7 @@ describe('Investment Helpers', () => {
 
     describe('getPitInvestmentCalculation', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test Provider',
         Name: 'Test Investment',
         StartDate: startDate,
@@ -347,6 +353,7 @@ describe('Investment Helpers', () => {
   describe('Monthly Compounded Investment Calculations (extensibility)', () => {
     it('should generate growth data for monthly compounded investments', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test Provider',
         Name: 'Monthly Test',
         StartDate: new Date(2025, 0, 1),
@@ -368,6 +375,7 @@ describe('Investment Helpers', () => {
   describe('Quarterly Compounded Investment Calculations (extensibility)', () => {
     it('should generate growth data for quarterly compounded investments', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test Provider',
         Name: 'Quarterly Test',
         StartDate: new Date(2025, 0, 1),
@@ -389,6 +397,7 @@ describe('Investment Helpers', () => {
   describe('Edge Cases', () => {
     it('should return empty growth array when end date is before start date', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test',
         Name: 'Test',
         StartDate: new Date(2025, 0, 1),
@@ -405,6 +414,7 @@ describe('Investment Helpers', () => {
   describe('Investment with Recurring Contributions (extensibility for future)', () => {
     it('should generate growth with recurring contributions', () => {
       const investment: Investment = {
+        Id: 'test-inv',
         Provider: 'Test Provider',
         Name: 'Contribution Test',
         StartDate: new Date(2025, 0, 1),

@@ -31,6 +31,7 @@ describe('Loan Helpers', () => {
   describe('getTerms', () => {
     it('should calculate number of months between dates', () => {
       const loan: Loan = {
+        Id: 'test-1',
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
@@ -46,6 +47,7 @@ describe('Loan Helpers', () => {
 
     it('should calculate terms up to a specific date', () => {
       const loan: Loan = {
+        Id: 'test-2',
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
@@ -63,6 +65,7 @@ describe('Loan Helpers', () => {
   describe('generateAmortizationSchedule', () => {
     it('should generate amortization schedule', () => {
       const loan: Loan = {
+        Id: 'test-3',
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
@@ -89,6 +92,7 @@ describe('Loan Helpers', () => {
 
     it('should return empty array for undefined monthly payment', () => {
       const loan: Loan = {
+        Id: 'test-4',
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
@@ -104,6 +108,7 @@ describe('Loan Helpers', () => {
 
     it('should generate partial schedule when terms provided', () => {
       const loan: Loan = {
+        Id: 'test-5',
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
@@ -125,6 +130,7 @@ describe('Loan Helpers', () => {
   describe('getPitCalculation', () => {
     it('should calculate point-in-time loan values', () => {
       const loan: Loan = {
+        Id: 'test-6',
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
