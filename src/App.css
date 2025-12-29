@@ -14,21 +14,23 @@
 }
 
 .header {
-  background-color: #282c34;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   color: white;
-  padding: 20px;
+  padding: 12px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .body {
   flex: 1; /* Grow to fill remaining space */
   padding: 20px; /* Add some padding */
-  background-color: #f0f0f0;
+  background: linear-gradient(to bottom, #f5f7fa 0%, #e8ecf1 100%);
 }
 
 .footer {
-  background-color: #282c34;
+  background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
   color: white;
-  padding: 10px;
+  padding: 8px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
 }
 
 h2 {
