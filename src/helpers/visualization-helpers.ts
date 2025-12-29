@@ -23,7 +23,7 @@ export const getMaxVisualizationDate = (
   // Find the latest loan end date
   const maxLoanDate =
     loans.length > 0
-      ? new Date(Math.max(...loans.map((loan) => loan.EndDate?.getTime() || 0)))
+      ? new Date(Math.max(...loans.map((loan) => loan.EndDate.getTime())))
       : today;
 
   // For investments, use 30 years from now as default
