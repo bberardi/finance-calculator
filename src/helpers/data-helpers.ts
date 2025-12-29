@@ -24,6 +24,13 @@ export interface MergeResult {
 }
 
 /**
+ * Check if an ID is valid (non-empty and non-whitespace)
+ */
+const isValidId = (id: string | undefined): boolean => {
+  return !!id && id.trim() !== '';
+};
+
+/**
  * Generate a unique ID using timestamp and random string
  * Format: {timestamp}-{random-alphanumeric}
  * Example: "1766972407476-q672d9h3f"
@@ -95,7 +102,7 @@ export const importFromJson = (
     // Convert ISO date strings back to Date objects
     const loans: Loan[] = data.loans.map((serializedLoan, index) => {
       // Validate ID is present and non-empty
-      if (!serializedLoan.Id || serializedLoan.Id.trim() === '') {
+      if (!isValidId(serializedLoan.Id)) {
         throw new Error(
           `Invalid or missing ID in loan at index ${index}. All items must have a non-empty ID.`
         );
@@ -112,7 +119,7 @@ export const importFromJson = (
     const investments: Investment[] = data.investments.map(
       (serializedInvestment, index) => {
         // Validate ID is present and non-empty
-        if (!serializedInvestment.Id || serializedInvestment.Id.trim() === '') {
+        if (!isValidId(serializedInvestment.Id)) {
           throw new Error(
             `Invalid or missing ID in investment at index ${index}. All items must have a non-empty ID.`
           );
@@ -160,9 +167,7 @@ export const mergeData = <T extends { Id: string }>(
 ): { items: T[]; result: MergeResult } => {
   const merged = [...existing];
   const existingIds = new Set(
-    existing
-      .filter((item) => item.Id && item.Id.trim() !== '')
-      .map((item) => item.Id)
+    existing.filter((item) => isValidId(item.Id)).map((item) => item.Id)
   );
 
   let added = 0;
@@ -170,7 +175,7 @@ export const mergeData = <T extends { Id: string }>(
 
   imported.forEach((item) => {
     // Skip items with empty IDs
-    if (!item.Id || item.Id.trim() === '') {
+    if (!isValidId(item.Id)) {
       return;
     }
 
