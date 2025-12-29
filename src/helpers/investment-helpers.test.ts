@@ -6,8 +6,15 @@ import {
   getInvestmentPeriods,
   getNextCompoundingDate,
   getContributionsInPeriod,
+  getContributionForYear,
+  getInvestmentYear,
+  getContributionsWithStepUp,
 } from './investment-helpers';
-import { Investment, CompoundingFrequency } from '../models/investment-model';
+import {
+  Investment,
+  CompoundingFrequency,
+  StepUpType,
+} from '../models/investment-model';
 
 describe('Investment Helpers', () => {
   describe('getPeriodsPerYear', () => {
@@ -424,6 +431,290 @@ describe('Investment Helpers', () => {
       // Final value should include contributions
       const finalValue = growth[growth.length - 1].TotalValue;
       expect(finalValue).toBeGreaterThan(10423.0);
+    });
+  });
+
+  describe('Step-Up Contribution Helpers', () => {
+    describe('getContributionForYear', () => {
+      it('should return base contribution for year 1', () => {
+        expect(getContributionForYear(100, 1, 10, StepUpType.Flat)).toBe(100);
+        expect(getContributionForYear(100, 1, 10, StepUpType.Percentage)).toBe(
+          100
+        );
+      });
+
+      it('should apply flat step-up correctly', () => {
+        // $100 base with $10 step-up
+        expect(getContributionForYear(100, 1, 10, StepUpType.Flat)).toBe(100);
+        expect(getContributionForYear(100, 2, 10, StepUpType.Flat)).toBe(110);
+        expect(getContributionForYear(100, 3, 10, StepUpType.Flat)).toBe(120);
+        expect(getContributionForYear(100, 5, 10, StepUpType.Flat)).toBe(140);
+      });
+
+      it('should apply percentage step-up correctly', () => {
+        // $100 base with 10% step-up
+        expect(
+          getContributionForYear(100, 1, 10, StepUpType.Percentage)
+        ).toBeCloseTo(100, 2);
+        expect(
+          getContributionForYear(100, 2, 10, StepUpType.Percentage)
+        ).toBeCloseTo(110, 2);
+        expect(
+          getContributionForYear(100, 3, 10, StepUpType.Percentage)
+        ).toBeCloseTo(121, 2);
+        // Year 4: 100 * 1.1^3 = 133.1
+        expect(
+          getContributionForYear(100, 4, 10, StepUpType.Percentage)
+        ).toBeCloseTo(133.1, 2);
+      });
+
+      it('should return base contribution if no step-up configured', () => {
+        expect(getContributionForYear(100, 3, undefined, undefined)).toBe(100);
+        expect(getContributionForYear(100, 3, 0, StepUpType.Flat)).toBe(100);
+        expect(getContributionForYear(100, 3, undefined, StepUpType.Flat)).toBe(
+          100
+        );
+      });
+    });
+
+    describe('getInvestmentYear', () => {
+      it('should return 1 for dates within the first year', () => {
+        const startDate = new Date(2025, 0, 1);
+        expect(getInvestmentYear(new Date(2025, 0, 1), startDate)).toBe(1);
+        expect(getInvestmentYear(new Date(2025, 6, 15), startDate)).toBe(1);
+        expect(getInvestmentYear(new Date(2025, 11, 31), startDate)).toBe(1);
+      });
+
+      it('should return 2 for dates in the second year', () => {
+        const startDate = new Date(2025, 0, 1);
+        expect(getInvestmentYear(new Date(2026, 0, 1), startDate)).toBe(2);
+        expect(getInvestmentYear(new Date(2026, 6, 15), startDate)).toBe(2);
+      });
+
+      it('should handle mid-year start dates correctly', () => {
+        const startDate = new Date(2025, 5, 15); // June 15, 2025
+        // Before anniversary in 2026
+        expect(getInvestmentYear(new Date(2026, 4, 1), startDate)).toBe(1);
+        // On/after anniversary in 2026
+        expect(getInvestmentYear(new Date(2026, 5, 15), startDate)).toBe(2);
+        expect(getInvestmentYear(new Date(2026, 6, 1), startDate)).toBe(2);
+      });
+    });
+
+    describe('getContributionsWithStepUp', () => {
+      it('should calculate contributions without step-up', () => {
+        const startDate = new Date(2025, 0, 1);
+        const endDate = new Date(2025, 3, 1);
+        const investmentStart = new Date(2025, 0, 1);
+
+        // 3 monthly contributions of $100 each (Jan, Feb, Mar)
+        const total = getContributionsWithStepUp(
+          startDate,
+          endDate,
+          investmentStart,
+          100,
+          CompoundingFrequency.Monthly
+        );
+
+        expect(total).toBe(300);
+      });
+
+      it('should apply flat step-up at year boundary', () => {
+        const investmentStart = new Date(2025, 0, 1);
+        // Period spanning year 1 and year 2
+        // Nov 2025 to Feb 2026 = 3 contributions at $100 (Nov, Dec) + 1 at $110 (Jan 2026)
+        // Actually: Nov 1 = $100, Dec 1 = $100, Jan 1 = $110 (year 2 starts)
+        const startDate = new Date(2025, 10, 1); // Nov 1
+        const endDate = new Date(2026, 1, 1); // Feb 1 (exclusive)
+
+        const total = getContributionsWithStepUp(
+          startDate,
+          endDate,
+          investmentStart,
+          100,
+          CompoundingFrequency.Monthly,
+          10,
+          StepUpType.Flat
+        );
+
+        // Nov $100 + Dec $100 + Jan $110 = $310
+        expect(total).toBe(310);
+      });
+
+      it('should apply percentage step-up at year boundary', () => {
+        const investmentStart = new Date(2025, 0, 1);
+        const startDate = new Date(2025, 10, 1); // Nov 1
+        const endDate = new Date(2026, 1, 1); // Feb 1 (exclusive)
+
+        const total = getContributionsWithStepUp(
+          startDate,
+          endDate,
+          investmentStart,
+          100,
+          CompoundingFrequency.Monthly,
+          10,
+          StepUpType.Percentage
+        );
+
+        // Nov $100 + Dec $100 + Jan $110 = $310
+        expect(total).toBe(310);
+      });
+    });
+  });
+
+  describe('Investment Growth with Step-Up Contributions', () => {
+    // Test data from the issue:
+    // Flat example: $100/month with $10 step-up
+    // Year 1: $100/month, Year 2: $110/month, Year 3: $120/month
+
+    describe('Flat Step-Up', () => {
+      it('should apply flat step-up to contributions over multiple years', () => {
+        const investment: Investment = {
+          Provider: 'Test',
+          Name: 'Flat Step-Up Test',
+          StartDate: new Date(2025, 0, 1),
+          StartingBalance: 0,
+          AverageReturnRate: 0, // No interest to simplify testing contributions
+          CompoundingPeriod: CompoundingFrequency.Annually,
+          RecurringContribution: 100,
+          ContributionFrequency: CompoundingFrequency.Monthly,
+          ContributionStepUpAmount: 10,
+          ContributionStepUpType: StepUpType.Flat,
+        };
+
+        // After 3 years
+        const endDate = new Date(2028, 0, 1);
+        const growth = generateInvestmentGrowth(investment, endDate);
+
+        // Year 1: 12 * $100 = $1,200
+        // Year 2: 12 * $110 = $1,320
+        // Year 3: 12 * $120 = $1,440
+        // Total: $3,960
+
+        const totalContributions = growth.reduce(
+          (sum, entry) => sum + entry.ContributionAmount,
+          0
+        );
+        expect(totalContributions).toBe(3960);
+      });
+
+      it('should calculate correct value after 1 year with flat step-up', () => {
+        const investment: Investment = {
+          Provider: 'Test',
+          Name: 'Flat Step-Up Test',
+          StartDate: new Date(2025, 0, 1),
+          StartingBalance: 0,
+          AverageReturnRate: 0,
+          CompoundingPeriod: CompoundingFrequency.Annually,
+          RecurringContribution: 100,
+          ContributionFrequency: CompoundingFrequency.Monthly,
+          ContributionStepUpAmount: 10,
+          ContributionStepUpType: StepUpType.Flat,
+        };
+
+        // After 1 year (no step-up applied yet)
+        const endDate = new Date(2026, 0, 1);
+        const growth = generateInvestmentGrowth(investment, endDate);
+
+        // Year 1: 12 * $100 = $1,200
+        const totalContributions = growth.reduce(
+          (sum, entry) => sum + entry.ContributionAmount,
+          0
+        );
+        expect(totalContributions).toBe(1200);
+      });
+    });
+
+    describe('Percentage Step-Up', () => {
+      it('should apply percentage step-up to contributions over multiple years', () => {
+        const investment: Investment = {
+          Provider: 'Test',
+          Name: 'Percentage Step-Up Test',
+          StartDate: new Date(2025, 0, 1),
+          StartingBalance: 0,
+          AverageReturnRate: 0, // No interest to simplify testing contributions
+          CompoundingPeriod: CompoundingFrequency.Annually,
+          RecurringContribution: 100,
+          ContributionFrequency: CompoundingFrequency.Monthly,
+          ContributionStepUpAmount: 10,
+          ContributionStepUpType: StepUpType.Percentage,
+        };
+
+        // After 3 years
+        const endDate = new Date(2028, 0, 1);
+        const growth = generateInvestmentGrowth(investment, endDate);
+
+        // Year 1: 12 * $100 = $1,200
+        // Year 2: 12 * $110 = $1,320
+        // Year 3: 12 * $121 = $1,452
+        // Total: $3,972
+
+        const totalContributions = growth.reduce(
+          (sum, entry) => sum + entry.ContributionAmount,
+          0
+        );
+        expect(totalContributions).toBe(3972);
+      });
+
+      it('should compound percentage step-up over many years', () => {
+        const investment: Investment = {
+          Provider: 'Test',
+          Name: 'Percentage Step-Up Test',
+          StartDate: new Date(2025, 0, 1),
+          StartingBalance: 0,
+          AverageReturnRate: 0,
+          CompoundingPeriod: CompoundingFrequency.Annually,
+          RecurringContribution: 100,
+          ContributionFrequency: CompoundingFrequency.Monthly,
+          ContributionStepUpAmount: 10,
+          ContributionStepUpType: StepUpType.Percentage,
+        };
+
+        // After 5 years
+        const endDate = new Date(2030, 0, 1);
+        const growth = generateInvestmentGrowth(investment, endDate);
+
+        // Year 1: 12 * 100 = 1,200
+        // Year 2: 12 * 110 = 1,320
+        // Year 3: 12 * 121 = 1,452
+        // Year 4: 12 * 133.1 = 1,597.2
+        // Year 5: 12 * 146.41 = 1,756.92
+        // Total: 7,326.12
+
+        const totalContributions = growth.reduce(
+          (sum, entry) => sum + entry.ContributionAmount,
+          0
+        );
+        expect(totalContributions).toBeCloseTo(7326.12, 0);
+      });
+    });
+
+    describe('Step-Up with Interest', () => {
+      it('should correctly compound interest with flat step-up contributions', () => {
+        const investment: Investment = {
+          Provider: 'Test',
+          Name: 'Step-Up with Interest',
+          StartDate: new Date(2025, 0, 1),
+          StartingBalance: 10000,
+          AverageReturnRate: 5,
+          CompoundingPeriod: CompoundingFrequency.Annually,
+          RecurringContribution: 100,
+          ContributionFrequency: CompoundingFrequency.Monthly,
+          ContributionStepUpAmount: 10,
+          ContributionStepUpType: StepUpType.Flat,
+        };
+
+        const endDate = new Date(2027, 0, 1);
+        const growth = generateInvestmentGrowth(investment, endDate);
+
+        // Year 1: Start $10,000 + $1,200 contributions = $11,200
+        // After 5% interest = $11,760
+        // Year 2: $11,760 + $1,320 contributions = $13,080
+        // After 5% interest = $13,734
+
+        const finalValue = growth[growth.length - 1].TotalValue;
+        expect(finalValue).toBeCloseTo(13734, 0);
+      });
     });
   });
 });

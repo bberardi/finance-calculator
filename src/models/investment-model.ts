@@ -4,6 +4,11 @@ export enum CompoundingFrequency {
   Annually = 'annually',
 }
 
+export enum StepUpType {
+  Flat = 'flat',
+  Percentage = 'percentage',
+}
+
 export interface Investment {
   Provider: string;
   Name: string;
@@ -13,6 +18,8 @@ export interface Investment {
   CompoundingPeriod: CompoundingFrequency;
   RecurringContribution?: number;
   ContributionFrequency?: CompoundingFrequency;
+  ContributionStepUpAmount?: number; // Yearly step-up: flat dollar amount or percentage value
+  ContributionStepUpType?: StepUpType; // Type of step-up: flat or percentage
   CurrentValue?: number; // Calculated field
   ProjectedGrowth?: InvestmentGrowthEntry[]; // Calculated field
 }

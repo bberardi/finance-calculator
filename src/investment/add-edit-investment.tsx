@@ -17,6 +17,7 @@ import {
   emptyInvestment,
   Investment,
   CompoundingFrequency,
+  StepUpType,
 } from '../models/investment-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
@@ -76,6 +77,8 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
     newInvestment.CompoundingPeriod,
     newInvestment.RecurringContribution,
     newInvestment.ContributionFrequency,
+    newInvestment.ContributionStepUpAmount,
+    newInvestment.ContributionStepUpType,
   ]);
 
   return (
@@ -217,6 +220,68 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                     )}
                   </Select>
                 </FormControl>
+              )}
+            {typeof newInvestment.RecurringContribution === 'number' &&
+              newInvestment.RecurringContribution > 0 && (
+                <FormControl fullWidth>
+                  <InputLabel>Yearly Step-Up Type (Optional)</InputLabel>
+                  <Select
+                    value={newInvestment.ContributionStepUpType || ''}
+                    label="Yearly Step-Up Type (Optional)"
+                    onChange={(e) =>
+                      setNewInvestment({
+                        ...newInvestment,
+                        ContributionStepUpType: e.target.value
+                          ? (e.target.value as StepUpType)
+                          : undefined,
+                        ContributionStepUpAmount: e.target.value
+                          ? newInvestment.ContributionStepUpAmount
+                          : undefined,
+                      })
+                    }
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {Object.entries(StepUpType).map(([key, value]) => (
+                      <MenuItem key={key} value={value}>
+                        {key}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            {typeof newInvestment.RecurringContribution === 'number' &&
+              newInvestment.RecurringContribution > 0 &&
+              newInvestment.ContributionStepUpType && (
+                <NumericFormat
+                  label={
+                    newInvestment.ContributionStepUpType === StepUpType.Flat
+                      ? 'Yearly Step-Up Amount'
+                      : 'Yearly Step-Up Percentage'
+                  }
+                  value={newInvestment.ContributionStepUpAmount || ''}
+                  thousandSeparator
+                  decimalScale={2}
+                  prefix={
+                    newInvestment.ContributionStepUpType === StepUpType.Flat
+                      ? '$'
+                      : undefined
+                  }
+                  suffix={
+                    newInvestment.ContributionStepUpType ===
+                    StepUpType.Percentage
+                      ? '%'
+                      : undefined
+                  }
+                  customInput={TextField}
+                  onValueChange={(vs) => {
+                    setNewInvestment({
+                      ...newInvestment,
+                      ContributionStepUpAmount: vs.value
+                        ? Number(vs.value)
+                        : undefined,
+                    });
+                  }}
+                />
               )}
             <Stack direction="row">
               {props.investment && (

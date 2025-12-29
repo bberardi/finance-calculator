@@ -3,6 +3,7 @@ import {
   InvestmentGrowthEntry,
   PitInvestment,
   CompoundingFrequency,
+  StepUpType,
 } from '../models/investment-model';
 
 // Returns the number of compounding periods per year based on frequency
@@ -125,6 +126,85 @@ export const getContributionsInPeriod = (
   return count;
 };
 
+// Calculate the contribution amount for a specific year with step-up applied
+// Year 1 = first year (no step-up yet), Year 2 = second year (first step-up applied), etc.
+export const getContributionForYear = (
+  baseContribution: number,
+  yearNumber: number,
+  stepUpAmount?: number,
+  stepUpType?: StepUpType
+): number => {
+  if (!stepUpAmount || stepUpAmount <= 0 || !stepUpType || yearNumber <= 1) {
+    return baseContribution;
+  }
+
+  // Number of step-ups applied (first year has no step-up)
+  const stepUpsApplied = yearNumber - 1;
+
+  if (stepUpType === StepUpType.Flat) {
+    // Flat: add step-up amount for each year after the first
+    return baseContribution + stepUpAmount * stepUpsApplied;
+  } else {
+    // Percentage: compound the step-up for each year after the first
+    return baseContribution * Math.pow(1 + stepUpAmount / 100, stepUpsApplied);
+  }
+};
+
+// Calculate the investment year number (1-indexed) based on how many years have passed since start
+export const getInvestmentYear = (
+  currentDate: Date,
+  startDate: Date
+): number => {
+  // Calculate years elapsed since start
+  const yearsElapsed = currentDate.getFullYear() - startDate.getFullYear();
+
+  // Check if we've passed the anniversary this calendar year
+  const anniversaryThisYear = new Date(
+    currentDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate()
+  );
+
+  if (currentDate >= anniversaryThisYear) {
+    return yearsElapsed + 1;
+  } else {
+    return yearsElapsed;
+  }
+};
+
+// Calculate total contributions in a period, accounting for step-up at year boundaries
+export const getContributionsWithStepUp = (
+  startDate: Date,
+  endDate: Date,
+  investmentStartDate: Date,
+  baseContribution: number,
+  contributionFrequency: CompoundingFrequency,
+  stepUpAmount?: number,
+  stepUpType?: StepUpType
+): number => {
+  let totalContribution = 0;
+  let currentDate = new Date(startDate.getTime());
+
+  // Iterate through each contribution date in the period
+  while (currentDate < endDate) {
+    // Determine which year this contribution falls in
+    const yearNumber = getInvestmentYear(currentDate, investmentStartDate);
+
+    // Get the contribution amount for this year
+    const contributionAmount = getContributionForYear(
+      baseContribution,
+      yearNumber,
+      stepUpAmount,
+      stepUpType
+    );
+
+    totalContribution += contributionAmount;
+    currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
+  }
+
+  return totalContribution;
+};
+
 // Generate growth projection for an investment using date-based calculations
 export const generateInvestmentGrowth = (
   investment: Investment,
@@ -162,18 +242,21 @@ export const generateInvestmentGrowth = (
 
     period++;
 
-    // Calculate contributions in this period
+    // Calculate contributions in this period (with step-up if configured)
     let contributionThisPeriod = 0;
     if (
       (investment.RecurringContribution || 0) > 0 &&
       investment.ContributionFrequency
     ) {
-      contributionThisPeriod =
-        getContributionsInPeriod(
-          currentDate,
-          periodEndDate,
-          investment.ContributionFrequency
-        ) * (investment.RecurringContribution || 0);
+      contributionThisPeriod = getContributionsWithStepUp(
+        currentDate,
+        periodEndDate,
+        investment.StartDate,
+        investment.RecurringContribution || 0,
+        investment.ContributionFrequency,
+        investment.ContributionStepUpAmount,
+        investment.ContributionStepUpType
+      );
 
       currentValue += contributionThisPeriod;
     }
