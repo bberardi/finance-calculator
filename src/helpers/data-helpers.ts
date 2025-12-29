@@ -1,15 +1,36 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 
+// Serialized versions with Date fields converted to strings
+export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
+  StartDate: string;
+  EndDate: string;
+}
+
+export interface SerializedInvestment extends Omit<Investment, 'StartDate'> {
+  StartDate: string;
+}
+
 export interface ExportData {
-  loans: Loan[];
-  investments: Investment[];
+  loans: SerializedLoan[];
+  investments: SerializedInvestment[];
   exportDate: string;
   version: string;
 }
 
+export interface MergeResult {
+  added: number;
+  updated: number;
+}
+
 /**
  * Generate a unique ID using timestamp and random string
+ * Format: {timestamp}-{random-alphanumeric}
+ * Example: "1766972407476-q672d9h3f"
+ *
+ * Note: While collisions are theoretically possible if multiple IDs are generated
+ * in rapid succession, the random component (9 characters from base-36) makes this
+ * highly unlikely in practice for client-side use.
  */
 export const generateUniqueId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -23,18 +44,24 @@ export const exportToJson = (
   loans: Loan[],
   investments: Investment[]
 ): string => {
-  const exportData: ExportData = {
-    loans: loans.map((loan) => ({
-      ...loan,
-      StartDate: loan.StartDate.toISOString(),
-      EndDate: loan.EndDate.toISOString(),
-      AmortizationSchedule: loan.AmortizationSchedule || [],
-    })) as unknown as Loan[],
-    investments: investments.map((investment) => ({
+  const serializedLoans: SerializedLoan[] = loans.map((loan) => ({
+    ...loan,
+    StartDate: loan.StartDate.toISOString(),
+    EndDate: loan.EndDate.toISOString(),
+    AmortizationSchedule: loan.AmortizationSchedule || [],
+  }));
+
+  const serializedInvestments: SerializedInvestment[] = investments.map(
+    (investment) => ({
       ...investment,
       StartDate: investment.StartDate.toISOString(),
       ProjectedGrowth: investment.ProjectedGrowth || [],
-    })) as unknown as Investment[],
+    })
+  );
+
+  const exportData: ExportData = {
+    loans: serializedLoans,
+    investments: serializedInvestments,
     exportDate: new Date().toISOString(),
     version: '1.0',
   };
@@ -66,18 +93,38 @@ export const importFromJson = (
     }
 
     // Convert ISO date strings back to Date objects
-    const loans: Loan[] = data.loans.map((loan) => ({
-      ...loan,
-      StartDate: new Date(loan.StartDate as unknown as string),
-      EndDate: new Date(loan.EndDate as unknown as string),
-      AmortizationSchedule: loan.AmortizationSchedule || [],
-    }));
+    const loans: Loan[] = data.loans.map((serializedLoan, index) => {
+      // Validate ID is present and non-empty
+      if (!serializedLoan.Id || serializedLoan.Id.trim() === '') {
+        throw new Error(
+          `Invalid or missing ID in loan at index ${index}. All items must have a non-empty ID.`
+        );
+      }
 
-    const investments: Investment[] = data.investments.map((investment) => ({
-      ...investment,
-      StartDate: new Date(investment.StartDate as unknown as string),
-      ProjectedGrowth: investment.ProjectedGrowth || [],
-    }));
+      return {
+        ...serializedLoan,
+        StartDate: new Date(serializedLoan.StartDate),
+        EndDate: new Date(serializedLoan.EndDate),
+        AmortizationSchedule: serializedLoan.AmortizationSchedule || [],
+      };
+    });
+
+    const investments: Investment[] = data.investments.map(
+      (serializedInvestment, index) => {
+        // Validate ID is present and non-empty
+        if (!serializedInvestment.Id || serializedInvestment.Id.trim() === '') {
+          throw new Error(
+            `Invalid or missing ID in investment at index ${index}. All items must have a non-empty ID.`
+          );
+        }
+
+        return {
+          ...serializedInvestment,
+          StartDate: new Date(serializedInvestment.StartDate),
+          ProjectedGrowth: serializedInvestment.ProjectedGrowth || [],
+        };
+      }
+    );
 
     // Validate that dates are valid
     loans.forEach((loan, index) => {
@@ -105,26 +152,41 @@ export const importFromJson = (
  * Merge imported data with existing data
  * If ID matches, overwrite the existing item
  * If ID doesn't match, add as new item
+ * Returns statistics about the merge operation
  */
 export const mergeData = <T extends { Id: string }>(
   existing: T[],
   imported: T[]
-): T[] => {
+): { items: T[]; result: MergeResult } => {
   const merged = [...existing];
-  const existingIds = new Set(existing.map((item) => item.Id));
+  const existingIds = new Set(
+    existing
+      .filter((item) => item.Id && item.Id.trim() !== '')
+      .map((item) => item.Id)
+  );
+
+  let added = 0;
+  let updated = 0;
 
   imported.forEach((item) => {
+    // Skip items with empty IDs
+    if (!item.Id || item.Id.trim() === '') {
+      return;
+    }
+
     if (existingIds.has(item.Id)) {
       // Replace existing item with same ID
       const index = merged.findIndex((m) => m.Id === item.Id);
       if (index !== -1) {
         merged[index] = item;
+        updated++;
       }
     } else {
       // Add new item
       merged.push(item);
+      added++;
     }
   });
 
-  return merged;
+  return { items: merged, result: { added, updated } };
 };

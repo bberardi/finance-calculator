@@ -200,7 +200,9 @@ export const Body = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       setSuccessMessage('Data exported successfully!');
-    } catch {
+    } catch (error) {
+      // Log full error details for debugging
+      console.error('Error exporting data:', error);
       setErrorMessage('Failed to export data. Please try again.');
     }
   };
@@ -213,8 +215,12 @@ export const Body = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.name.endsWith('.json')) {
+    // Validate file type using both extension and MIME type
+    const fileName = file.name.toLowerCase();
+    const hasJsonExtension = fileName.endsWith('.json');
+    const isJsonMimeType = !file.type || file.type === 'application/json';
+
+    if (!hasJsonExtension || !isJsonMimeType) {
       setErrorMessage('Please upload a JSON file (.json)');
       return;
     }
@@ -227,8 +233,12 @@ export const Body = () => {
           importFromJson(content);
 
         // Merge the imported data with existing data
-        const mergedLoans = mergeData(loans, importedLoans);
-        const mergedInvestments = mergeData(investments, importedInvestments);
+        const { items: mergedLoans, result: loansResult } = mergeData(
+          loans,
+          importedLoans
+        );
+        const { items: mergedInvestments, result: investmentsResult } =
+          mergeData(investments, importedInvestments);
 
         // Regenerate calculated fields
         const updatedLoans = mergedLoans.map((loan) => ({
@@ -243,8 +253,19 @@ export const Body = () => {
 
         setLoans(updatedLoans);
         setInvestments(updatedInvestments);
+
+        // Build detailed success message
+        const loanMsg =
+          loansResult.added + loansResult.updated > 0
+            ? `${loansResult.added + loansResult.updated} loans (${loansResult.added} added, ${loansResult.updated} updated)`
+            : '0 loans';
+        const investmentMsg =
+          investmentsResult.added + investmentsResult.updated > 0
+            ? `${investmentsResult.added + investmentsResult.updated} investments (${investmentsResult.added} added, ${investmentsResult.updated} updated)`
+            : '0 investments';
+
         setSuccessMessage(
-          `Data imported successfully! ${importedLoans.length} loans and ${importedInvestments.length} investments processed.`
+          `Data imported successfully! ${loanMsg} and ${investmentMsg} processed.`
         );
       } catch (error) {
         setErrorMessage(

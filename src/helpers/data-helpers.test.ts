@@ -125,6 +125,53 @@ describe('exportToJson and importFromJson', () => {
       testInvestment.CompoundingPeriod
     );
   });
+
+  it('should throw error for loans with missing IDs', () => {
+    const invalidJson = JSON.stringify({
+      loans: [{ ...testLoan, Id: '' }],
+      investments: [],
+    });
+
+    expect(() => importFromJson(invalidJson)).toThrow(
+      'Invalid or missing ID in loan'
+    );
+  });
+
+  it('should throw error for investments with missing IDs', () => {
+    const invalidJson = JSON.stringify({
+      loans: [],
+      investments: [{ ...testInvestment, Id: '' }],
+    });
+
+    expect(() => importFromJson(invalidJson)).toThrow(
+      'Invalid or missing ID in investment'
+    );
+  });
+
+  it('should throw error for loans with whitespace-only IDs', () => {
+    const invalidJson = JSON.stringify({
+      loans: [{ ...testLoan, Id: '   ' }],
+      investments: [],
+    });
+
+    expect(() => importFromJson(invalidJson)).toThrow(
+      'Invalid or missing ID in loan'
+    );
+  });
+
+  it('should throw error for loans without Id field', () => {
+    const loanWithoutId = { ...testLoan };
+    delete (loanWithoutId as { Id?: string }).Id;
+
+    const invalidJson = JSON.stringify({
+      loans: [loanWithoutId],
+      investments: [],
+    });
+
+    expect(() => importFromJson(invalidJson)).toThrow(
+      'Invalid or missing ID in loan'
+    );
+  });
 });
 
 describe('mergeData', () => {
@@ -135,10 +182,12 @@ describe('mergeData', () => {
     ];
     const imported = [{ Id: '3', name: 'Item 3' }];
 
-    const result = mergeData(existing, imported);
+    const { items: result, result: stats } = mergeData(existing, imported);
 
     expect(result).toHaveLength(3);
     expect(result.find((item) => item.Id === '3')).toBeTruthy();
+    expect(stats.added).toBe(1);
+    expect(stats.updated).toBe(0);
   });
 
   it('should overwrite existing items when IDs match', () => {
@@ -148,10 +197,12 @@ describe('mergeData', () => {
     ];
     const imported = [{ Id: '2', name: 'Updated Item 2' }];
 
-    const result = mergeData(existing, imported);
+    const { items: result, result: stats } = mergeData(existing, imported);
 
     expect(result).toHaveLength(2);
     expect(result.find((item) => item.Id === '2')?.name).toBe('Updated Item 2');
+    expect(stats.added).toBe(0);
+    expect(stats.updated).toBe(1);
   });
 
   it('should handle both adding and updating in the same merge', () => {
@@ -164,29 +215,72 @@ describe('mergeData', () => {
       { Id: '3', name: 'Item 3' },
     ];
 
-    const result = mergeData(existing, imported);
+    const { items: result, result: stats } = mergeData(existing, imported);
 
     expect(result).toHaveLength(3);
     expect(result.find((item) => item.Id === '2')?.name).toBe('Updated Item 2');
     expect(result.find((item) => item.Id === '3')).toBeTruthy();
+    expect(stats.added).toBe(1);
+    expect(stats.updated).toBe(1);
   });
 
   it('should handle empty existing array', () => {
     const existing: Array<{ Id: string; name: string }> = [];
     const imported = [{ Id: '1', name: 'Item 1' }];
 
-    const result = mergeData(existing, imported);
+    const { items: result, result: stats } = mergeData(existing, imported);
 
     expect(result).toHaveLength(1);
+    expect(stats.added).toBe(1);
+    expect(stats.updated).toBe(0);
   });
 
   it('should handle empty imported array', () => {
     const existing = [{ Id: '1', name: 'Item 1' }];
     const imported: Array<{ Id: string; name: string }> = [];
 
-    const result = mergeData(existing, imported);
+    const { items: result, result: stats } = mergeData(existing, imported);
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual(existing[0]);
+    expect(stats.added).toBe(0);
+    expect(stats.updated).toBe(0);
+  });
+
+  it('should skip items with empty IDs', () => {
+    const existing = [
+      { Id: '1', name: 'Item 1' },
+      { Id: '2', name: 'Item 2' },
+    ];
+    const imported = [
+      { Id: '', name: 'Empty ID Item' },
+      { Id: '3', name: 'Item 3' },
+    ];
+
+    const { items: result, result: stats } = mergeData(existing, imported);
+
+    expect(result).toHaveLength(3);
+    expect(
+      result.find((item) => item.name === 'Empty ID Item')
+    ).toBeUndefined();
+    expect(result.find((item) => item.Id === '3')).toBeTruthy();
+    expect(stats.added).toBe(1);
+  });
+
+  it('should not match items with empty IDs to each other', () => {
+    const existing = [
+      { Id: '', name: 'Empty ID 1' },
+      { Id: '1', name: 'Item 1' },
+    ];
+    const imported = [{ Id: '', name: 'Empty ID 2' }];
+
+    const { items: result, result: stats } = mergeData(existing, imported);
+
+    // Should still have the original empty ID item, new one should be skipped
+    expect(result).toHaveLength(2);
+    expect(result.find((item) => item.name === 'Empty ID 1')).toBeTruthy();
+    expect(result.find((item) => item.name === 'Empty ID 2')).toBeUndefined();
+    expect(stats.added).toBe(0);
+    expect(stats.updated).toBe(0);
   });
 });
