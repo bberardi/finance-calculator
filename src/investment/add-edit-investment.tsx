@@ -29,6 +29,10 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   const [newInvestment, setNewInvestment] =
     useState<Investment>(emptyInvestment);
 
+  const hasRecurringContribution =
+    typeof newInvestment.RecurringContribution === 'number' &&
+    newInvestment.RecurringContribution > 0;
+
   const isFormValid = () => {
     return (
       newInvestment.Name.trim() !== '' &&
@@ -193,64 +197,59 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                 });
               }}
             />
-            {typeof newInvestment.RecurringContribution === 'number' &&
-              newInvestment.RecurringContribution > 0 && (
-                <FormControl fullWidth>
-                  <InputLabel>Contribution Frequency</InputLabel>
-                  <Select
-                    value={
-                      newInvestment.ContributionFrequency ||
-                      CompoundingFrequency.Monthly
-                    }
-                    label="Contribution Frequency"
-                    onChange={(e) =>
-                      setNewInvestment({
-                        ...newInvestment,
-                        ContributionFrequency: e.target
-                          .value as CompoundingFrequency,
-                      })
-                    }
-                  >
-                    {Object.entries(CompoundingFrequency).map(
-                      ([key, value]) => (
-                        <MenuItem key={key} value={value}>
-                          {key}
-                        </MenuItem>
-                      )
-                    )}
-                  </Select>
-                </FormControl>
-              )}
-            {typeof newInvestment.RecurringContribution === 'number' &&
-              newInvestment.RecurringContribution > 0 && (
-                <FormControl fullWidth>
-                  <InputLabel>Yearly Step-Up Type (Optional)</InputLabel>
-                  <Select
-                    value={newInvestment.ContributionStepUpType || ''}
-                    label="Yearly Step-Up Type (Optional)"
-                    onChange={(e) =>
-                      setNewInvestment({
-                        ...newInvestment,
-                        ContributionStepUpType: e.target.value
-                          ? (e.target.value as StepUpType)
-                          : undefined,
-                        ContributionStepUpAmount: e.target.value
-                          ? newInvestment.ContributionStepUpAmount
-                          : undefined,
-                      })
-                    }
-                  >
-                    <MenuItem value="">None</MenuItem>
-                    {Object.entries(StepUpType).map(([key, value]) => (
-                      <MenuItem key={key} value={value}>
-                        {key}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            {typeof newInvestment.RecurringContribution === 'number' &&
-              newInvestment.RecurringContribution > 0 &&
+            {hasRecurringContribution && (
+              <FormControl fullWidth>
+                <InputLabel>Contribution Frequency</InputLabel>
+                <Select
+                  value={
+                    newInvestment.ContributionFrequency ||
+                    CompoundingFrequency.Monthly
+                  }
+                  label="Contribution Frequency"
+                  onChange={(e) =>
+                    setNewInvestment({
+                      ...newInvestment,
+                      ContributionFrequency: e.target
+                        .value as CompoundingFrequency,
+                    })
+                  }
+                >
+                  {Object.entries(CompoundingFrequency).map(([key, value]) => (
+                    <MenuItem key={key} value={value}>
+                      {key}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            {hasRecurringContribution && (
+              <FormControl fullWidth>
+                <InputLabel>Yearly Step-Up Type (Optional)</InputLabel>
+                <Select
+                  value={newInvestment.ContributionStepUpType || ''}
+                  label="Yearly Step-Up Type (Optional)"
+                  onChange={(e) =>
+                    setNewInvestment({
+                      ...newInvestment,
+                      ContributionStepUpType: e.target.value
+                        ? (e.target.value as StepUpType)
+                        : undefined,
+                      ContributionStepUpAmount: e.target.value
+                        ? newInvestment.ContributionStepUpAmount
+                        : undefined,
+                    })
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {Object.entries(StepUpType).map(([key, value]) => (
+                    <MenuItem key={key} value={value}>
+                      {key}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            {hasRecurringContribution &&
               newInvestment.ContributionStepUpType && (
                 <NumericFormat
                   label={
