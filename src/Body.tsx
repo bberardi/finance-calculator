@@ -31,7 +31,7 @@ export const Body = () => {
   // Fake data for testing
   const fakeLoans: Loan[] = [
     {
-      Id: generateId(),
+      Id: '00000000-0000-0000-0000-000000000001',
       Name: 'Test Loan 1',
       Provider: 'Fake Provider',
       InterestRate: 5,
@@ -43,7 +43,7 @@ export const Body = () => {
       AmortizationSchedule: [],
     },
     {
-      Id: generateId(),
+      Id: '00000000-0000-0000-0000-000000000002',
       Name: 'Test Loan 2',
       Provider: 'Sample Bank',
       InterestRate: 3.5,
@@ -58,7 +58,7 @@ export const Body = () => {
 
   const fakeInvestments: Investment[] = [
     {
-      Id: generateId(),
+      Id: '00000000-0000-0000-0000-000000000003',
       Name: 'Test Investment 1',
       Provider: 'Fake Investment Co.',
       StartingBalance: 10000,
@@ -69,7 +69,7 @@ export const Body = () => {
       ProjectedGrowth: [],
     },
     {
-      Id: generateId(),
+      Id: '00000000-0000-0000-0000-000000000004',
       Name: 'Test Investment 2',
       Provider: 'Sample Fund',
       StartingBalance: 5000,
