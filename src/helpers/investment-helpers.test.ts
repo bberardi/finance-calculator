@@ -650,6 +650,7 @@ describe('Investment Helpers', () => {
     describe('Flat Step-Up', () => {
       it('should apply flat step-up to contributions over multiple years', () => {
         const investment: Investment = {
+          Id: 'test-step-up-1',
           Provider: 'Test',
           Name: 'Flat Step-Up Test',
           StartDate: new Date(2025, 0, 1),
@@ -680,6 +681,7 @@ describe('Investment Helpers', () => {
 
       it('should calculate correct value after 1 year with flat step-up', () => {
         const investment: Investment = {
+          Id: 'test-step-up-2',
           Provider: 'Test',
           Name: 'Flat Step-Up Test',
           StartDate: new Date(2025, 0, 1),
@@ -708,6 +710,7 @@ describe('Investment Helpers', () => {
     describe('Percentage Step-Up', () => {
       it('should apply percentage step-up to contributions over multiple years', () => {
         const investment: Investment = {
+          Id: 'test-step-up-3',
           Provider: 'Test',
           Name: 'Percentage Step-Up Test',
           StartDate: new Date(2025, 0, 1),
@@ -738,6 +741,7 @@ describe('Investment Helpers', () => {
 
       it('should compound percentage step-up over many years', () => {
         const investment: Investment = {
+          Id: 'test-step-up-4',
           Provider: 'Test',
           Name: 'Percentage Step-Up Test',
           StartDate: new Date(2025, 0, 1),
@@ -772,6 +776,7 @@ describe('Investment Helpers', () => {
     describe('Step-Up with Interest', () => {
       it('should correctly compound interest with flat step-up contributions', () => {
         const investment: Investment = {
+          Id: 'test-step-up-5',
           Provider: 'Test',
           Name: 'Step-Up with Interest',
           StartDate: new Date(2025, 0, 1),
