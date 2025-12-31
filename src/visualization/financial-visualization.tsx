@@ -308,68 +308,85 @@ export const FinancialVisualization = ({
       </Box>
 
       <Box sx={{ width: '100%', height: 450 }}>
-        <LineChart
-          xAxis={[
-            {
-              data: xAxisData,
-              scaleType: 'time',
-              valueFormatter: (date: Date) => {
-                return date.getFullYear().toString();
-              },
-            },
-          ]}
-          series={series}
-          height={400}
-          margin={{ left: 80, right: 20, top: 20, bottom: 30 }}
-          sx={{
-            '& .MuiChartsLegend-series text': {
-              fontSize: '0.875rem !important',
-            },
-          }}
-        />
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            marginTop: '10px',
-            gap: '5px',
-          }}
-        >
-          <FormGroup row sx={{ justifyContent: 'center' }}>
-            {legendItems.map((item) => (
-              <FormControlLabel
-                key={item.id}
-                control={
-                  <Checkbox
-                    checked={visibleLines[item.id] ?? true}
-                    onChange={() => handleToggleLine(item.id)}
-                    size="small"
-                    sx={{
-                      color: item.color,
-                      '&.Mui-checked': {
-                        color: item.color,
-                      },
-                    }}
+        {startYear > endYear ? (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100%',
+            }}
+          >
+            <Typography variant="body1" color="text.secondary">
+              Invalid year range: Start year must be less than or equal to end year
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <LineChart
+              xAxis={[
+                {
+                  data: xAxisData,
+                  scaleType: 'time',
+                  valueFormatter: (date: Date) => {
+                    return date.getFullYear().toString();
+                  },
+                },
+              ]}
+              series={series}
+              height={400}
+              margin={{ left: 80, right: 20, top: 20, bottom: 30 }}
+              sx={{
+                '& .MuiChartsLegend-series text': {
+                  fontSize: '0.875rem !important',
+                },
+              }}
+            />
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                marginTop: '10px',
+                gap: '5px',
+              }}
+            >
+              <FormGroup row sx={{ justifyContent: 'center' }}>
+                {legendItems.map((item) => (
+                  <FormControlLabel
+                    key={item.id}
+                    control={
+                      <Checkbox
+                        checked={visibleLines[item.id] ?? true}
+                        onChange={() => handleToggleLine(item.id)}
+                        size="small"
+                        sx={{
+                          color: item.color,
+                          '&.Mui-checked': {
+                            color: item.color,
+                          },
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography
+                        sx={{
+                          fontSize: '0.875rem',
+                          color:
+                            (visibleLines[item.id] ?? true)
+                              ? 'inherit'
+                              : 'text.disabled',
+                        }}
+                      >
+                        {item.label}
+                      </Typography>
+                    }
                   />
-                }
-                label={
-                  <Typography
-                    sx={{
-                      fontSize: '0.875rem',
-                      color:
-                        (visibleLines[item.id] ?? true)
-                          ? 'inherit'
-                          : 'text.disabled',
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-                }
-              />
-            ))}
-          </FormGroup>
-        </Box>
+                ))}
+              </FormGroup>
+            </Box>
+          </>
+        )}
       </Box>
     </Paper>
   );
