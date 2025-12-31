@@ -1,5 +1,6 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import packageJson from '../../package.json';
 
 // Serialized versions with Date fields converted to strings
 export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
@@ -57,7 +58,7 @@ export const exportToJson = (
     loans: serializedLoans,
     investments: serializedInvestments,
     exportDate: new Date().toISOString(),
-    version: '1.0',
+    version: packageJson.version,
   };
 
   return JSON.stringify(exportData, null, 2);
