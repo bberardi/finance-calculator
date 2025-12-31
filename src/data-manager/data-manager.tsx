@@ -62,8 +62,9 @@ export const DataManager = ({
     // Validate file type using both extension and MIME type
     const fileName = file.name.toLowerCase();
     const hasJsonExtension = fileName.endsWith('.json');
-    // Strict MIME type validation - reject empty/unknown types
+    // Accept JSON MIME types or empty MIME type (for browser compatibility)
     const isJsonMimeType =
+      !file.type || // Some browsers/OS may not set MIME type
       file.type === 'application/json' ||
       file.type === 'text/json' ||
       file.type.startsWith('application/json;');

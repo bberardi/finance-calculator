@@ -107,12 +107,20 @@ export const importFromJson = (
         'EndDate',
       ];
       for (const field of requiredFields) {
-        if (
-          serializedLoan[field as keyof SerializedLoan] === undefined ||
-          serializedLoan[field as keyof SerializedLoan] === null
-        ) {
+        const value = serializedLoan[field as keyof SerializedLoan];
+        if (value === undefined || value === null) {
           throw new Error(
             `Missing required field '${field}' in loan at index ${index}.`
+          );
+        }
+        // Validate string fields are not empty
+        if (
+          (field === 'Provider' || field === 'Name') &&
+          typeof value === 'string' &&
+          value.trim() === ''
+        ) {
+          throw new Error(
+            `Required field '${field}' cannot be empty in loan at index ${index}.`
           );
         }
       }
@@ -144,13 +152,23 @@ export const importFromJson = (
           'StartDate',
         ];
         for (const field of requiredFields) {
-          if (
-            serializedInvestment[field as keyof SerializedInvestment] ===
-              undefined ||
-            serializedInvestment[field as keyof SerializedInvestment] === null
-          ) {
+          const value =
+            serializedInvestment[field as keyof SerializedInvestment];
+          if (value === undefined || value === null) {
             throw new Error(
               `Missing required field '${field}' in investment at index ${index}.`
+            );
+          }
+          // Validate string fields are not empty
+          if (
+            (field === 'Provider' ||
+              field === 'Name' ||
+              field === 'CompoundingPeriod') &&
+            typeof value === 'string' &&
+            value.trim() === ''
+          ) {
+            throw new Error(
+              `Required field '${field}' cannot be empty in investment at index ${index}.`
             );
           }
         }
