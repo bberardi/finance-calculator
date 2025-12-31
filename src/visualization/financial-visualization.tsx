@@ -83,8 +83,9 @@ export const FinancialVisualization = ({
   }, [loans, investments, startYear, endYear]);
 
   // Build series data and legend items (memoized for performance)
-  // Note: loans and investments are not in the dependency array because they're
-  // already captured through visualizationData (which depends on them)
+  // Note: loans and investments are included in the dependency array because
+  // they are used directly here (for series and legend construction), in addition
+  // to being reflected in visualizationData.
   const { series, legendItems } = useMemo(() => {
     const seriesData: {
       id: string;
