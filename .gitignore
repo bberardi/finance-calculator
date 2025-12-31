@@ -23,4 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
+# Build artifacts
 tsconfig.app.tsbuildinfo
+tsconfig.node.tsbuildinfo
