@@ -4,6 +4,7 @@ import {
   PitInvestment,
   CompoundingFrequency,
 } from '../models/investment-model';
+import dayjs from 'dayjs';
 
 // Returns the number of compounding periods per year based on frequency
 export const getPeriodsPerYear = (frequency: CompoundingFrequency): number => {
@@ -131,7 +132,8 @@ export const generateInvestmentGrowth = (
   endDate?: Date
 ): InvestmentGrowthEntry[] => {
   const growth: InvestmentGrowthEntry[] = [];
-  const end = endDate ?? new Date();
+  // Default to 30 years from today if no end date is provided
+  const end = endDate ?? dayjs().add(30, 'year').toDate();
 
   if (!investment.StartDate || end <= investment.StartDate) {
     return growth;
