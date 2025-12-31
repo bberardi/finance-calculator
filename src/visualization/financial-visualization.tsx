@@ -31,13 +31,13 @@ export const FinancialVisualization = ({
     setVisibleLines((prev) => {
       const newVisibleLines: { [key: string]: boolean } = { ...prev };
       loans.forEach((loan) => {
-        const key = `loan-${loan.Name}`;
+        const key = `loan-${loan.Id}`;
         if (!(key in newVisibleLines)) {
           newVisibleLines[key] = true;
         }
       });
       investments.forEach((investment) => {
-        const key = `investment-${investment.Name}`;
+        const key = `investment-${investment.Id}`;
         if (!(key in newVisibleLines)) {
           newVisibleLines[key] = true;
         }
@@ -92,7 +92,7 @@ export const FinancialVisualization = ({
 
   // Add individual loan series
   loans.forEach((loan) => {
-    const lineKey = `loan-${loan.Name}`;
+    const lineKey = `loan-${loan.Id}`;
     const isVisible = visibleLines[lineKey] ?? true;
 
     if (isVisible) {
@@ -100,7 +100,7 @@ export const FinancialVisualization = ({
         id: lineKey,
         label: `${loan.Name} (Loan)`,
         data: visualizationData.map(
-          (point) => point.loanValues[loan.Name] || 0
+          (point) => point.loanValues[loan.Id] || 0
         ),
         curve: 'linear',
         showMark: false,
@@ -117,7 +117,7 @@ export const FinancialVisualization = ({
 
   // Add individual investment series
   investments.forEach((investment) => {
-    const lineKey = `investment-${investment.Name}`;
+    const lineKey = `investment-${investment.Id}`;
     const isVisible = visibleLines[lineKey] ?? true;
 
     if (isVisible) {
@@ -125,7 +125,7 @@ export const FinancialVisualization = ({
         id: lineKey,
         label: `${investment.Name} (Investment)`,
         data: visualizationData.map(
-          (point) => point.investmentValues[investment.Name] || 0
+          (point) => point.investmentValues[investment.Id] || 0
         ),
         curve: 'linear',
         showMark: false,

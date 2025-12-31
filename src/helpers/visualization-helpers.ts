@@ -1,22 +1,20 @@
 import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { generateInvestmentGrowth, getPeriodsPerYear } from './investment-helpers';
 
 export type VisualizationDataPoint = {
   date: Date;
-  loanValues: { [loanName: string]: number };
-  investmentValues: { [investmentName: string]: number };
+  loanValues: { [loanId: string]: number };
+  investmentValues: { [investmentId: string]: number };
   totalLoanValue: number;
   totalInvestmentValue: number;
   overallPosition: number;
 };
 
 // Get the maximum date to use for the visualization x-axis
-export const getMaxVisualizationDate = (
-  loans: Loan[],
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _investments: Investment[]
-): Date => {
+// Returns 30 years from today or the latest loan end date, whichever is later
+export const getMaxVisualizationDate = (loans: Loan[]): Date => {
   const today = new Date();
   const defaultEnd = dayjs(today).add(30, 'year').toDate();
 
@@ -44,7 +42,7 @@ export const generateVisualizationData = (
 
   // Determine the date range
   const start = startDate || new Date();
-  const end = endDate || getMaxVisualizationDate(loans, investments);
+  const end = endDate || getMaxVisualizationDate(loans);
 
   // Generate monthly data points
   let currentDate = dayjs(start).startOf('month').toDate();
@@ -63,14 +61,14 @@ export const generateVisualizationData = (
     // Calculate loan values at this date
     loans.forEach((loan) => {
       const loanValue = getLoanValueAtDate(loan, currentDate);
-      point.loanValues[loan.Name] = loanValue;
+      point.loanValues[loan.Id] = loanValue;
       point.totalLoanValue += loanValue;
     });
 
     // Calculate investment values at this date
     investments.forEach((investment) => {
       const investmentValue = getInvestmentValueAtDate(investment, currentDate);
-      point.investmentValues[investment.Name] = investmentValue;
+      point.investmentValues[investment.Id] = investmentValue;
       point.totalInvestmentValue += investmentValue;
     });
 
@@ -115,14 +113,23 @@ const getLoanValueAtDate = (loan: Loan, date: Date): number => {
     return loan.Principal * remainingRatio;
   }
 
-  // Calculate which term this date corresponds to
+  // Calculate which term this date corresponds to (months from start, 0-indexed)
   const monthsFromStart =
     (date.getFullYear() - loan.StartDate.getFullYear()) * 12 +
     (date.getMonth() - loan.StartDate.getMonth());
 
-  // Find the corresponding entry (1-indexed)
+  // At monthsFromStart=0 (loan start date), we haven't made any payments yet
+  // So return the initial principal
+  if (monthsFromStart === 0) {
+    return loan.Principal;
+  }
+
+  // After the first month, we've made payment for Term 1 (index 0)
+  // Find the corresponding entry
+  // AmortizationSchedule Term is 1-indexed, but array is 0-indexed
+  // monthsFromStart=1 should access Term 1 which is at index 0
   const termIndex = Math.min(
-    monthsFromStart,
+    monthsFromStart - 1,
     loan.AmortizationSchedule.length - 1
   );
 
@@ -146,42 +153,52 @@ const getInvestmentValueAtDate = (
   // If we have projected growth, use it
   if (
     investment.ProjectedGrowth &&
-    investment.ProjectedGrowth.length > 0 &&
-    date <= new Date()
+    investment.ProjectedGrowth.length > 0
   ) {
-    // For historical data, use the projected growth
-    const monthsFromStart =
-      (date.getFullYear() - investment.StartDate.getFullYear()) * 12 +
-      (date.getMonth() - investment.StartDate.getMonth());
+    // Calculate the period index based on the investment's compounding frequency
+    const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
+    
+    let periodIndex = 0;
+    
+    if (periodsPerYear === 12) {
+      // Monthly
+      periodIndex =
+        (date.getFullYear() - investment.StartDate.getFullYear()) * 12 +
+        (date.getMonth() - investment.StartDate.getMonth());
+    } else if (periodsPerYear === 4) {
+      // Quarterly
+      const startQuarter = Math.floor(investment.StartDate.getMonth() / 3);
+      const dateQuarter = Math.floor(date.getMonth() / 3);
+      periodIndex =
+        (date.getFullYear() - investment.StartDate.getFullYear()) * 4 +
+        (dateQuarter - startQuarter);
+    } else {
+      // Annually
+      periodIndex = date.getFullYear() - investment.StartDate.getFullYear();
+      // Only add 1 if we've actually passed the anniversary date
+      const anniversary = new Date(
+        date.getFullYear(),
+        investment.StartDate.getMonth(),
+        investment.StartDate.getDate()
+      );
+      if (date > anniversary) {
+        periodIndex += 1;
+      }
+    }
 
-    const periodIndex = Math.min(
-      monthsFromStart,
-      investment.ProjectedGrowth.length - 1
-    );
+    // Clamp to valid range
+    periodIndex = Math.max(0, Math.min(periodIndex, investment.ProjectedGrowth.length - 1));
 
     if (periodIndex >= 0 && periodIndex < investment.ProjectedGrowth.length) {
       return investment.ProjectedGrowth[periodIndex].TotalValue;
     }
   }
 
-  // For future projections, we need to calculate the value
-  // This is a simplified calculation - in practice, you'd use the investment helpers
-  const yearsFromStart =
-    (date.getTime() - investment.StartDate.getTime()) /
-    (1000 * 60 * 60 * 24 * 365.25);
-
-  const annualRate = investment.AverageReturnRate / 100;
-  const compoundedValue =
-    investment.StartingBalance * Math.pow(1 + annualRate, yearsFromStart);
-
-  // Add contributions if applicable (simplified)
-  let contributionValue = 0;
-  if (investment.RecurringContribution) {
-    const monthsFromStart =
-      (date.getFullYear() - investment.StartDate.getFullYear()) * 12 +
-      (date.getMonth() - investment.StartDate.getMonth());
-    contributionValue = investment.RecurringContribution * monthsFromStart;
+  // If no ProjectedGrowth or date is beyond it, generate growth up to this date
+  const growth = generateInvestmentGrowth(investment, date);
+  if (growth.length > 0) {
+    return growth[growth.length - 1].TotalValue;
   }
 
-  return Math.round((compoundedValue + contributionValue) * 100) / 100;
+  return investment.StartingBalance;
 };
