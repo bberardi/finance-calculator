@@ -65,7 +65,9 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for invalid JSON', () => {
     expect(() => importFromJson('invalid json')).toThrow();
-    expect(() => importFromJson('{}')).toThrow('missing loans or investments');
+    expect(() => importFromJson('{}')).toThrow(
+      'Expected an object with "loans" and "investments" arrays'
+    );
     expect(() =>
       importFromJson('{"loans": "not array", "investments": []}')
     ).toThrow('must be arrays');

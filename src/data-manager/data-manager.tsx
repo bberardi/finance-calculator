@@ -62,7 +62,11 @@ export const DataManager = ({
     // Validate file type using both extension and MIME type
     const fileName = file.name.toLowerCase();
     const hasJsonExtension = fileName.endsWith('.json');
-    const isJsonMimeType = !file.type || file.type === 'application/json';
+    // Strict MIME type validation - reject empty/unknown types
+    const isJsonMimeType =
+      file.type === 'application/json' ||
+      file.type === 'text/json' ||
+      file.type.startsWith('application/json;');
 
     if (!hasJsonExtension || !isJsonMimeType) {
       setErrorMessage('Please upload a JSON file (.json)');
@@ -99,19 +103,23 @@ export const DataManager = ({
         setInvestments(updatedInvestments);
 
         // Build detailed success message
+        const totalLoansProcessed = loansResult.added + loansResult.updated;
         const loanMsg =
-          loansResult.added + loansResult.updated > 0
-            ? `${loansResult.added + loansResult.updated} loans (${loansResult.added} added, ${loansResult.updated} updated)`
+          totalLoansProcessed > 0
+            ? `${totalLoansProcessed} loans (${loansResult.added} added, ${loansResult.updated} updated)`
             : '0 loans';
+        const totalInvestmentsProcessed =
+          investmentsResult.added + investmentsResult.updated;
         const investmentMsg =
-          investmentsResult.added + investmentsResult.updated > 0
-            ? `${investmentsResult.added + investmentsResult.updated} investments (${investmentsResult.added} added, ${investmentsResult.updated} updated)`
+          totalInvestmentsProcessed > 0
+            ? `${totalInvestmentsProcessed} investments (${investmentsResult.added} added, ${investmentsResult.updated} updated)`
             : '0 investments';
 
         setSuccessMessage(
           `Data imported successfully! ${loanMsg} and ${investmentMsg} processed.`
         );
       } catch (error) {
+        console.error('Error importing data:', error);
         setErrorMessage(
           error instanceof Error ? error.message : 'Failed to import data'
         );

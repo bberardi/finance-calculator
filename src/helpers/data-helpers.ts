@@ -76,7 +76,7 @@ export const importFromJson = (
     // Validate the structure
     if (!data.loans || !data.investments) {
       throw new Error(
-        'Invalid data format: missing loans or investments arrays'
+        'Invalid data format: Expected an object with "loans" and "investments" arrays.'
       );
     }
 
@@ -152,10 +152,13 @@ export const mergeData = <T extends { Id: string }>(
   existing: T[],
   imported: T[]
 ): { items: T[]; result: MergeResult } => {
-  const merged = [...existing];
-  const existingIds = new Set(
-    existing.filter((item) => isValidId(item.Id)).map((item) => item.Id)
-  );
+  // Build a map for O(1) lookups instead of O(n) findIndex
+  const existingMap = new Map<string, T>();
+  existing.forEach((item) => {
+    if (isValidId(item.Id)) {
+      existingMap.set(item.Id, item);
+    }
+  });
 
   let added = 0;
   let updated = 0;
@@ -166,19 +169,20 @@ export const mergeData = <T extends { Id: string }>(
       return;
     }
 
-    if (existingIds.has(item.Id)) {
+    if (existingMap.has(item.Id)) {
       // Replace existing item with same ID
-      const index = merged.findIndex((m) => m.Id === item.Id);
-      if (index !== -1) {
-        merged[index] = item;
-        updated++;
-      }
+      existingMap.set(item.Id, item);
+      updated++;
     } else {
       // Add new item
-      merged.push(item);
+      existingMap.set(item.Id, item);
       added++;
     }
   });
 
-  return { items: merged, result: { added, updated } };
+  // Convert map back to array, maintaining items with empty IDs
+  const validItems = Array.from(existingMap.values());
+  const emptyIdItems = existing.filter((item) => !isValidId(item.Id));
+
+  return { items: [...emptyIdItems, ...validItems], result: { added, updated } };
 };
