@@ -29,28 +29,26 @@ export const FinancialVisualization = ({
   // Update visible lines when loans or investments change
   useEffect(() => {
     setVisibleLines((prev) => {
-      const newVisibleLines: { [key: string]: boolean } = { ...prev };
+      // Build the list of keys that should exist based on current data
+      const validKeys: string[] = [];
+
       loans.forEach((loan) => {
-        const key = `loan-${loan.Id}`;
-        if (!(key in newVisibleLines)) {
-          newVisibleLines[key] = true;
-        }
+        validKeys.push(`loan-${loan.Id}`);
       });
+
       investments.forEach((investment) => {
-        const key = `investment-${investment.Id}`;
-        if (!(key in newVisibleLines)) {
-          newVisibleLines[key] = true;
-        }
+        validKeys.push(`investment-${investment.Id}`);
       });
-      if (!('total-loans' in newVisibleLines)) {
-        newVisibleLines['total-loans'] = true;
-      }
-      if (!('total-investments' in newVisibleLines)) {
-        newVisibleLines['total-investments'] = true;
-      }
-      if (!('overall-position' in newVisibleLines)) {
-        newVisibleLines['overall-position'] = true;
-      }
+
+      validKeys.push('total-loans', 'total-investments', 'overall-position');
+
+      // Create a new visibleLines object that only includes valid keys
+      // Preserve existing visibility where possible; default new keys to true
+      const newVisibleLines: { [key: string]: boolean } = {};
+      validKeys.forEach((key) => {
+        newVisibleLines[key] = prev[key] ?? true;
+      });
+
       return newVisibleLines;
     });
   }, [loans, investments]);
@@ -62,6 +60,8 @@ export const FinancialVisualization = ({
   );
 
   // Build series data and legend items (memoized for performance)
+  // Note: loans and investments are not in the dependency array because they're
+  // already captured through visualizationData (which depends on them)
   const { series, legendItems } = useMemo(() => {
     const seriesData: {
       id: string;
@@ -191,7 +191,9 @@ export const FinancialVisualization = ({
     });
 
     return { series: seriesData, legendItems: legendData };
-  }, [loans, investments, visibleLines, visualizationData]);
+    // loans and investments are not in deps because they're captured via visualizationData
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLines, visualizationData]);
 
   // If no data, show message
   if (loans.length === 0 && investments.length === 0) {

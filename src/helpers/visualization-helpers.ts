@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
-import { generateInvestmentGrowth, getPeriodsPerYear } from './investment-helpers';
+import { generateInvestmentGrowth, getInvestmentPeriods } from './investment-helpers';
 
 export type VisualizationDataPoint = {
   date: Date;
@@ -155,42 +155,15 @@ const getInvestmentValueAtDate = (
     investment.ProjectedGrowth &&
     investment.ProjectedGrowth.length > 0
   ) {
-    // Calculate the period index based on the investment's compounding frequency
-    const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
-    
-    let periodIndex = 0;
-    
-    if (periodsPerYear === 12) {
-      // Monthly
-      periodIndex =
-        (date.getFullYear() - investment.StartDate.getFullYear()) * 12 +
-        (date.getMonth() - investment.StartDate.getMonth());
-    } else if (periodsPerYear === 4) {
-      // Quarterly
-      const startQuarter = Math.floor(investment.StartDate.getMonth() / 3);
-      const dateQuarter = Math.floor(date.getMonth() / 3);
-      periodIndex =
-        (date.getFullYear() - investment.StartDate.getFullYear()) * 4 +
-        (dateQuarter - startQuarter);
-    } else {
-      // Annually
-      periodIndex = date.getFullYear() - investment.StartDate.getFullYear();
-      // Only add 1 if we've actually passed the anniversary date
-      const anniversary = new Date(
-        date.getFullYear(),
-        investment.StartDate.getMonth(),
-        investment.StartDate.getDate()
-      );
-      if (date > anniversary) {
-        periodIndex += 1;
-      }
-    }
+    // Use getInvestmentPeriods to calculate the period index consistently
+    // This accounts for partial periods and matches the logic used throughout the codebase
+    const periodIndex = getInvestmentPeriods(investment, date) - 1; // Subtract 1 because periods are 1-indexed
 
     // Clamp to valid range
-    periodIndex = Math.max(0, Math.min(periodIndex, investment.ProjectedGrowth.length - 1));
+    const clampedIndex = Math.max(0, Math.min(periodIndex, investment.ProjectedGrowth.length - 1));
 
-    if (periodIndex >= 0 && periodIndex < investment.ProjectedGrowth.length) {
-      return investment.ProjectedGrowth[periodIndex].TotalValue;
+    if (clampedIndex >= 0 && clampedIndex < investment.ProjectedGrowth.length) {
+      return investment.ProjectedGrowth[clampedIndex].TotalValue;
     }
   }
 
