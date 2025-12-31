@@ -61,24 +61,6 @@ export const FinancialVisualization = ({
     [loans, investments]
   );
 
-  // If no data, show message
-  if (loans.length === 0 && investments.length === 0) {
-    return (
-      <Paper sx={{ padding: '20px', marginBottom: '20px' }}>
-        <Typography variant="h6" gutterBottom>
-          Financial Position Over Time
-        </Typography>
-        <Typography>
-          Add loans and investments to see your financial position visualized
-          over time.
-        </Typography>
-      </Paper>
-    );
-  }
-
-  // Prepare data for the chart
-  const xAxisData = visualizationData.map((point) => point.date);
-
   // Build series data and legend items (memoized for performance)
   const { series, legendItems } = useMemo(() => {
     const seriesData: {
@@ -210,6 +192,24 @@ export const FinancialVisualization = ({
 
     return { series: seriesData, legendItems: legendData };
   }, [loans, investments, visibleLines, visualizationData]);
+
+  // If no data, show message
+  if (loans.length === 0 && investments.length === 0) {
+    return (
+      <Paper sx={{ padding: '20px', marginBottom: '20px' }}>
+        <Typography variant="h6" gutterBottom>
+          Financial Position Over Time
+        </Typography>
+        <Typography>
+          Add loans and investments to see your financial position visualized
+          over time.
+        </Typography>
+      </Paper>
+    );
+  }
+
+  // Prepare data for the chart
+  const xAxisData = visualizationData.map((point) => point.date);
 
   // Handle checkbox change to toggle visibility
   const handleToggleLine = (lineId: string) => {
