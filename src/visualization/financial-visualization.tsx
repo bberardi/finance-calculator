@@ -79,133 +79,137 @@ export const FinancialVisualization = ({
   // Prepare data for the chart
   const xAxisData = visualizationData.map((point) => point.date);
 
-  // Build series data
-  const series: {
-    id: string;
-    label: string;
-    data: number[];
-    curve: 'linear';
-    showMark: boolean;
-    color: string;
-  }[] = [];
-  const legendItems: { id: string; label: string; color: string }[] = [];
+  // Build series data and legend items (memoized for performance)
+  const { series, legendItems } = useMemo(() => {
+    const seriesData: {
+      id: string;
+      label: string;
+      data: number[];
+      curve: 'linear';
+      showMark: boolean;
+      color: string;
+    }[] = [];
+    const legendData: { id: string; label: string; color: string }[] = [];
 
-  // Add individual loan series
-  loans.forEach((loan) => {
-    const lineKey = `loan-${loan.Id}`;
-    const isVisible = visibleLines[lineKey] ?? true;
+    // Add individual loan series
+    loans.forEach((loan) => {
+      const lineKey = `loan-${loan.Id}`;
+      const isVisible = visibleLines[lineKey] ?? true;
 
-    if (isVisible) {
-      series.push({
+      if (isVisible) {
+        seriesData.push({
+          id: lineKey,
+          label: `${loan.Name} (Loan)`,
+          data: visualizationData.map(
+            (point) => point.loanValues[loan.Id] || 0
+          ),
+          curve: 'linear',
+          showMark: false,
+          color: '#d32f2f', // Red for loans
+        });
+      }
+
+      legendData.push({
         id: lineKey,
         label: `${loan.Name} (Loan)`,
-        data: visualizationData.map(
-          (point) => point.loanValues[loan.Id] || 0
-        ),
-        curve: 'linear',
-        showMark: false,
-        color: '#d32f2f', // Red for loans
+        color: '#d32f2f',
       });
-    }
-
-    legendItems.push({
-      id: lineKey,
-      label: `${loan.Name} (Loan)`,
-      color: '#d32f2f',
     });
-  });
 
-  // Add individual investment series
-  investments.forEach((investment) => {
-    const lineKey = `investment-${investment.Id}`;
-    const isVisible = visibleLines[lineKey] ?? true;
+    // Add individual investment series
+    investments.forEach((investment) => {
+      const lineKey = `investment-${investment.Id}`;
+      const isVisible = visibleLines[lineKey] ?? true;
 
-    if (isVisible) {
-      series.push({
+      if (isVisible) {
+        seriesData.push({
+          id: lineKey,
+          label: `${investment.Name} (Investment)`,
+          data: visualizationData.map(
+            (point) => point.investmentValues[investment.Id] || 0
+          ),
+          curve: 'linear',
+          showMark: false,
+          color: '#2e7d32', // Green for investments
+        });
+      }
+
+      legendData.push({
         id: lineKey,
         label: `${investment.Name} (Investment)`,
-        data: visualizationData.map(
-          (point) => point.investmentValues[investment.Id] || 0
-        ),
-        curve: 'linear',
-        showMark: false,
-        color: '#2e7d32', // Green for investments
+        color: '#2e7d32',
       });
-    }
-
-    legendItems.push({
-      id: lineKey,
-      label: `${investment.Name} (Investment)`,
-      color: '#2e7d32',
     });
-  });
 
-  // Add total loan line
-  if (loans.length > 0) {
-    const lineKey = 'total-loans';
-    const isVisible = visibleLines[lineKey] ?? true;
+    // Add total loan line
+    if (loans.length > 0) {
+      const lineKey = 'total-loans';
+      const isVisible = visibleLines[lineKey] ?? true;
 
-    if (isVisible) {
-      series.push({
+      if (isVisible) {
+        seriesData.push({
+          id: lineKey,
+          label: 'Total Loans',
+          data: visualizationData.map((point) => point.totalLoanValue),
+          curve: 'linear',
+          showMark: false,
+          color: '#c62828',
+        });
+      }
+
+      legendData.push({
         id: lineKey,
         label: 'Total Loans',
-        data: visualizationData.map((point) => point.totalLoanValue),
-        curve: 'linear',
-        showMark: false,
         color: '#c62828',
       });
     }
 
-    legendItems.push({
-      id: lineKey,
-      label: 'Total Loans',
-      color: '#c62828',
-    });
-  }
+    // Add total investment line
+    if (investments.length > 0) {
+      const lineKey = 'total-investments';
+      const isVisible = visibleLines[lineKey] ?? true;
 
-  // Add total investment line
-  if (investments.length > 0) {
-    const lineKey = 'total-investments';
-    const isVisible = visibleLines[lineKey] ?? true;
+      if (isVisible) {
+        seriesData.push({
+          id: lineKey,
+          label: 'Total Investments',
+          data: visualizationData.map((point) => point.totalInvestmentValue),
+          curve: 'linear',
+          showMark: false,
+          color: '#1b5e20',
+        });
+      }
 
-    if (isVisible) {
-      series.push({
+      legendData.push({
         id: lineKey,
         label: 'Total Investments',
-        data: visualizationData.map((point) => point.totalInvestmentValue),
-        curve: 'linear',
-        showMark: false,
         color: '#1b5e20',
       });
     }
 
-    legendItems.push({
-      id: lineKey,
-      label: 'Total Investments',
-      color: '#1b5e20',
-    });
-  }
+    // Add overall position line
+    const overallLineKey = 'overall-position';
+    const isOverallVisible = visibleLines[overallLineKey] ?? true;
 
-  // Add overall position line
-  const overallLineKey = 'overall-position';
-  const isOverallVisible = visibleLines[overallLineKey] ?? true;
+    if (isOverallVisible) {
+      seriesData.push({
+        id: overallLineKey,
+        label: 'Overall Position',
+        data: visualizationData.map((point) => point.overallPosition),
+        curve: 'linear',
+        showMark: false,
+        color: '#1976d2', // Blue for overall
+      });
+    }
 
-  if (isOverallVisible) {
-    series.push({
+    legendData.push({
       id: overallLineKey,
       label: 'Overall Position',
-      data: visualizationData.map((point) => point.overallPosition),
-      curve: 'linear',
-      showMark: false,
-      color: '#1976d2', // Blue for overall
+      color: '#1976d2',
     });
-  }
 
-  legendItems.push({
-    id: overallLineKey,
-    label: 'Overall Position',
-    color: '#1976d2',
-  });
+    return { series: seriesData, legendItems: legendData };
+  }, [loans, investments, visibleLines, visualizationData]);
 
   // Handle checkbox change to toggle visibility
   const handleToggleLine = (lineId: string) => {
