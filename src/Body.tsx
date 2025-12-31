@@ -25,11 +25,11 @@ import {
 import { InvestmentTable } from './investment/investment-table';
 import { generateInvestmentGrowth } from './helpers/investment-helpers';
 import {
-  generateUniqueId,
   exportToJson,
   importFromJson,
   mergeData,
 } from './helpers/data-helpers';
+import { generateId } from './helpers/id-helpers';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
 
@@ -43,7 +43,7 @@ export const Body = () => {
   // Fake data for testing
   const fakeLoans: Loan[] = [
     {
-      Id: generateUniqueId(),
+      Id: '00000000-0000-0000-0000-000000000001',
       Name: 'Test Loan 1',
       Provider: 'Fake Provider',
       InterestRate: 5,
@@ -55,7 +55,7 @@ export const Body = () => {
       AmortizationSchedule: [],
     },
     {
-      Id: generateUniqueId(),
+      Id: '00000000-0000-0000-0000-000000000002',
       Name: 'Test Loan 2',
       Provider: 'Sample Bank',
       InterestRate: 3.5,
@@ -70,7 +70,7 @@ export const Body = () => {
 
   const fakeInvestments: Investment[] = [
     {
-      Id: generateUniqueId(),
+      Id: '00000000-0000-0000-0000-000000000003',
       Name: 'Test Investment 1',
       Provider: 'Fake Investment Co.',
       StartingBalance: 10000,
@@ -81,7 +81,7 @@ export const Body = () => {
       ProjectedGrowth: [],
     },
     {
-      Id: generateUniqueId(),
+      Id: '00000000-0000-0000-0000-000000000004',
       Name: 'Test Investment 2',
       Provider: 'Sample Fund',
       StartingBalance: 5000,
@@ -137,14 +137,14 @@ export const Body = () => {
   const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
     const updatedLoan: Loan = {
       ...newLoan,
-      Id: newLoan.Id || generateUniqueId(),
+      Id: newLoan.Id || generateId(), // Generate ID if not present (new loan)
       AmortizationSchedule: generateAmortizationSchedule(newLoan),
     };
 
     if (!oldLoan) {
       setLoans([...loans, updatedLoan]);
     } else {
-      const filteredLoans = loans.filter((l) => l != oldLoan);
+      const filteredLoans = loans.filter((l) => l.Id !== oldLoan.Id);
 
       if (newLoan !== emptyLoan) {
         setLoans([...filteredLoans, updatedLoan]);
@@ -170,14 +170,16 @@ export const Body = () => {
   ) => {
     const updatedInvestment: Investment = {
       ...newInvestment,
-      Id: newInvestment.Id || generateUniqueId(),
+      Id: newInvestment.Id || generateId(), // Generate ID if not present (new investment)
       ProjectedGrowth: generateInvestmentGrowth(newInvestment),
     };
 
     if (!oldInvestment) {
       setInvestments([...investments, updatedInvestment]);
     } else {
-      const filteredInvestments = investments.filter((i) => i != oldInvestment);
+      const filteredInvestments = investments.filter(
+        (i) => i.Id !== oldInvestment.Id
+      );
 
       if (newInvestment !== emptyInvestment) {
         setInvestments([...filteredInvestments, updatedInvestment]);

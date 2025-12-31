@@ -1,28 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-  generateUniqueId,
-  exportToJson,
-  importFromJson,
-  mergeData,
-} from './data-helpers';
+import { exportToJson, importFromJson, mergeData } from './data-helpers';
 import { Loan } from '../models/loan-model';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
-
-describe('generateUniqueId', () => {
-  it('should generate a unique ID', () => {
-    const id1 = generateUniqueId();
-    const id2 = generateUniqueId();
-
-    expect(id1).toBeTruthy();
-    expect(id2).toBeTruthy();
-    expect(id1).not.toBe(id2);
-  });
-
-  it('should generate IDs in the expected format', () => {
-    const id = generateUniqueId();
-    expect(id).toMatch(/^\d+-[a-z0-9]+$/);
-  });
-});
 
 describe('exportToJson and importFromJson', () => {
   const testLoan: Loan = {

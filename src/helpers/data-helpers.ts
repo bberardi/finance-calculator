@@ -31,19 +31,6 @@ const isValidId = (id: string | undefined): boolean => {
 };
 
 /**
- * Generate a unique ID using timestamp and random string
- * Format: {timestamp}-{random-alphanumeric}
- * Example: "1766972407476-q672d9h3f"
- *
- * Note: While collisions are theoretically possible if multiple IDs are generated
- * in rapid succession, the random component (9 characters from base-36) makes this
- * highly unlikely in practice for client-side use.
- */
-export const generateUniqueId = (): string => {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-};
-
-/**
  * Serialize loans and investments to JSON string
  * Converts Date objects to ISO strings for JSON compatibility
  */
