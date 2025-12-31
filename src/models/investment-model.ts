@@ -10,6 +10,7 @@ export enum StepUpType {
 }
 
 export interface Investment {
+  Id: string;
   Provider: string;
   Name: string;
   StartDate: Date;
@@ -25,6 +26,7 @@ export interface Investment {
 }
 
 export const emptyInvestment: Investment = {
+  Id: '',
   Provider: '',
   Name: '',
   StartDate: new Date(),
