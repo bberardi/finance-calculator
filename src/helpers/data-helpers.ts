@@ -95,6 +95,27 @@ export const importFromJson = (
         );
       }
 
+      // Validate required fields are present
+      const requiredFields = [
+        'Provider',
+        'Name',
+        'InterestRate',
+        'Principal',
+        'CurrentAmount',
+        'StartDate',
+        'EndDate',
+      ];
+      for (const field of requiredFields) {
+        if (
+          serializedLoan[field as keyof SerializedLoan] === undefined ||
+          serializedLoan[field as keyof SerializedLoan] === null
+        ) {
+          throw new Error(
+            `Missing required field '${field}' in loan at index ${index}.`
+          );
+        }
+      }
+
       return {
         ...serializedLoan,
         StartDate: new Date(serializedLoan.StartDate),
@@ -110,6 +131,27 @@ export const importFromJson = (
           throw new Error(
             `Invalid or missing ID in investment at index ${index}. All items must have a non-empty ID.`
           );
+        }
+
+        // Validate required fields are present
+        const requiredFields = [
+          'Provider',
+          'Name',
+          'StartingBalance',
+          'AverageReturnRate',
+          'CompoundingPeriod',
+          'StartDate',
+        ];
+        for (const field of requiredFields) {
+          if (
+            serializedInvestment[field as keyof SerializedInvestment] ===
+              undefined ||
+            serializedInvestment[field as keyof SerializedInvestment] === null
+          ) {
+            throw new Error(
+              `Missing required field '${field}' in investment at index ${index}.`
+            );
+          }
         }
 
         return {

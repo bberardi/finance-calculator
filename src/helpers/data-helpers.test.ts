@@ -73,6 +73,34 @@ describe('exportToJson and importFromJson', () => {
     ).toThrow('must be arrays');
   });
 
+  it('should throw error for loans with missing required fields', () => {
+    const missingProvider = JSON.stringify({
+      loans: [{ Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString(), EndDate: new Date().toISOString() }],
+      investments: [],
+    });
+    expect(() => importFromJson(missingProvider)).toThrow("Missing required field 'Provider'");
+
+    const missingName = JSON.stringify({
+      loans: [{ Id: 'test-1', Provider: 'Bank', StartDate: new Date().toISOString(), EndDate: new Date().toISOString() }],
+      investments: [],
+    });
+    expect(() => importFromJson(missingName)).toThrow("Missing required field 'Name'");
+  });
+
+  it('should throw error for investments with missing required fields', () => {
+    const missingProvider = JSON.stringify({
+      loans: [],
+      investments: [{ Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString() }],
+    });
+    expect(() => importFromJson(missingProvider)).toThrow("Missing required field 'Provider'");
+
+    const missingStartingBalance = JSON.stringify({
+      loans: [],
+      investments: [{ Id: 'test-1', Provider: 'Fund', Name: 'Test', StartDate: new Date().toISOString(), AverageReturnRate: 5, CompoundingPeriod: 'annually' }],
+    });
+    expect(() => importFromJson(missingStartingBalance)).toThrow("Missing required field 'StartingBalance'");
+  });
+
   it('should throw error for invalid dates', () => {
     const invalidJson = JSON.stringify({
       loans: [{ ...testLoan, StartDate: 'invalid-date' }],
