@@ -214,9 +214,7 @@ export const FinancialVisualization = ({
     });
 
     return { series: seriesData, legendItems: legendData };
-    // loans and investments are not in deps because they're captured via visualizationData
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleLines, visualizationData]);
+  }, [visibleLines, visualizationData, loans, investments]);
 
   // If no data, show message
   if (loans.length === 0 && investments.length === 0) {
@@ -259,11 +257,21 @@ export const FinancialVisualization = ({
               type="number"
               value={startYear}
               onChange={(e) => {
-                const year = parseInt(e.target.value);
-                if (!isNaN(year) && year <= endYear) {
+                const value = e.target.value;
+                if (value === '') {
+                  return; // Don't allow empty values
+                }
+                const year = parseInt(value);
+                if (!isNaN(year)) {
                   setStartYear(year);
                 }
               }}
+              error={startYear > endYear}
+              helperText={
+                startYear > endYear
+                  ? 'Start year must be less than or equal to end year'
+                  : ''
+              }
               inputProps={{ min: 1900, max: 2100 }}
               fullWidth
               size="small"
@@ -275,11 +283,21 @@ export const FinancialVisualization = ({
               type="number"
               value={endYear}
               onChange={(e) => {
-                const year = parseInt(e.target.value);
-                if (!isNaN(year) && year >= startYear) {
+                const value = e.target.value;
+                if (value === '') {
+                  return; // Don't allow empty values
+                }
+                const year = parseInt(value);
+                if (!isNaN(year)) {
                   setEndYear(year);
                 }
               }}
+              error={endYear < startYear}
+              helperText={
+                endYear < startYear
+                  ? 'End year must be greater than or equal to start year'
+                  : ''
+              }
               inputProps={{ min: 1900, max: 2100 }}
               fullWidth
               size="small"
