@@ -23,6 +23,7 @@ import {
 import { InvestmentTable } from './investment/investment-table';
 import { generateInvestmentGrowth } from './helpers/investment-helpers';
 import { generateId } from './helpers/id-helpers';
+import { DataManager } from './data-manager/data-manager';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -205,6 +206,12 @@ export const Body = () => {
           >
             Add Investment
           </Button>
+          <DataManager
+            loans={loans}
+            investments={investments}
+            setLoans={setLoans}
+            setInvestments={setInvestments}
+          />
           <div style={{ flex: 1 }} />
           <FormControlLabel
             control={
