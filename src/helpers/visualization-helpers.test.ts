@@ -10,8 +10,30 @@ import { generateAmortizationSchedule } from './loan-helpers';
 import dayjs from 'dayjs';
 
 describe('getMaxVisualizationDate', () => {
-  it('should return 30 years from now when no loans', () => {
-    const result = getMaxVisualizationDate([]);
+  it('should return today when no loans and no investments', () => {
+    const result = getMaxVisualizationDate([], []);
+    const expected = new Date();
+
+    // Allow 1 day difference for test execution time
+    expect(Math.abs(result.getTime() - expected.getTime())).toBeLessThan(
+      24 * 60 * 60 * 1000
+    );
+  });
+
+  it('should return 30 years from now when there are investments', () => {
+    const investments: Investment[] = [
+      {
+        Id: 'inv-1',
+        Name: 'Investment 1',
+        Provider: 'Fund',
+        StartingBalance: 10000,
+        AverageReturnRate: 5,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+        StartDate: new Date('2024-01-01'),
+      },
+    ];
+
+    const result = getMaxVisualizationDate([], investments);
     const expected = dayjs().add(30, 'year').toDate();
 
     // Allow 1 day difference for test execution time
@@ -20,7 +42,7 @@ describe('getMaxVisualizationDate', () => {
     );
   });
 
-  it('should return 30 years from now or the latest loan end date, whichever is later', () => {
+  it('should return the latest loan end date when only loans exist', () => {
     const loans: Loan[] = [
       {
         Id: 'loan-1',
@@ -44,10 +66,45 @@ describe('getMaxVisualizationDate', () => {
       },
     ];
 
-    const result = getMaxVisualizationDate(loans);
+    const result = getMaxVisualizationDate(loans, []);
 
-    // Should return whichever is later: 30 years from now or the latest loan
-    expect(result.getFullYear()).toBeGreaterThanOrEqual(2050);
+    // Should return the latest loan end date (2050)
+    expect(result.getFullYear()).toBe(2050);
+  });
+
+  it('should return 30 years from now when investments exist and are later than loans', () => {
+    const loans: Loan[] = [
+      {
+        Id: 'loan-1',
+        Name: 'Loan 1',
+        Provider: 'Bank',
+        Principal: 100000,
+        CurrentAmount: 100000,
+        InterestRate: 5,
+        StartDate: new Date('2020-01-01'),
+        EndDate: new Date('2030-01-01'),
+      },
+    ];
+
+    const investments: Investment[] = [
+      {
+        Id: 'inv-1',
+        Name: 'Investment 1',
+        Provider: 'Fund',
+        StartingBalance: 10000,
+        AverageReturnRate: 5,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+        StartDate: new Date('2024-01-01'),
+      },
+    ];
+
+    const result = getMaxVisualizationDate(loans, investments);
+    const expected = dayjs().add(30, 'year').toDate();
+
+    // Should return 30 years from now (later than 2030)
+    expect(result.getFullYear()).toBeGreaterThanOrEqual(
+      expected.getFullYear()
+    );
   });
 });
 

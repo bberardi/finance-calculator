@@ -13,10 +13,12 @@ export type VisualizationDataPoint = {
 };
 
 // Get the maximum date to use for the visualization x-axis
-// Returns 30 years from today or the latest loan end date, whichever is later
-export const getMaxVisualizationDate = (loans: Loan[]): Date => {
+// Returns 30 years from today if there are investments, or the latest loan end date
+export const getMaxVisualizationDate = (
+  loans: Loan[],
+  investments: Investment[]
+): Date => {
   const today = new Date();
-  const defaultEnd = dayjs(today).add(30, 'year').toDate();
 
   // Find the latest loan end date
   const maxLoanDate =
@@ -24,11 +26,14 @@ export const getMaxVisualizationDate = (loans: Loan[]): Date => {
       ? new Date(Math.max(...loans.map((loan) => loan.EndDate.getTime())))
       : today;
 
-  // For investments, use 30 years from now as default
-  const maxInvestmentDate = defaultEnd;
+  // Only use 30 years from now as default if there are investments
+  if (investments.length > 0) {
+    const defaultEnd = dayjs(today).add(30, 'year').toDate();
+    return new Date(Math.max(maxLoanDate.getTime(), defaultEnd.getTime()));
+  }
 
-  // Return the maximum of all dates
-  return new Date(Math.max(maxLoanDate.getTime(), maxInvestmentDate.getTime()));
+  // If no investments, just use the max loan date
+  return maxLoanDate;
 };
 
 // Generate data points for visualization
@@ -42,7 +47,7 @@ export const generateVisualizationData = (
 
   // Determine the date range
   const start = startDate || new Date();
-  const end = endDate || getMaxVisualizationDate(loans);
+  const end = endDate || getMaxVisualizationDate(loans, investments);
 
   // Generate monthly data points
   let currentDate = dayjs(start).startOf('month').toDate();
