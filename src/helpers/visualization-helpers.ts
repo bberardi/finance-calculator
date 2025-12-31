@@ -49,9 +49,9 @@ export const generateVisualizationData = (
   const start = startDate || new Date();
   const end = endDate || getMaxVisualizationDate(loans, investments);
 
-  // Generate monthly data points
-  let currentDate = dayjs(start).startOf('month').toDate();
-  const finalDate = dayjs(end).endOf('month').toDate();
+  // Generate yearly data points (first day of each year)
+  let currentDate = dayjs(start).startOf('year').toDate();
+  const finalDate = dayjs(end).endOf('year').toDate();
 
   while (currentDate <= finalDate) {
     const point: VisualizationDataPoint = {
@@ -82,8 +82,8 @@ export const generateVisualizationData = (
 
     dataPoints.push(point);
 
-    // Move to next month
-    currentDate = dayjs(currentDate).add(1, 'month').toDate();
+    // Move to next year
+    currentDate = dayjs(currentDate).add(1, 'year').toDate();
   }
 
   return dataPoints;

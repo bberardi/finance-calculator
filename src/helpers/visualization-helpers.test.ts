@@ -114,15 +114,14 @@ describe('generateVisualizationData', () => {
     expect(result.length).toBeGreaterThan(0); // Should have data points even with no loans/investments
   });
 
-  it('should generate monthly data points', () => {
+  it('should generate yearly data points', () => {
     const startDate = new Date('2024-01-01');
-    const endDate = new Date('2024-06-01');
+    const endDate = new Date('2029-12-31');
 
     const result = generateVisualizationData([], [], startDate, endDate);
 
-    // Should have approximately 6 months of data
-    expect(result.length).toBeGreaterThanOrEqual(5);
-    expect(result.length).toBeLessThanOrEqual(7);
+    // Should have 6 years of data (2024, 2025, 2026, 2027, 2028, 2029)
+    expect(result.length).toBe(6);
   });
 
   it('should calculate loan values correctly without AmortizationSchedule', () => {

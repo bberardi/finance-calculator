@@ -5,12 +5,15 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
+  TextField,
+  Grid,
 } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
-import { generateVisualizationData } from '../helpers/visualization-helpers';
+import { generateVisualizationData, getMaxVisualizationDate } from '../helpers/visualization-helpers';
 import { useState, useMemo, useEffect } from 'react';
+import dayjs from 'dayjs';
 
 export type FinancialVisualizationProps = {
   loans: Loan[];
@@ -21,6 +24,25 @@ export const FinancialVisualization = ({
   loans,
   investments,
 }: FinancialVisualizationProps) => {
+  // Calculate default date range
+  const defaultEndDate = useMemo(() => {
+    return getMaxVisualizationDate(loans, investments);
+  }, [loans, investments]);
+
+  const defaultStartYear = new Date().getFullYear();
+  const defaultEndYear = defaultEndDate.getFullYear();
+
+  // State for year selectors
+  const [startYear, setStartYear] = useState<number>(defaultStartYear);
+  const [endYear, setEndYear] = useState<number>(defaultEndYear);
+
+  // Update year range when loans/investments change
+  useEffect(() => {
+    const newEndDate = getMaxVisualizationDate(loans, investments);
+    setStartYear(new Date().getFullYear());
+    setEndYear(newEndDate.getFullYear());
+  }, [loans, investments]);
+
   // State to track which lines are visible
   const [visibleLines, setVisibleLines] = useState<{
     [key: string]: boolean;
@@ -53,11 +75,12 @@ export const FinancialVisualization = ({
     });
   }, [loans, investments]);
 
-  // Generate visualization data
-  const visualizationData = useMemo(
-    () => generateVisualizationData(loans, investments),
-    [loans, investments]
-  );
+  // Generate visualization data based on selected year range
+  const visualizationData = useMemo(() => {
+    const start = dayjs().year(startYear).startOf('year').toDate();
+    const end = dayjs().year(endYear).endOf('year').toDate();
+    return generateVisualizationData(loans, investments, start, end);
+  }, [loans, investments, startYear, endYear]);
 
   // Build series data and legend items (memoized for performance)
   // Note: loans and investments are not in the dependency array because they're
@@ -226,6 +249,45 @@ export const FinancialVisualization = ({
       <Typography variant="h6" gutterBottom>
         Financial Position Over Time
       </Typography>
+      
+      {/* Year Range Selectors */}
+      <Box sx={{ marginBottom: '20px' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="Start Year"
+              type="number"
+              value={startYear}
+              onChange={(e) => {
+                const year = parseInt(e.target.value);
+                if (!isNaN(year) && year <= endYear) {
+                  setStartYear(year);
+                }
+              }}
+              inputProps={{ min: 1900, max: 2100 }}
+              fullWidth
+              size="small"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="End Year"
+              type="number"
+              value={endYear}
+              onChange={(e) => {
+                const year = parseInt(e.target.value);
+                if (!isNaN(year) && year >= startYear) {
+                  setEndYear(year);
+                }
+              }}
+              inputProps={{ min: 1900, max: 2100 }}
+              fullWidth
+              size="small"
+            />
+          </Grid>
+        </Grid>
+      </Box>
+
       <Box sx={{ width: '100%', height: 450 }}>
         <LineChart
           xAxis={[
@@ -233,10 +295,7 @@ export const FinancialVisualization = ({
               data: xAxisData,
               scaleType: 'time',
               valueFormatter: (date: Date) => {
-                return date.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                });
+                return date.getFullYear().toString();
               },
             },
           ]}
