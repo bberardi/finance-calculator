@@ -376,6 +376,28 @@ describe('generateVisualizationData', () => {
     expect(result[0].loanValues['past-loan']).toBe(0);
   });
 
+  it('should return 0 for investment values before start date', () => {
+    const investments: Investment[] = [
+      {
+        Id: 'future-investment',
+        Name: 'Future Investment',
+        Provider: 'Fund Co.',
+        StartingBalance: 10000,
+        ReturnRate: 5,
+        CompoundingPeriod: 'Monthly',
+        StartDate: new Date('2025-01-01'),
+      },
+    ];
+
+    const startDate = new Date('2024-01-01');
+    const endDate = new Date('2024-06-01');
+
+    const result = generateVisualizationData([], investments, startDate, endDate);
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].investmentValues['future-investment']).toBe(0);
+  });
+
   it('should use unique IDs for loan and investment values', () => {
     const loans: Loan[] = [
       {
