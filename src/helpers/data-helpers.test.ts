@@ -82,92 +82,141 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for loans with missing required fields', () => {
     const missingProvider = JSON.stringify({
-      loans: [{ Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString(), EndDate: new Date().toISOString() }],
+      loans: [
+        {
+          Id: 'test-1',
+          Name: 'Test',
+          StartDate: new Date().toISOString(),
+          EndDate: new Date().toISOString(),
+        },
+      ],
       investments: [],
     });
-    expect(() => importFromJson(missingProvider)).toThrow("Missing required field 'Provider'");
+    expect(() => importFromJson(missingProvider)).toThrow(
+      "Missing required field 'Provider'"
+    );
 
     const missingName = JSON.stringify({
-      loans: [{ Id: 'test-1', Provider: 'Bank', StartDate: new Date().toISOString(), EndDate: new Date().toISOString() }],
+      loans: [
+        {
+          Id: 'test-1',
+          Provider: 'Bank',
+          StartDate: new Date().toISOString(),
+          EndDate: new Date().toISOString(),
+        },
+      ],
       investments: [],
     });
-    expect(() => importFromJson(missingName)).toThrow("Missing required field 'Name'");
+    expect(() => importFromJson(missingName)).toThrow(
+      "Missing required field 'Name'"
+    );
   });
 
   it('should throw error for loans with empty string fields', () => {
     const emptyProvider = JSON.stringify({
-      loans: [{
-        Id: 'test-1',
-        Provider: '  ',
-        Name: 'Test',
-        InterestRate: 5,
-        Principal: 10000,
-        CurrentAmount: 10000,
-        StartDate: new Date().toISOString(),
-        EndDate: new Date().toISOString()
-      }],
+      loans: [
+        {
+          Id: 'test-1',
+          Provider: '  ',
+          Name: 'Test',
+          InterestRate: 5,
+          Principal: 10000,
+          CurrentAmount: 10000,
+          StartDate: new Date().toISOString(),
+          EndDate: new Date().toISOString(),
+        },
+      ],
       investments: [],
     });
-    expect(() => importFromJson(emptyProvider)).toThrow("Required field 'Provider' cannot be empty");
+    expect(() => importFromJson(emptyProvider)).toThrow(
+      "Required field 'Provider' cannot be empty"
+    );
 
     const emptyName = JSON.stringify({
-      loans: [{
-        Id: 'test-1',
-        Provider: 'Bank',
-        Name: '',
-        InterestRate: 5,
-        Principal: 10000,
-        CurrentAmount: 10000,
-        StartDate: new Date().toISOString(),
-        EndDate: new Date().toISOString()
-      }],
+      loans: [
+        {
+          Id: 'test-1',
+          Provider: 'Bank',
+          Name: '',
+          InterestRate: 5,
+          Principal: 10000,
+          CurrentAmount: 10000,
+          StartDate: new Date().toISOString(),
+          EndDate: new Date().toISOString(),
+        },
+      ],
       investments: [],
     });
-    expect(() => importFromJson(emptyName)).toThrow("Required field 'Name' cannot be empty");
+    expect(() => importFromJson(emptyName)).toThrow(
+      "Required field 'Name' cannot be empty"
+    );
   });
 
   it('should throw error for investments with missing required fields', () => {
     const missingProvider = JSON.stringify({
       loans: [],
-      investments: [{ Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString() }],
+      investments: [
+        { Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString() },
+      ],
     });
-    expect(() => importFromJson(missingProvider)).toThrow("Missing required field 'Provider'");
+    expect(() => importFromJson(missingProvider)).toThrow(
+      "Missing required field 'Provider'"
+    );
 
     const missingStartingBalance = JSON.stringify({
       loans: [],
-      investments: [{ Id: 'test-1', Provider: 'Fund', Name: 'Test', StartDate: new Date().toISOString(), AverageReturnRate: 5, CompoundingPeriod: 'annually' }],
+      investments: [
+        {
+          Id: 'test-1',
+          Provider: 'Fund',
+          Name: 'Test',
+          StartDate: new Date().toISOString(),
+          AverageReturnRate: 5,
+          CompoundingPeriod: 'annually',
+        },
+      ],
     });
-    expect(() => importFromJson(missingStartingBalance)).toThrow("Missing required field 'StartingBalance'");
+    expect(() => importFromJson(missingStartingBalance)).toThrow(
+      "Missing required field 'StartingBalance'"
+    );
   });
 
   it('should throw error for investments with empty string fields', () => {
     const emptyProvider = JSON.stringify({
       loans: [],
-      investments: [{
-        Id: 'test-1',
-        Provider: '  ',
-        Name: 'Test',
-        StartingBalance: 5000,
-        AverageReturnRate: 5,
-        CompoundingPeriod: 'annually',
-        StartDate: new Date().toISOString()
-      }],
+      investments: [
+        {
+          Id: 'test-1',
+          Provider: '  ',
+          Name: 'Test',
+          StartingBalance: 5000,
+          AverageReturnRate: 5,
+          CompoundingPeriod: 'annually',
+          StartDate: new Date().toISOString(),
+        },
+      ],
     });
-    expect(() => importFromJson(emptyProvider)).toThrow("Required field 'Provider' cannot be empty");
+    expect(() => importFromJson(emptyProvider)).toThrow(
+      "Required field 'Provider' cannot be empty"
+    );
 
     const emptyName = JSON.stringify({
       loans: [],
-      investments: [{
-        Id: 'test-1',
-        Provider: 'Fund',
-        Name: '',
-        StartingBalance: 5000,
-        AverageReturnRate: 5,
-        CompoundingPeriod: 'annually',
-        StartDate: new Date().toISOString()
-      }],
+      investments: [
+        {
+          Id: 'test-1',
+          Provider: 'Fund',
+          Name: '',
+          StartingBalance: 5000,
+          AverageReturnRate: 5,
+          CompoundingPeriod: 'annually',
+          StartDate: new Date().toISOString(),
+        },
+      ],
     });
-    expect(() => importFromJson(emptyName)).toThrow("Required field 'Name' cannot be empty");
+    expect(() => importFromJson(emptyName)).toThrow(
+      "Required field 'Name' cannot be empty"
+    );
   });
 
   it('should throw error for invalid dates', () => {

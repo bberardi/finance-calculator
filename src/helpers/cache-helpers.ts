@@ -8,10 +8,7 @@ const CACHE_KEY_ENABLED = 'pathwise-cache-enabled';
 /**
  * Save loans and investments to localStorage
  */
-export const saveToCache = (
-  loans: Loan[],
-  investments: Investment[]
-): void => {
+export const saveToCache = (loans: Loan[], investments: Investment[]): void => {
   try {
     const jsonData = exportToJson(loans, investments);
     localStorage.setItem(CACHE_KEY_DATA, jsonData);
