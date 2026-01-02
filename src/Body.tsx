@@ -9,7 +9,7 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AddEditLoan } from './loan/add-edit-loan';
 import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
@@ -24,10 +24,54 @@ import { InvestmentTable } from './investment/investment-table';
 import { generateInvestmentGrowth } from './helpers/investment-helpers';
 import { generateId } from './helpers/id-helpers';
 import { DataManager } from './data-manager/data-manager';
+import {
+  loadFromCache,
+  saveToCache,
+  clearCache,
+  loadCacheEnabled,
+  saveCacheEnabled,
+} from './helpers/cache-helpers';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [testDataEnabled, setTestDataEnabled] = useState<boolean>(false);
+  const [cacheEnabled, setCacheEnabled] = useState<boolean>(false);
+  const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
+  const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
+    useState<boolean>(false);
+  const [editLoan, setEditLoan] = useState<Loan>();
+  const [editInvestment, setEditInvestment] = useState<Investment>();
+
+  // Load cache setting and cached data on mount
+  useEffect(() => {
+    const isCacheEnabled = loadCacheEnabled();
+    setCacheEnabled(isCacheEnabled);
+
+    if (isCacheEnabled) {
+      const cachedData = loadFromCache();
+      if (cachedData) {
+        // Regenerate calculated fields
+        const updatedLoans = cachedData.loans.map((loan) => ({
+          ...loan,
+          AmortizationSchedule: generateAmortizationSchedule(loan),
+        }));
+        const updatedInvestments = cachedData.investments.map((investment) => ({
+          ...investment,
+          ProjectedGrowth: generateInvestmentGrowth(investment),
+        }));
+        setLoans(updatedLoans);
+        setInvestments(updatedInvestments);
+      }
+    }
+  }, []);
+
+  // Save to cache whenever loans or investments change (but only if caching is enabled)
+  useEffect(() => {
+    if (cacheEnabled) {
+      saveToCache(loans, investments);
+    }
+  }, [loans, investments, cacheEnabled]);
 
   // Fake data for testing
   const fakeLoans: Loan[] = [
@@ -83,6 +127,21 @@ export const Body = () => {
     },
   ];
 
+  // Toggle handler for cache
+  const handleToggleCache = () => {
+    const newCacheEnabled = !cacheEnabled;
+    setCacheEnabled(newCacheEnabled);
+    saveCacheEnabled(newCacheEnabled);
+
+    if (newCacheEnabled) {
+      // Save current data when enabling cache
+      saveToCache(loans, investments);
+    } else {
+      // Clear cache when disabling
+      clearCache();
+    }
+  };
+
   // Toggle handler for test data
   const handleToggleTestData = () => {
     if (!testDataEnabled) {
@@ -106,12 +165,6 @@ export const Body = () => {
     }
     setTestDataEnabled(!testDataEnabled);
   };
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
-  const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
-    useState<boolean>(false);
-  const [editLoan, setEditLoan] = useState<Loan>();
-  const [editInvestment, setEditInvestment] = useState<Investment>();
 
   const onLoanAddEdit = (loan?: Loan) => {
     setEditLoan(loan);
@@ -213,6 +266,18 @@ export const Body = () => {
             setInvestments={setInvestments}
           />
           <div style={{ flex: 1 }} />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={cacheEnabled}
+                onChange={handleToggleCache}
+                color="secondary"
+              />
+            }
+            label={'Cache Data'}
+            labelPlacement="start"
+            sx={{ margin: '5px' }}
+          />
           <FormControlLabel
             control={
               <Switch

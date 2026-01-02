@@ -10,7 +10,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any);
