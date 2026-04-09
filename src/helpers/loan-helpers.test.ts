@@ -150,6 +150,44 @@ describe('Loan Helpers', () => {
       expect(pit.RemainingPrincipal).toBeLessThan(10000);
       expect(pit.RemainingTerms).toBeGreaterThan(0);
     });
+
+    it('should only sum interest up to paidTerms when a full amortization schedule is pre-generated', () => {
+      const loan: Loan = {
+        Id: 'test-id-7',
+        Provider: 'Test Lender',
+        Name: 'Test Loan',
+        StartDate: new Date('2025-01-01'),
+        EndDate: new Date('2026-01-01'),
+        Principal: 10000,
+        CurrentAmount: 10000,
+        InterestRate: 6,
+        MonthlyPayment: 860.66,
+      };
+
+      // Pre-generate the full amortization schedule (all 12 terms)
+      const fullSchedule = generateAmortizationSchedule(loan);
+      const loanWithSchedule: Loan = {
+        ...loan,
+        AmortizationSchedule: fullSchedule,
+      };
+
+      // Query at 6 months into a 12-month loan
+      const pitPartial = getPitCalculation(
+        loanWithSchedule,
+        new Date('2025-07-01')
+      );
+
+      // PaidInterest should only reflect the first 7 terms, not the full 12
+      const expectedInterest = fullSchedule
+        .slice(0, pitPartial.PaidTerms)
+        .reduce((acc, entry) => acc + entry.InterestPayment, 0);
+
+      expect(pitPartial.PaidInterest).toBeCloseTo(expectedInterest, 2);
+
+      // Sanity check: interest at 6 months must be less than interest for the full loan
+      const fullPit = getPitCalculation(loanWithSchedule, loan.EndDate);
+      expect(pitPartial.PaidInterest).toBeLessThan(fullPit.PaidInterest);
+    });
   });
 
   describe('Edge Cases', () => {

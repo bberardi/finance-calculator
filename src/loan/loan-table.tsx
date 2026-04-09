@@ -155,7 +155,7 @@ export const LoanTable = (props: LoanTableProps) => {
       {isMobile ? (
         <Box>
           {props.loans.map((loan) => (
-            <LoanCard key={loan.Name} loan={loan} />
+            <LoanCard key={loan.Id} loan={loan} />
           ))}
         </Box>
       ) : (
@@ -174,7 +174,7 @@ export const LoanTable = (props: LoanTableProps) => {
             </TableHead>
             <TableBody>
               {props.loans.map((row) => (
-                <TableRow key={row.Name}>
+                <TableRow key={row.Id}>
                   <TableCell>{row.Name}</TableCell>
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{formatCurrency(row.Principal)}</TableCell>
