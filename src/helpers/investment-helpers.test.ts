@@ -9,6 +9,8 @@ import {
   getContributionForYear,
   getInvestmentYear,
   getContributionsWithStepUp,
+  getAnniversaryDate,
+  hasPassedAnniversary,
 } from './investment-helpers';
 import {
   Investment,
@@ -28,6 +30,63 @@ describe('Investment Helpers', () => {
 
     it('should return 1 for annually compounding', () => {
       expect(getPeriodsPerYear(CompoundingFrequency.Annually)).toBe(1);
+    });
+  });
+
+  describe('getAnniversaryDate', () => {
+    it('should return correct anniversary date for regular dates', () => {
+      const startDate = new Date(2024, 5, 15); // June 15, 2024
+      const anniversary = getAnniversaryDate(startDate, 2025);
+      expect(anniversary.getFullYear()).toBe(2025);
+      expect(anniversary.getMonth()).toBe(5);
+      expect(anniversary.getDate()).toBe(15);
+    });
+
+    it('should return Feb 28 for Feb 29 start date in non-leap year', () => {
+      const startDate = new Date(2024, 1, 29); // Feb 29, 2024 (leap year)
+      const anniversary = getAnniversaryDate(startDate, 2025); // 2025 is not a leap year
+      expect(anniversary.getFullYear()).toBe(2025);
+      expect(anniversary.getMonth()).toBe(1);
+      expect(anniversary.getDate()).toBe(28);
+    });
+
+    it('should return Feb 29 for Feb 29 start date in leap year', () => {
+      const startDate = new Date(2024, 1, 29); // Feb 29, 2024 (leap year)
+      const anniversary = getAnniversaryDate(startDate, 2028); // 2028 is a leap year
+      expect(anniversary.getFullYear()).toBe(2028);
+      expect(anniversary.getMonth()).toBe(1);
+      expect(anniversary.getDate()).toBe(29);
+    });
+  });
+
+  describe('hasPassedAnniversary', () => {
+    it('should return true when on anniversary', () => {
+      const startDate = new Date(2024, 5, 15); // June 15, 2024
+      const currentDate = new Date(2025, 5, 15); // June 15, 2025
+      expect(hasPassedAnniversary(currentDate, startDate)).toBe(true);
+    });
+
+    it('should return true when past anniversary', () => {
+      const startDate = new Date(2024, 5, 15); // June 15, 2024
+      const currentDate = new Date(2025, 6, 1); // July 1, 2025
+      expect(hasPassedAnniversary(currentDate, startDate)).toBe(true);
+    });
+
+    it('should return false when before anniversary', () => {
+      const startDate = new Date(2024, 5, 15); // June 15, 2024
+      const currentDate = new Date(2025, 4, 1); // May 1, 2025
+      expect(hasPassedAnniversary(currentDate, startDate)).toBe(false);
+    });
+
+    it('should handle Feb 29 leap year edge case correctly', () => {
+      const startDate = new Date(2024, 1, 29); // Feb 29, 2024 (leap year)
+      // In non-leap year, anniversary is Feb 28
+      // Feb 28, 2025 should be considered as passed anniversary
+      expect(hasPassedAnniversary(new Date(2025, 1, 28), startDate)).toBe(true);
+      // Feb 27, 2025 should be before anniversary
+      expect(hasPassedAnniversary(new Date(2025, 1, 27), startDate)).toBe(
+        false
+      );
     });
   });
 

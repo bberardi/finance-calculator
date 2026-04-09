@@ -20,6 +20,43 @@ export const getPeriodsPerYear = (frequency: CompoundingFrequency): number => {
   }
 };
 
+// Get the anniversary date for a given year based on a start date
+// Handles leap year edge case: if start date is Feb 29, uses Feb 28 for non-leap years
+export const getAnniversaryDate = (
+  startDate: Date,
+  targetYear: number
+): Date => {
+  const anniversaryMonth = startDate.getMonth();
+  let anniversaryDay = startDate.getDate();
+
+  // Check if start date is Feb 29 (leap day)
+  if (anniversaryMonth === 1 && anniversaryDay === 29) {
+    // Check if target year is a leap year
+    const isLeapYear =
+      (targetYear % 4 === 0 && targetYear % 100 !== 0) ||
+      targetYear % 400 === 0;
+    if (!isLeapYear) {
+      // Use Feb 28 for non-leap years
+      anniversaryDay = 28;
+    }
+  }
+
+  return new Date(targetYear, anniversaryMonth, anniversaryDay);
+};
+
+// Check if we've passed the anniversary for a given year
+// Returns true if currentDate is on or after the anniversary in that year
+export const hasPassedAnniversary = (
+  currentDate: Date,
+  startDate: Date
+): boolean => {
+  const anniversaryThisYear = getAnniversaryDate(
+    startDate,
+    currentDate.getFullYear()
+  );
+  return currentDate >= anniversaryThisYear;
+};
+
 // Returns the number of periods between start date and end date (or current date)
 export const getInvestmentPeriods = (
   investment: Investment,
@@ -71,13 +108,8 @@ export const getInvestmentPeriods = (
   } else {
     // Annually
     periods = end.getFullYear() - start.getFullYear();
-    // Add partial year if we've passed the anniversary
-    const anniversary = new Date(
-      end.getFullYear(),
-      start.getMonth(),
-      start.getDate()
-    );
-    if (end >= anniversary) {
+    // Add partial year if we've passed the anniversary (using shared helper for consistency)
+    if (hasPassedAnniversary(end, start)) {
       periods += 1;
     }
   }
@@ -163,31 +195,8 @@ export const getInvestmentYear = (
   // Calculate years elapsed since start
   const yearsElapsed = currentDate.getFullYear() - startDate.getFullYear();
 
-  // Handle leap year edge case: if start date is Feb 29, use Feb 28 for non-leap years
-  const anniversaryMonth = startDate.getMonth();
-  let anniversaryDay = startDate.getDate();
-
-  // Check if start date is Feb 29 (leap day)
-  if (anniversaryMonth === 1 && anniversaryDay === 29) {
-    // Check if current year is a leap year
-    const currentYear = currentDate.getFullYear();
-    const isLeapYear =
-      (currentYear % 4 === 0 && currentYear % 100 !== 0) ||
-      currentYear % 400 === 0;
-    if (!isLeapYear) {
-      // Use Feb 28 for non-leap years
-      anniversaryDay = 28;
-    }
-  }
-
-  // Check if we've passed the anniversary this calendar year
-  const anniversaryThisYear = new Date(
-    currentDate.getFullYear(),
-    anniversaryMonth,
-    anniversaryDay
-  );
-
-  if (currentDate >= anniversaryThisYear) {
+  // Use shared helper to check if we've passed the anniversary this calendar year
+  if (hasPassedAnniversary(currentDate, startDate)) {
     return yearsElapsed + 1;
   } else {
     return yearsElapsed;
