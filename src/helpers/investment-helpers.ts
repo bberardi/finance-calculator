@@ -169,7 +169,7 @@ export const getContributionForYear = (
   stepUpType?: StepUpType
 ): number => {
   if (!stepUpAmount || stepUpAmount <= 0 || !stepUpType || yearNumber <= 1) {
-    return baseContribution;
+    return roundToCents(baseContribution);
   }
 
   // Number of step-ups applied (first year has no step-up)
