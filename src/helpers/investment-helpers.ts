@@ -20,6 +20,8 @@ export const getPeriodsPerYear = (frequency: CompoundingFrequency): number => {
   }
 };
 
+const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+
 // Get the anniversary date for a given year based on a start date
 // Handles leap year edge case: if start date is Feb 29, uses Feb 28 for non-leap years
 export const getAnniversaryDate = (
@@ -175,10 +177,12 @@ export const getContributionForYear = (
 
   if (stepUpType === StepUpType.Flat) {
     // Flat: add step-up amount for each year after the first
-    return baseContribution + stepUpAmount * stepUpsApplied;
+    return roundToCents(baseContribution + stepUpAmount * stepUpsApplied);
   } else {
     // Percentage: compound the step-up for each year after the first
-    return baseContribution * Math.pow(1 + stepUpAmount / 100, stepUpsApplied);
+    return roundToCents(
+      baseContribution * Math.pow(1 + stepUpAmount / 100, stepUpsApplied)
+    );
   }
 };
 
@@ -233,7 +237,7 @@ export const getContributionsWithStepUp = (
     currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
   }
 
-  return totalContribution;
+  return roundToCents(totalContribution);
 };
 
 // Generate growth projection for an investment using date-based calculations

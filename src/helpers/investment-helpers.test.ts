@@ -522,19 +522,19 @@ describe('Investment Helpers', () => {
 
       it('should apply percentage step-up correctly', () => {
         // $100 base with 10% step-up
-        expect(
-          getContributionForYear(100, 1, 10, StepUpType.Percentage)
-        ).toBeCloseTo(100, 2);
-        expect(
-          getContributionForYear(100, 2, 10, StepUpType.Percentage)
-        ).toBeCloseTo(110, 2);
-        expect(
-          getContributionForYear(100, 3, 10, StepUpType.Percentage)
-        ).toBeCloseTo(121, 2);
+        expect(getContributionForYear(100, 1, 10, StepUpType.Percentage)).toBe(
+          100
+        );
+        expect(getContributionForYear(100, 2, 10, StepUpType.Percentage)).toBe(
+          110
+        );
+        expect(getContributionForYear(100, 3, 10, StepUpType.Percentage)).toBe(
+          121
+        );
         // Year 4: 100 * 1.1^3 = 133.1
-        expect(
-          getContributionForYear(100, 4, 10, StepUpType.Percentage)
-        ).toBeCloseTo(133.1, 2);
+        expect(getContributionForYear(100, 4, 10, StepUpType.Percentage)).toBe(
+          133.1
+        );
       });
 
       it('should return base contribution if no step-up configured', () => {
