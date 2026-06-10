@@ -116,7 +116,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
         vertical: 'center',
         horizontal: 'center',
       }}
-      style={{ maxHeight: '90vh' }}
+      sx={{ maxHeight: '90vh' }}
     >
       <Card>
         <CardContent>

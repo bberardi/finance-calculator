@@ -31,7 +31,7 @@ export const AmortizationPopout = (props: AmortizationPopoutProps) => {
         vertical: 'center',
         horizontal: 'center',
       }}
-      style={{ maxHeight: '90vh' }}
+      sx={{ maxHeight: '90vh' }}
     >
       <Card>
         <CardContent>

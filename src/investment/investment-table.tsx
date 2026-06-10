@@ -178,7 +178,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
       {isMobile ? (
         <Box>
           {props.investments.map((investment) => (
-            <InvestmentCard key={investment.Name} investment={investment} />
+            <InvestmentCard key={investment.Id} investment={investment} />
           ))}
         </Box>
       ) : (
@@ -197,7 +197,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
             </TableHead>
             <TableBody>
               {props.investments.map((row) => (
-                <TableRow key={row.Name}>
+                <TableRow key={row.Id}>
                   <TableCell>{row.Name}</TableCell>
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{formatCurrency(row.StartingBalance)}</TableCell>
