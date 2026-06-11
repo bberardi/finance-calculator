@@ -82,6 +82,15 @@ describe('Forecast Helpers', () => {
       expect(series[12].Date.getTime()).toBe(monthsFromToday(12).getTime());
     });
 
+    it('should span past a horizon that falls mid-month', () => {
+      const horizon = dayjs(today).add(12, 'month').add(10, 'day').toDate();
+      const series = forecastLoan(makeLoan(), horizon, 0, today);
+      expect(series).toHaveLength(14);
+      expect(series[series.length - 1].Date.getTime()).toBeGreaterThanOrEqual(
+        horizon.getTime()
+      );
+    });
+
     it('should anchor the first point to CurrentAmount, not Principal', () => {
       const loan = makeLoan({ Principal: 10000, CurrentAmount: 6000 });
       const series = forecastLoan(loan, monthsFromToday(12), 0, today);
@@ -153,18 +162,33 @@ describe('Forecast Helpers', () => {
       expect(series[12].Value).toBeGreaterThan(10000);
     });
 
-    it('should derive the payment when MonthlyPayment is missing', () => {
+    it('should derive a payment from the current balance and remaining term when MonthlyPayment is missing', () => {
       const loan = makeLoan({
         InterestRate: 6,
-        Principal: 12000,
+        Principal: 24000,
         CurrentAmount: 12000,
-        StartDate: today,
+        StartDate: new Date(2024, 5, 1),
         EndDate: monthsFromToday(12),
         MonthlyPayment: undefined,
       });
       const series = forecastLoan(loan, monthsFromToday(12), 0, today);
       expect(series[1].Value).toBeLessThan(series[0].Value);
-      expect(series[12].Value).toBeLessThan(series[1].Value);
+      // Derived payment should amortize today's balance by the end date.
+      expect(series[12].Value).toBeLessThan(1);
+    });
+
+    it('should derive a principal-only payment for a zero-interest loan', () => {
+      const loan = makeLoan({
+        InterestRate: 0,
+        Principal: 12000,
+        CurrentAmount: 6000,
+        StartDate: new Date(2024, 5, 1),
+        EndDate: monthsFromToday(12),
+        MonthlyPayment: undefined,
+      });
+      const series = forecastLoan(loan, monthsFromToday(12), 0, today);
+      expect(series[1].Value).toBe(5500);
+      expect(series[12].Value).toBe(0);
     });
   });
 
@@ -259,6 +283,43 @@ describe('Forecast Helpers', () => {
         today
       );
       expect(series[12].Value).toBe(1000 + 4 * 100);
+    });
+
+    it('should not apply contributions when ContributionFrequency is missing', () => {
+      const investment = makeInvestment({
+        CurrentValue: 1000,
+        RecurringContribution: 100,
+        ContributionFrequency: undefined,
+      });
+      const series = forecastInvestment(
+        investment,
+        monthsFromToday(12),
+        0,
+        today
+      );
+      series.forEach((point) => expect(point.Value).toBe(1000));
+    });
+
+    it('should anchor contribution cadence to the investment start date', () => {
+      const investment = makeInvestment({
+        StartDate: new Date(2026, 3, 1), // April 1, 2026 — off-cycle vs. today
+        CurrentValue: 1000,
+        RecurringContribution: 100,
+        ContributionFrequency: CompoundingFrequency.Quarterly,
+      });
+      const series = forecastInvestment(
+        investment,
+        monthsFromToday(12),
+        0,
+        today
+      );
+      // Cadence runs Apr/Jul/Oct/Jan regardless of the forecast run date:
+      // contributions land at months 1 (Jul), 4 (Oct), 7 (Jan), 10 (Apr).
+      expect(series[1].Value).toBe(1100);
+      expect(series[3].Value).toBe(1100);
+      expect(series[4].Value).toBe(1200);
+      expect(series[10].Value).toBe(1400);
+      expect(series[12].Value).toBe(1400);
     });
 
     it('should add extra monthly contributions on top of recurring ones', () => {

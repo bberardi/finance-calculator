@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
 import { ForecastPoint, ScenarioInput } from '../models/forecast-model';
-import { getMonthlyPayment, getTerms } from './loan-helpers';
+import { getMonthlyPayment } from './loan-helpers';
 import {
   generateInvestmentGrowth,
   getContributionForYear,
@@ -12,9 +12,10 @@ import {
 
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 
-// Number of whole months from start to end (never negative).
+// Number of months from start to end, rounded up so a series always spans
+// at least to the requested end date (never negative).
 const getMonthsBetween = (start: Date, end: Date): number =>
-  Math.max(0, dayjs(end).diff(dayjs(start), 'month'));
+  Math.max(0, Math.ceil(dayjs(end).diff(dayjs(start), 'month', true)));
 
 // Months between occurrences for a frequency (monthly=1, quarterly=3, annually=12).
 const getIntervalMonths = (frequency: CompoundingFrequency): number =>
@@ -64,24 +65,30 @@ export const forecastLoan = (
   const months = getMonthsBetween(today, horizon);
   const start = dayjs(today);
   const monthlyRate = loan.InterestRate / 100 / 12;
+
+  let balance = roundToCents(Math.max(loan.CurrentAmount, 0));
+
+  // When no payment is stored, derive one that amortizes today's actual
+  // balance over the remaining term — not the original principal over the
+  // full term, which would mis-estimate an anchored forecast.
+  const remainingTerms = Math.max(1, getMonthsBetween(today, loan.EndDate));
   const basePayment =
     loan.MonthlyPayment ??
-    getMonthlyPayment(loan.Principal, loan.InterestRate, getTerms(loan));
+    (loan.InterestRate > 0
+      ? getMonthlyPayment(balance, loan.InterestRate, remainingTerms)
+      : roundToCents(balance / remainingTerms));
   const payment = basePayment + extraMonthlyPayment;
 
-  let balance = Math.max(loan.CurrentAmount, 0);
-  const points: ForecastPoint[] = [
-    { Date: start.toDate(), Value: roundToCents(balance) },
-  ];
+  const points: ForecastPoint[] = [{ Date: start.toDate(), Value: balance }];
 
   for (let month = 1; month <= months; month++) {
     if (balance > 0) {
       const interest = balance * monthlyRate;
-      balance = Math.max(0, balance + interest - payment);
+      balance = roundToCents(Math.max(0, balance + interest - payment));
     }
     points.push({
       Date: start.add(month, 'month').toDate(),
-      Value: roundToCents(balance),
+      Value: balance,
     });
   }
 
@@ -91,10 +98,11 @@ export const forecastLoan = (
 // Forecast an investment's value month by month from today to the horizon.
 // The series is anchored to CurrentValue when provided, otherwise to the
 // value projected for today from the investment's historical inputs.
-// Contributions land at the start of each contribution interval (with any
-// configured yearly step-up, anchored to the investment's start date);
-// interest compounds at the end of each compounding interval. Index 0 is
-// today.
+// Contribution and compounding cadence is anchored to the investment's
+// StartDate at calendar-month granularity (matching the date-based schedule
+// of generateInvestmentGrowth), so a forecast does not shift depending on
+// when it is generated. Yearly step-ups follow StartDate anniversaries.
+// Index 0 is today.
 export const forecastInvestment = (
   investment: Investment,
   horizon: Date,
@@ -116,10 +124,17 @@ export const forecastInvestment = (
     100 /
     getPeriodsPerYear(investment.CompoundingPeriod);
   const compoundingInterval = getIntervalMonths(investment.CompoundingPeriod);
-  const contributionInterval = getIntervalMonths(
-    investment.ContributionFrequency ?? CompoundingFrequency.Monthly
-  );
-  const baseContribution = investment.RecurringContribution ?? 0;
+
+  // Match generateInvestmentGrowth: contributions only apply when both the
+  // amount and the frequency are set.
+  const baseContribution = investment.ContributionFrequency
+    ? (investment.RecurringContribution ?? 0)
+    : 0;
+  const contributionInterval = investment.ContributionFrequency
+    ? getIntervalMonths(investment.ContributionFrequency)
+    : 1;
+
+  const investmentStartMonth = dayjs(investment.StartDate).startOf('month');
 
   let value = anchorValue;
   const points: ForecastPoint[] = [
@@ -128,8 +143,17 @@ export const forecastInvestment = (
 
   for (let month = 1; month <= months; month++) {
     const monthDate = start.add(month, 'month');
+    // Calendar months since the investment started; events stay anchored to
+    // the StartDate cadence regardless of the forecast's run date.
+    const elapsedMonths = monthDate
+      .startOf('month')
+      .diff(investmentStartMonth, 'month');
 
-    if (baseContribution > 0 && (month - 1) % contributionInterval === 0) {
+    if (
+      baseContribution > 0 &&
+      elapsedMonths >= 0 &&
+      elapsedMonths % contributionInterval === 0
+    ) {
       const yearNumber = getInvestmentYear(
         monthDate.toDate(),
         investment.StartDate
@@ -146,7 +170,7 @@ export const forecastInvestment = (
       value += extraMonthlyContribution;
     }
 
-    if (month % compoundingInterval === 0) {
+    if (elapsedMonths > 0 && elapsedMonths % compoundingInterval === 0) {
       value *= 1 + periodRate;
     }
 
