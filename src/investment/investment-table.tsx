@@ -48,7 +48,10 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   const formatContribution = (investment: Investment): string => {
     if (!investment.RecurringContribution) return 'None';
     const base = formatCurrency(investment.RecurringContribution);
-    if (!investment.ContributionStepUpType || !investment.ContributionStepUpAmount)
+    if (
+      !investment.ContributionStepUpType ||
+      !investment.ContributionStepUpAmount
+    )
       return base;
     const stepUp =
       investment.ContributionStepUpType === StepUpType.Flat

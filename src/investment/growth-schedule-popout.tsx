@@ -11,10 +11,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import {
-  Investment,
-  CompoundingFrequency,
-} from '../models/investment-model';
+import { Investment, CompoundingFrequency } from '../models/investment-model';
 import {
   generateInvestmentGrowth,
   getPeriodsPerYear,
