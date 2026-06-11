@@ -245,5 +245,8 @@ export const mergeData = <T extends { Id: string }>(
   const validItems = Array.from(existingMap.values());
   const emptyIdItems = existing.filter((item) => !isValidId(item.Id));
 
-  return { items: [...emptyIdItems, ...validItems], result: { added, updated } };
+  return {
+    items: [...emptyIdItems, ...validItems],
+    result: { added, updated },
+  };
 };

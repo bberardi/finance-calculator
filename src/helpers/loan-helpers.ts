@@ -61,10 +61,9 @@ export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
     RemainingTerms: getTerms(loan) - lastEntry.Term,
     RemainingPrincipal: lastEntry.RemainingBalance,
     PaidPrincipal: loan.Principal - lastEntry.RemainingBalance,
-    PaidInterest: relevantAmortization.reduce(
-      (acc, entry) => acc + entry.InterestPayment,
-      0
-    ),
+    PaidInterest: relevantAmortization
+      .slice(0, paidTerms)
+      .reduce((acc, entry) => acc + entry.InterestPayment, 0),
   } as PitLoan;
 };
 

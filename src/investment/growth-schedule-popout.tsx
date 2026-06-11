@@ -11,7 +11,10 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { Investment, CompoundingFrequency } from '../models/investment-model';
+import {
+  Investment,
+  CompoundingFrequency,
+} from '../models/investment-model';
 import {
   generateInvestmentGrowth,
   getPeriodsPerYear,
@@ -21,6 +24,7 @@ import dayjs from 'dayjs';
 type ScheduleEntry = {
   period: number;
   date: string;
+  contributionAmount: number;
   totalInvested: number;
   interestAccrued: number;
   balance: number;
@@ -62,6 +66,10 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
     }
   };
 
+  const hasStepUp =
+    !!props.investment.ContributionStepUpType &&
+    !!props.investment.ContributionStepUpAmount;
+
   // For monthly and quarterly, show individual periods; for annual, group by year
   let cumulativeInvested = props.investment.StartingBalance;
   const scheduleEntries: ScheduleEntry[] = schedule.map((entry) => {
@@ -98,6 +106,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
     return {
       period: entry.Period,
       date: periodDate.format(getDateFormat()),
+      contributionAmount: entry.ContributionAmount,
       totalInvested: cumulativeInvested,
       interestAccrued: entry.InterestEarned,
       balance: entry.TotalValue,
@@ -116,7 +125,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
         vertical: 'center',
         horizontal: 'center',
       }}
-      style={{ maxHeight: '90vh' }}
+      sx={{ maxHeight: '90vh' }}
     >
       <Card>
         <CardContent>
@@ -129,6 +138,7 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
                 <TableRow>
                   <TableCell>{getPeriodLabel()}</TableCell>
                   <TableCell>Date</TableCell>
+                  {hasStepUp && <TableCell>Contribution</TableCell>}
                   <TableCell>Total Invested</TableCell>
                   <TableCell>Interest This Period</TableCell>
                   <TableCell>Balance</TableCell>
@@ -139,6 +149,16 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
                   <TableRow key={entry.period}>
                     <TableCell>{entry.period}</TableCell>
                     <TableCell>{entry.date}</TableCell>
+                    {hasStepUp && (
+                      <TableCell>
+                        {entry.contributionAmount.toLocaleString(undefined, {
+                          style: 'currency',
+                          currency: 'USD',
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {entry.totalInvested.toLocaleString(undefined, {
                         style: 'currency',

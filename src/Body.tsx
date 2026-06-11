@@ -27,7 +27,13 @@ import { DataManager } from './data-manager/data-manager';
 
 export const Body = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [testDataEnabled, setTestDataEnabled] = useState<boolean>(false);
+  const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
+  const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
+    useState<boolean>(false);
+  const [editLoan, setEditLoan] = useState<Loan>();
+  const [editInvestment, setEditInvestment] = useState<Investment>();
 
   // Fake data for testing
   const fakeLoans: Loan[] = [
@@ -106,12 +112,6 @@ export const Body = () => {
     }
     setTestDataEnabled(!testDataEnabled);
   };
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
-  const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
-    useState<boolean>(false);
-  const [editLoan, setEditLoan] = useState<Loan>();
-  const [editInvestment, setEditInvestment] = useState<Investment>();
 
   const onLoanAddEdit = (loan?: Loan) => {
     setEditLoan(loan);

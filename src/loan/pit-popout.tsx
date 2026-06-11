@@ -92,6 +92,15 @@ export const PitPopout = (props: PitPopoutProps) => {
                 maximumFractionDigits: 2,
               }
             )}`}</Typography>
+            <Typography>{`Paid Interest: ${pitLoan.PaidInterest.toLocaleString(
+              undefined,
+              {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }
+            )}`}</Typography>
             <Typography>{`Remaining Principal: ${pitLoan.RemainingPrincipal.toLocaleString(
               undefined,
               {
