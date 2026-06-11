@@ -698,6 +698,20 @@ describe('Investment Helpers', () => {
         // Nov $100 + Dec $100 + Jan $110 = $310
         expect(total).toBe(310);
       });
+
+      it('should not over-count when compounding is more frequent than contributions', () => {
+        const investmentStart = new Date(2025, 0, 1); // Jan 1 — quarterly contributions on Jan/Apr/Jul/Oct
+        // Monthly compounding: period 2 covers Feb 1 – Mar 1
+        // Next quarterly contribution after Jan 1 is Apr 1, which is outside this window → 0 contributions
+        const total = getContributionsWithStepUp(
+          new Date(2025, 1, 1), // Feb 1
+          new Date(2025, 2, 1), // Mar 1
+          investmentStart,
+          100,
+          CompoundingFrequency.Quarterly
+        );
+        expect(total).toBe(0);
+      });
     });
   });
 

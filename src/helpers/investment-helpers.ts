@@ -218,9 +218,16 @@ export const getContributionsWithStepUp = (
   stepUpType?: StepUpType
 ): number => {
   let totalContribution = 0;
-  let currentDate = new Date(startDate.getTime());
 
-  // Iterate through each contribution date in the period
+  // Anchor to investmentStartDate and advance to first contribution date on or after startDate.
+  // This keeps contribution timing consistent across compounding periods — without this,
+  // each period would treat its own start as a contribution date, over-counting when
+  // compounding is more frequent than contributions (e.g. monthly compounding + quarterly contributions).
+  let currentDate = new Date(investmentStartDate.getTime());
+  while (currentDate < startDate) {
+    currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
+  }
+
   while (currentDate < endDate) {
     // Determine which year this contribution falls in
     const yearNumber = getInvestmentYear(currentDate, investmentStartDate);

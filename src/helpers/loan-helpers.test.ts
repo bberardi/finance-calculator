@@ -157,7 +157,7 @@ describe('Loan Helpers', () => {
         Provider: 'Test Lender',
         Name: 'Test Loan',
         StartDate: new Date('2025-01-01'),
-        EndDate: new Date('2026-01-01'),
+        EndDate: new Date('2025-12-01'),
         Principal: 10000,
         CurrentAmount: 10000,
         InterestRate: 6,
