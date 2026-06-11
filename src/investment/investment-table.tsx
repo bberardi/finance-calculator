@@ -15,7 +15,11 @@ import {
   useMediaQuery,
   IconButton,
 } from '@mui/material';
-import { Investment, CompoundingFrequency } from '../models/investment-model';
+import {
+  Investment,
+  CompoundingFrequency,
+  StepUpType,
+} from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { Calculate, Edit, TrendingUp } from '@mui/icons-material';
 import { useState } from 'react';
@@ -39,6 +43,18 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 
   const formatPercent = (rate: number) => {
     return `${rate.toFixed(3)}%`;
+  };
+
+  const formatContribution = (investment: Investment): string => {
+    if (!investment.RecurringContribution) return 'None';
+    const base = formatCurrency(investment.RecurringContribution);
+    if (!investment.ContributionStepUpType || !investment.ContributionStepUpAmount)
+      return base;
+    const stepUp =
+      investment.ContributionStepUpType === StepUpType.Flat
+        ? `+${formatCurrency(investment.ContributionStepUpAmount)}/yr`
+        : `+${investment.ContributionStepUpAmount}%/yr`;
+    return `${base} (${stepUp})`;
   };
 
   const getCompoundingText = (period: CompoundingFrequency) => {
@@ -135,9 +151,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 <strong>Recurring:</strong>
               </Typography>
               <Typography variant="body2">
-                {investment.RecurringContribution
-                  ? formatCurrency(investment.RecurringContribution)
-                  : 'None'}
+                {formatContribution(investment)}
               </Typography>
             </Grid>
           </Grid>
@@ -205,11 +219,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                   <TableCell>
                     {getCompoundingText(row.CompoundingPeriod)}
                   </TableCell>
-                  <TableCell>
-                    {row.RecurringContribution
-                      ? formatCurrency(row.RecurringContribution)
-                      : 'None'}
-                  </TableCell>
+                  <TableCell>{formatContribution(row)}</TableCell>
                   <TableCell>
                     <InvestmentActions investment={row} isMobile={false} />
                   </TableCell>

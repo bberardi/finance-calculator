@@ -189,10 +189,17 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
               prefix={'$'}
               customInput={TextField}
               onValueChange={(vs) => {
+                const hasContribution = Boolean(vs.value);
                 setNewInvestment({
                   ...newInvestment,
-                  RecurringContribution: vs.value
+                  RecurringContribution: hasContribution
                     ? Number(vs.value)
+                    : undefined,
+                  ContributionStepUpType: hasContribution
+                    ? newInvestment.ContributionStepUpType
+                    : undefined,
+                  ContributionStepUpAmount: hasContribution
+                    ? newInvestment.ContributionStepUpAmount
                     : undefined,
                 });
               }}
