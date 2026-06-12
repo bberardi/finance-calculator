@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { PitPopout } from './pit-popout';
 import { getTerms } from '../helpers/loan-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
-import { Calculate, CalendarMonth, Edit } from '@mui/icons-material';
+import { Calculate, CalendarMonth, Delete, Edit } from '@mui/icons-material';
 import { AmortizationPopout } from './amortization-popout';
 
 export const LoanTable = (props: LoanTableProps) => {
@@ -68,6 +68,14 @@ export const LoanTable = (props: LoanTableProps) => {
         title="Edit Loan"
       >
         <Edit />
+      </IconButton>
+      <IconButton
+        onClick={() => props.onLoanDelete(loan)}
+        color="error"
+        size={isMobile ? 'medium' : 'small'}
+        title="Delete Loan"
+      >
+        <Delete />
       </IconButton>
     </Box>
   );
@@ -189,4 +197,5 @@ export const LoanTable = (props: LoanTableProps) => {
 export type LoanTableProps = {
   loans: Loan[];
   onLoanEdit: (l: Loan) => void;
+  onLoanDelete: (l: Loan) => void;
 };

@@ -1,12 +1,10 @@
 import {
   Box,
   Button,
-  Card,
-  CardContent,
-  Popover,
-  Stack,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   TextField,
-  Typography,
   MenuItem,
   FormControl,
   InputLabel,
@@ -22,7 +20,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { NumericFormat } from 'react-number-format';
-import { Delete } from '@mui/icons-material';
+import { ResponsiveDialog } from '../components/responsive-dialog';
 
 export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   const [newInvestment, setNewInvestment] =
@@ -51,116 +49,138 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
     setNewInvestment(emptyInvestment);
   };
 
-  const onDelete = () => {
-    if (props.investment) {
-      props.onDelete(props.investment);
-    }
-    props.onClose();
-    setNewInvestment(emptyInvestment);
-  };
-
   useEffect(() => {
     setNewInvestment(props.investment ?? emptyInvestment);
   }, [props.investment]);
 
   return (
-    <Popover
-      open={props.open}
-      onClose={props.onClose}
-      anchorOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-      transformOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-    >
-      <Card>
-        <CardContent>
-          <Typography
-            variant="h5"
-            gutterBottom
-            sx={{
-              textAlign: 'center',
+    <ResponsiveDialog open={props.open} onClose={props.onClose}>
+      <DialogTitle sx={{ textAlign: 'center' }}>
+        {!props.investment ? 'Add Investment' : 'Edit Investment'}
+      </DialogTitle>
+      <DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            mt: 1,
+          }}
+        >
+          <TextField
+            label="Investment Name"
+            value={newInvestment.Name}
+            onChange={(e) =>
+              setNewInvestment({ ...newInvestment, Name: e.target.value })
+            }
+            required
+          />
+          <TextField
+            label="Provider"
+            value={newInvestment.Provider}
+            onChange={(e) =>
+              setNewInvestment({ ...newInvestment, Provider: e.target.value })
+            }
+            required
+          />
+          <NumericFormat
+            label="Starting Balance"
+            value={newInvestment.StartingBalance}
+            thousandSeparator
+            decimalScale={2}
+            prefix={'$'}
+            customInput={TextField}
+            onValueChange={(vs) => {
+              setNewInvestment({
+                ...newInvestment,
+                StartingBalance: Number(vs.value),
+              });
             }}
-          >
-            {!props.investment ? 'Add Investment' : 'Edit Investment'}
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
+            required
+          />
+          <DatePicker
+            label="Start Date"
+            value={dayjs(newInvestment.StartDate)}
+            onChange={(date) =>
+              setNewInvestment({
+                ...newInvestment,
+                StartDate: date?.toDate() ?? new Date(),
+              })
+            }
+            views={['year', 'month', 'day']}
+            openTo="day"
+          />
+          <NumericFormat
+            label="Average Return Rate"
+            value={newInvestment.AverageReturnRate}
+            thousandSeparator
+            decimalScale={3}
+            suffix={'%'}
+            customInput={TextField}
+            onValueChange={(vs) => {
+              setNewInvestment({
+                ...newInvestment,
+                AverageReturnRate: Number(vs.value),
+              });
             }}
-          >
-            <TextField
-              label="Investment Name"
-              value={newInvestment.Name}
+            required
+          />
+          <FormControl fullWidth>
+            <InputLabel>Compounding Period</InputLabel>
+            <Select
+              value={newInvestment.CompoundingPeriod}
+              label="Compounding Period"
               onChange={(e) =>
-                setNewInvestment({ ...newInvestment, Name: e.target.value })
-              }
-              required
-            />
-            <TextField
-              label="Provider"
-              value={newInvestment.Provider}
-              onChange={(e) =>
-                setNewInvestment({ ...newInvestment, Provider: e.target.value })
-              }
-              required
-            />
-            <NumericFormat
-              label="Starting Balance"
-              value={newInvestment.StartingBalance}
-              thousandSeparator
-              decimalScale={2}
-              prefix={'$'}
-              customInput={TextField}
-              onValueChange={(vs) => {
                 setNewInvestment({
                   ...newInvestment,
-                  StartingBalance: Number(vs.value),
-                });
-              }}
-              required
-            />
-            <DatePicker
-              label="Start Date"
-              value={dayjs(newInvestment.StartDate)}
-              onChange={(date) =>
-                setNewInvestment({
-                  ...newInvestment,
-                  StartDate: date?.toDate() ?? new Date(),
+                  CompoundingPeriod: e.target.value as CompoundingFrequency,
                 })
               }
-              views={['year', 'month', 'day']}
-              openTo="day"
-            />
-            <NumericFormat
-              label="Average Return Rate"
-              value={newInvestment.AverageReturnRate}
-              thousandSeparator
-              decimalScale={3}
-              suffix={'%'}
-              customInput={TextField}
-              onValueChange={(vs) => {
-                setNewInvestment({
-                  ...newInvestment,
-                  AverageReturnRate: Number(vs.value),
-                });
-              }}
-              required
-            />
+            >
+              {Object.entries(CompoundingFrequency).map(([key, value]) => (
+                <MenuItem key={key} value={value}>
+                  {key}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <NumericFormat
+            label="Recurring Contribution (Optional)"
+            value={newInvestment.RecurringContribution || ''}
+            thousandSeparator
+            decimalScale={2}
+            prefix={'$'}
+            customInput={TextField}
+            onValueChange={(vs) => {
+              const hasContribution = Boolean(vs.value);
+              setNewInvestment({
+                ...newInvestment,
+                RecurringContribution: hasContribution
+                  ? Number(vs.value)
+                  : undefined,
+                ContributionStepUpType: hasContribution
+                  ? newInvestment.ContributionStepUpType
+                  : undefined,
+                ContributionStepUpAmount: hasContribution
+                  ? newInvestment.ContributionStepUpAmount
+                  : undefined,
+              });
+            }}
+          />
+          {hasRecurringContribution && (
             <FormControl fullWidth>
-              <InputLabel>Compounding Period</InputLabel>
+              <InputLabel>Contribution Frequency</InputLabel>
               <Select
-                value={newInvestment.CompoundingPeriod}
-                label="Compounding Period"
+                value={
+                  newInvestment.ContributionFrequency ||
+                  CompoundingFrequency.Monthly
+                }
+                label="Contribution Frequency"
                 onChange={(e) =>
                   setNewInvestment({
                     ...newInvestment,
-                    CompoundingPeriod: e.target.value as CompoundingFrequency,
+                    ContributionFrequency: e.target
+                      .value as CompoundingFrequency,
                   })
                 }
               >
@@ -171,154 +191,89 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                 ))}
               </Select>
             </FormControl>
+          )}
+          {hasRecurringContribution && (
+            <FormControl fullWidth>
+              <InputLabel>Yearly Step-Up Type (Optional)</InputLabel>
+              <Select
+                value={newInvestment.ContributionStepUpType || ''}
+                label="Yearly Step-Up Type (Optional)"
+                onChange={(e) =>
+                  setNewInvestment({
+                    ...newInvestment,
+                    ContributionStepUpType: e.target.value
+                      ? (e.target.value as StepUpType)
+                      : undefined,
+                    ContributionStepUpAmount: e.target.value
+                      ? newInvestment.ContributionStepUpAmount
+                      : undefined,
+                  })
+                }
+              >
+                <MenuItem value="">None</MenuItem>
+                {Object.entries(StepUpType).map(([key, value]) => (
+                  <MenuItem key={key} value={value}>
+                    {key}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          {hasRecurringContribution && newInvestment.ContributionStepUpType && (
             <NumericFormat
-              label="Recurring Contribution (Optional)"
-              value={newInvestment.RecurringContribution || ''}
+              label={
+                newInvestment.ContributionStepUpType === StepUpType.Flat
+                  ? 'Yearly Step-Up Amount'
+                  : 'Yearly Step-Up Percentage'
+              }
+              value={newInvestment.ContributionStepUpAmount || ''}
               thousandSeparator
               decimalScale={2}
-              prefix={'$'}
+              allowNegative={false}
+              prefix={
+                newInvestment.ContributionStepUpType === StepUpType.Flat
+                  ? '$'
+                  : undefined
+              }
+              suffix={
+                newInvestment.ContributionStepUpType === StepUpType.Percentage
+                  ? '%'
+                  : undefined
+              }
               customInput={TextField}
               onValueChange={(vs) => {
-                const hasContribution = Boolean(vs.value);
                 setNewInvestment({
                   ...newInvestment,
-                  RecurringContribution: hasContribution
+                  ContributionStepUpAmount: vs.value
                     ? Number(vs.value)
-                    : undefined,
-                  ContributionStepUpType: hasContribution
-                    ? newInvestment.ContributionStepUpType
-                    : undefined,
-                  ContributionStepUpAmount: hasContribution
-                    ? newInvestment.ContributionStepUpAmount
                     : undefined,
                 });
               }}
             />
-            {hasRecurringContribution && (
-              <FormControl fullWidth>
-                <InputLabel>Contribution Frequency</InputLabel>
-                <Select
-                  value={
-                    newInvestment.ContributionFrequency ||
-                    CompoundingFrequency.Monthly
-                  }
-                  label="Contribution Frequency"
-                  onChange={(e) =>
-                    setNewInvestment({
-                      ...newInvestment,
-                      ContributionFrequency: e.target
-                        .value as CompoundingFrequency,
-                    })
-                  }
-                >
-                  {Object.entries(CompoundingFrequency).map(([key, value]) => (
-                    <MenuItem key={key} value={value}>
-                      {key}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            {hasRecurringContribution && (
-              <FormControl fullWidth>
-                <InputLabel>Yearly Step-Up Type (Optional)</InputLabel>
-                <Select
-                  value={newInvestment.ContributionStepUpType || ''}
-                  label="Yearly Step-Up Type (Optional)"
-                  onChange={(e) =>
-                    setNewInvestment({
-                      ...newInvestment,
-                      ContributionStepUpType: e.target.value
-                        ? (e.target.value as StepUpType)
-                        : undefined,
-                      ContributionStepUpAmount: e.target.value
-                        ? newInvestment.ContributionStepUpAmount
-                        : undefined,
-                    })
-                  }
-                >
-                  <MenuItem value="">None</MenuItem>
-                  {Object.entries(StepUpType).map(([key, value]) => (
-                    <MenuItem key={key} value={value}>
-                      {key}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            {hasRecurringContribution &&
-              newInvestment.ContributionStepUpType && (
-                <NumericFormat
-                  label={
-                    newInvestment.ContributionStepUpType === StepUpType.Flat
-                      ? 'Yearly Step-Up Amount'
-                      : 'Yearly Step-Up Percentage'
-                  }
-                  value={newInvestment.ContributionStepUpAmount || ''}
-                  thousandSeparator
-                  decimalScale={2}
-                  allowNegative={false}
-                  prefix={
-                    newInvestment.ContributionStepUpType === StepUpType.Flat
-                      ? '$'
-                      : undefined
-                  }
-                  suffix={
-                    newInvestment.ContributionStepUpType ===
-                    StepUpType.Percentage
-                      ? '%'
-                      : undefined
-                  }
-                  customInput={TextField}
-                  onValueChange={(vs) => {
-                    setNewInvestment({
-                      ...newInvestment,
-                      ContributionStepUpAmount: vs.value
-                        ? Number(vs.value)
-                        : undefined,
-                    });
-                  }}
-                />
-              )}
-            <Stack direction="row">
-              {props.investment && (
-                <Button
-                  onClick={onDelete}
-                  sx={{ backgroundColor: 'error.main', color: 'white' }}
-                >
-                  <Delete />
-                </Button>
-              )}
-              <Button
-                type="reset"
-                color="secondary"
-                onClick={props.onClose}
-                sx={{ flex: 3 }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                onClick={onSave}
-                disabled={!isFormValid()}
-                sx={{ flex: 5 }}
-              >
-                {!props.investment ? 'Add Investment' : 'Save Investment'}
-              </Button>
-            </Stack>
-          </Box>
-        </CardContent>
-      </Card>
-    </Popover>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button type="reset" color="secondary" onClick={props.onClose}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          onClick={onSave}
+          disabled={!isFormValid()}
+        >
+          {!props.investment ? 'Add Investment' : 'Save Investment'}
+        </Button>
+      </DialogActions>
+    </ResponsiveDialog>
   );
 };
 
 export interface AddEditInvestmentProps {
   open: boolean;
   onSave: (newInvestment: Investment, oldInvestment?: Investment) => void;
-  onDelete: (investment: Investment) => void;
   onClose: () => void;
   investment?: Investment;
 }

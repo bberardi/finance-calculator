@@ -17,9 +17,13 @@ export interface FinanceDataContextValue {
   addLoan: (loan: Loan) => void;
   updateLoan: (loan: Loan) => void;
   deleteLoan: (id: string) => void;
+  // Undo a loan delete by restoring it at its original index (roadmap 0.7).
+  insertLoanAt: (loan: Loan, index: number) => void;
   addInvestment: (investment: Investment) => void;
   updateInvestment: (investment: Investment) => void;
   deleteInvestment: (id: string) => void;
+  // Undo an investment delete by restoring it at its original index.
+  insertInvestmentAt: (investment: Investment, index: number) => void;
   importMerge: (loans: Loan[], investments: Investment[]) => void;
   enableTestData: (loans: Loan[], investments: Investment[]) => void;
   disableTestData: () => void;
@@ -43,6 +47,8 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
         }),
       updateLoan: (loan: Loan) => dispatch({ type: 'UpdateLoan', loan }),
       deleteLoan: (id: string) => dispatch({ type: 'DeleteLoan', id }),
+      insertLoanAt: (loan: Loan, index: number) =>
+        dispatch({ type: 'InsertLoanAt', loan, index }),
       addInvestment: (investment: Investment) =>
         dispatch({
           type: 'AddInvestment',
@@ -52,6 +58,8 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'UpdateInvestment', investment }),
       deleteInvestment: (id: string) =>
         dispatch({ type: 'DeleteInvestment', id }),
+      insertInvestmentAt: (investment: Investment, index: number) =>
+        dispatch({ type: 'InsertInvestmentAt', investment, index }),
       importMerge: (loans: Loan[], investments: Investment[]) =>
         dispatch({ type: 'ImportMerge', loans, investments }),
       enableTestData: (loans: Loan[], investments: Investment[]) =>

@@ -22,7 +22,7 @@ import {
 } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
-import { Calculate, Edit, TrendingUp } from '@mui/icons-material';
+import { Calculate, Delete, Edit, TrendingUp } from '@mui/icons-material';
 import { useState } from 'react';
 import { PitPopout } from './pit-popout';
 import { GrowthSchedulePopout } from './growth-schedule-popout';
@@ -100,6 +100,14 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
         title="Edit Investment"
       >
         <Edit />
+      </IconButton>
+      <IconButton
+        onClick={() => props.onInvestmentDelete(investment)}
+        color="error"
+        size={isMobile ? 'medium' : 'small'}
+        title="Delete Investment"
+      >
+        <Delete />
       </IconButton>
     </Box>
   );
@@ -256,4 +264,5 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 export type InvestmentTableProps = {
   investments: Investment[];
   onInvestmentEdit: (investment: Investment) => void;
+  onInvestmentDelete: (investment: Investment) => void;
 };

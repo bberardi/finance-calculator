@@ -32,12 +32,26 @@ export type FinanceAction =
   | { type: 'AddLoan'; loan: Loan }
   | { type: 'UpdateLoan'; loan: Loan }
   | { type: 'DeleteLoan'; id: string }
+  // Soft-undo for delete (roadmap 0.7): restore an entity at the position it
+  // held before deletion. The delete call site remembers the original index and
+  // replays it here on UNDO, so the list looks untouched. The index is clamped,
+  // so an out-of-range index (e.g. the list shrank meanwhile) appends sanely
+  // instead of throwing or leaving a hole.
+  | { type: 'InsertLoanAt'; loan: Loan; index: number }
   | { type: 'AddInvestment'; investment: Investment }
   | { type: 'UpdateInvestment'; investment: Investment }
   | { type: 'DeleteInvestment'; id: string }
+  | { type: 'InsertInvestmentAt'; investment: Investment; index: number }
   | { type: 'ImportMerge'; loans: Loan[]; investments: Investment[] }
   | { type: 'EnableTestData'; loans: Loan[]; investments: Investment[] }
   | { type: 'DisableTestData' };
+
+// Insert `item` into `list` at `index`, clamping the index into [0, length].
+// Pure helper: returns a new array and never mutates the input.
+const insertAt = <T>(list: T[], item: T, index: number): T[] => {
+  const clamped = Math.max(0, Math.min(index, list.length));
+  return [...list.slice(0, clamped), item, ...list.slice(clamped)];
+};
 
 export const financeReducer = (
   state: FinanceState,
@@ -63,6 +77,17 @@ export const financeReducer = (
         loans: state.loans.filter((loan) => loan.Id !== action.id),
       };
 
+    case 'InsertLoanAt':
+      // Restore a deleted loan at its original index (undo). If the same Id is
+      // somehow already present (e.g. re-added meanwhile), don't duplicate it.
+      if (state.loans.some((loan) => loan.Id === action.loan.Id)) {
+        return state;
+      }
+      return {
+        ...state,
+        loans: insertAt(state.loans, action.loan, action.index),
+      };
+
     case 'AddInvestment':
       return {
         ...state,
@@ -86,6 +111,20 @@ export const financeReducer = (
         ...state,
         investments: state.investments.filter(
           (investment) => investment.Id !== action.id
+        ),
+      };
+
+    case 'InsertInvestmentAt':
+      // Restore a deleted investment at its original index (undo).
+      if (state.investments.some((inv) => inv.Id === action.investment.Id)) {
+        return state;
+      }
+      return {
+        ...state,
+        investments: insertAt(
+          state.investments,
+          action.investment,
+          action.index
         ),
       };
 

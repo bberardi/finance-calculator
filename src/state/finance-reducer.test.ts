@@ -115,6 +115,82 @@ describe('financeReducer', () => {
     });
   });
 
+  describe('InsertLoanAt (delete soft-undo, roadmap 0.7)', () => {
+    it('delete then undo restores the identical loan at its original index', () => {
+      const a = makeLoan('a');
+      const b = makeLoan('b', { Name: 'Middle', Principal: 42 });
+      const c = makeLoan('c');
+      const start = stateWith({ loans: [a, b, c] });
+
+      // Delete the middle loan, remembering its index (1).
+      const index = start.loans.findIndex((l) => l.Id === 'b');
+      const deleted = financeReducer(start, { type: 'DeleteLoan', id: 'b' });
+      expect(deleted.loans.map((l) => l.Id)).toEqual(['a', 'c']);
+
+      // Undo restores it at the same position, byte-for-byte identical.
+      const undone = financeReducer(deleted, {
+        type: 'InsertLoanAt',
+        loan: b,
+        index,
+      });
+      expect(undone.loans.map((l) => l.Id)).toEqual(['a', 'b', 'c']);
+      expect(undone.loans[1]).toEqual(b);
+    });
+
+    it('inserts at the front when index is 0', () => {
+      const start = stateWith({ loans: [makeLoan('b'), makeLoan('c')] });
+      const next = financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('a'),
+        index: 0,
+      });
+      expect(next.loans.map((l) => l.Id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('clamps an out-of-range index by appending (list shrank meanwhile)', () => {
+      // Original index was 5, but the list only has one item now.
+      const start = stateWith({ loans: [makeLoan('a')] });
+      const next = financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('z'),
+        index: 5,
+      });
+      expect(next.loans.map((l) => l.Id)).toEqual(['a', 'z']);
+    });
+
+    it('restores into an emptied list', () => {
+      const restored = makeLoan('only');
+      const next = financeReducer(initialFinanceState, {
+        type: 'InsertLoanAt',
+        loan: restored,
+        index: 0,
+      });
+      expect(next.loans).toEqual([restored]);
+    });
+
+    it('is a no-op when the same Id is already present (double undo)', () => {
+      const start = stateWith({ loans: [makeLoan('a'), makeLoan('b')] });
+      const next = financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('a', { Name: 'Dup' }),
+        index: 0,
+      });
+      expect(next).toBe(start);
+    });
+
+    it('does not mutate the input state', () => {
+      const start = stateWith({ loans: [makeLoan('a')] });
+      const snapshot = start.loans;
+      financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('b'),
+        index: 0,
+      });
+      expect(start.loans).toBe(snapshot);
+      expect(start.loans).toHaveLength(1);
+    });
+  });
+
   describe('AddInvestment', () => {
     it('appends an investment, preserving order', () => {
       const start = stateWith({
@@ -161,6 +237,50 @@ describe('financeReducer', () => {
         id: 'b',
       });
       expect(next.investments.map((i) => i.Id)).toEqual(['a', 'c']);
+    });
+  });
+
+  describe('InsertInvestmentAt (delete soft-undo, roadmap 0.7)', () => {
+    it('delete then undo restores the identical investment at its original index', () => {
+      const x = makeInvestment('x');
+      const y = makeInvestment('y', { Name: 'Middle', StartingBalance: 7 });
+      const z = makeInvestment('z');
+      const start = stateWith({ investments: [x, y, z] });
+
+      const index = start.investments.findIndex((i) => i.Id === 'y');
+      const deleted = financeReducer(start, {
+        type: 'DeleteInvestment',
+        id: 'y',
+      });
+      expect(deleted.investments.map((i) => i.Id)).toEqual(['x', 'z']);
+
+      const undone = financeReducer(deleted, {
+        type: 'InsertInvestmentAt',
+        investment: y,
+        index,
+      });
+      expect(undone.investments.map((i) => i.Id)).toEqual(['x', 'y', 'z']);
+      expect(undone.investments[1]).toEqual(y);
+    });
+
+    it('clamps an out-of-range index by appending', () => {
+      const start = stateWith({ investments: [makeInvestment('x')] });
+      const next = financeReducer(start, {
+        type: 'InsertInvestmentAt',
+        investment: makeInvestment('z'),
+        index: 9,
+      });
+      expect(next.investments.map((i) => i.Id)).toEqual(['x', 'z']);
+    });
+
+    it('is a no-op when the same Id is already present', () => {
+      const start = stateWith({ investments: [makeInvestment('x')] });
+      const next = financeReducer(start, {
+        type: 'InsertInvestmentAt',
+        investment: makeInvestment('x', { Name: 'Dup' }),
+        index: 0,
+      });
+      expect(next).toBe(start);
     });
   });
 
