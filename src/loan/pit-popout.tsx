@@ -12,6 +12,7 @@ import { defaultPit, Loan, PitLoan } from '../models/loan-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { getPitCalculation, getTerms } from '../helpers/loan-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import { NumericFormat } from 'react-number-format';
 
 export const PitPopout = (props: PitPopoutProps) => {
@@ -89,32 +90,14 @@ export const PitPopout = (props: PitPopoutProps) => {
             </Stack>
             <Typography>{`Paid Terms: ${pitLoan.PaidTerms}`}</Typography>
             <Typography>{`Remaining Terms: ${pitLoan.RemainingTerms}`}</Typography>
-            <Typography>{`Paid Principal: ${pitLoan.PaidPrincipal.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
+            <Typography>{`Paid Principal: ${formatCurrency(
+              pitLoan.PaidPrincipal
             )}`}</Typography>
-            <Typography>{`Paid Interest: ${pitLoan.PaidInterest.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
+            <Typography>{`Paid Interest: ${formatCurrency(
+              pitLoan.PaidInterest
             )}`}</Typography>
-            <Typography>{`Remaining Principal: ${pitLoan.RemainingPrincipal.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
+            <Typography>{`Remaining Principal: ${formatCurrency(
+              pitLoan.RemainingPrincipal
             )}`}</Typography>
           </Box>
         </CardContent>

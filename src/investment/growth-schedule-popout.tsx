@@ -16,6 +16,7 @@ import {
   generateInvestmentGrowth,
   getPeriodsPerYear,
 } from '../helpers/investment-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
 
@@ -151,38 +152,14 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
                     <TableCell>{entry.date}</TableCell>
                     {hasStepUp && (
                       <TableCell>
-                        {entry.contributionAmount.toLocaleString(undefined, {
-                          style: 'currency',
-                          currency: 'USD',
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(entry.contributionAmount)}
                       </TableCell>
                     )}
+                    <TableCell>{formatCurrency(entry.totalInvested)}</TableCell>
                     <TableCell>
-                      {entry.totalInvested.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatCurrency(entry.interestAccrued)}
                     </TableCell>
-                    <TableCell>
-                      {entry.interestAccrued.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {entry.balance.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
+                    <TableCell>{formatCurrency(entry.balance)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

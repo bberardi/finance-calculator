@@ -18,6 +18,7 @@ import { CompoundingFrequency, Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
 import { useFinanceData } from './state/use-finance-data';
+import { ColorModeToggle } from './theme';
 
 // Fake data for the dev "Test Data" toggle. Lives here as a UI seed, not as
 // state — the provider stashes the user's real data when this is loaded.
@@ -147,15 +148,7 @@ export const Body = () => {
 
   return (
     <Container>
-      <AppBar
-        position="static"
-        sx={{
-          borderRadius: '30px',
-          marginTop: '15px',
-          marginBottom: '15px',
-          overflow: 'hidden',
-        }}
-      >
+      <AppBar>
         <Toolbar>
           <Button
             variant="outlined"
@@ -187,6 +180,7 @@ export const Body = () => {
             labelPlacement="start"
             sx={{ margin: '5px' }}
           />
+          <ColorModeToggle />
         </Toolbar>
       </AppBar>
 

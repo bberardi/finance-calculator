@@ -1,9 +1,17 @@
-import { CardMedia, Stack, Typography } from '@mui/material';
+import { Box, CardMedia, Stack, Typography } from '@mui/material';
 import Logo from './assets/pathwise-icon.png';
+import { brandGradient } from './theme';
 
 export const Header = () => {
   return (
-    <div className="header">
+    <Box
+      sx={{
+        background: brandGradient,
+        color: '#ffffff',
+        padding: '12px 20px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+      }}
+    >
       <Stack
         direction="row"
         spacing={2}
@@ -27,6 +35,6 @@ export const Header = () => {
           </Typography>
         </Stack>
       </Stack>
-    </div>
+    </Box>
   );
 };

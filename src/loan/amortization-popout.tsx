@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Loan } from '../models/loan-model';
 import { generateAmortizationSchedule } from '../helpers/loan-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
 
@@ -63,38 +64,18 @@ export const AmortizationPopout = (props: AmortizationPopoutProps) => {
                         .format('YYYY/MM (MMM)')}
                     </TableCell>
                     <TableCell>
-                      {(
+                      {formatCurrency(
                         entry.PrincipalPayment + entry.InterestPayment
-                      ).toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      )}
                     </TableCell>
                     <TableCell>
-                      {entry.PrincipalPayment.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatCurrency(entry.PrincipalPayment)}
                     </TableCell>
                     <TableCell>
-                      {entry.InterestPayment.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatCurrency(entry.InterestPayment)}
                     </TableCell>
                     <TableCell>
-                      {entry.RemainingBalance.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatCurrency(entry.RemainingBalance)}
                     </TableCell>
                   </TableRow>
                 ))}

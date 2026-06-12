@@ -17,6 +17,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs, { Dayjs } from 'dayjs';
 import { getPitInvestmentCalculation } from '../helpers/investment-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import { NumericFormat, NumberFormatValues } from 'react-number-format';
 
 export const PitPopout = (props: PitPopoutProps) => {
@@ -158,32 +159,14 @@ export const PitPopout = (props: PitPopoutProps) => {
                 sx={{ flex: 2 }}
               />
             </Stack>
-            <Typography>{`Total Contributions: ${pitInvestment.TotalContributions.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
+            <Typography>{`Total Contributions: ${formatCurrency(
+              pitInvestment.TotalContributions
             )}`}</Typography>
-            <Typography>{`Total Interest Earned: ${pitInvestment.TotalInterestEarned.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
+            <Typography>{`Total Interest Earned: ${formatCurrency(
+              pitInvestment.TotalInterestEarned
             )}`}</Typography>
-            <Typography>{`Current Value: ${pitInvestment.CurrentValue.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
+            <Typography>{`Current Value: ${formatCurrency(
+              pitInvestment.CurrentValue
             )}`}</Typography>
           </Box>
         </CardContent>

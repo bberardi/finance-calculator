@@ -19,6 +19,7 @@ import { Loan } from '../models/loan-model';
 import { useState } from 'react';
 import { PitPopout } from './pit-popout';
 import { getTerms } from '../helpers/loan-helpers';
+import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import { Calculate, CalendarMonth, Edit } from '@mui/icons-material';
 import { AmortizationPopout } from './amortization-popout';
 
@@ -29,23 +30,6 @@ export const LoanTable = (props: LoanTableProps) => {
   >();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString(undefined, {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  const formatPercent = (rate: number) => {
-    return (rate / 100).toLocaleString(undefined, {
-      style: 'percent',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
 
   const LoanActions = ({
     loan,

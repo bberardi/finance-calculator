@@ -21,6 +21,7 @@ import {
   StepUpType,
 } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
+import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import { Calculate, Edit, TrendingUp } from '@mui/icons-material';
 import { useState } from 'react';
 import { PitPopout } from './pit-popout';
@@ -33,17 +34,6 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   >();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString(undefined, {
-      style: 'currency',
-      currency: 'USD',
-    });
-  };
-
-  const formatPercent = (rate: number) => {
-    return `${rate.toFixed(3)}%`;
-  };
 
   const formatContribution = (investment: Investment): string => {
     if (!investment.RecurringContribution) return 'None';
@@ -153,7 +143,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 <strong>Return Rate:</strong>
               </Typography>
               <Typography variant="body2">
-                {formatPercent(investment.AverageReturnRate)}
+                {formatPercent(investment.AverageReturnRate, 3)}
               </Typography>
             </Grid>
             <Grid
@@ -243,7 +233,9 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                   <TableCell>{row.Name}</TableCell>
                   <TableCell>{row.Provider}</TableCell>
                   <TableCell>{formatCurrency(row.StartingBalance)}</TableCell>
-                  <TableCell>{formatPercent(row.AverageReturnRate)}</TableCell>
+                  <TableCell>
+                    {formatPercent(row.AverageReturnRate, 3)}
+                  </TableCell>
                   <TableCell>
                     {getCompoundingText(row.CompoundingPeriod)}
                   </TableCell>
