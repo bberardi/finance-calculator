@@ -126,6 +126,7 @@ npm run deploy     # Deploy to GitHub Pages
 
 - The app is deployed to GitHub Pages with base path `/finance-calculator/`
 - No backend or database; all data is managed in client-side state
+- Models are input-only: derived data (amortization schedules, growth projections, forecasts) is computed on demand by helpers and never stored on models or serialized into exports
 - Future plans include file upload/export for data persistence
 - Test data can be toggled in the UI for development purposes
 

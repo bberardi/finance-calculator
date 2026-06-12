@@ -2,6 +2,10 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import packageJson from '../../package.json';
 
+// Schema v2: inputs only. v1 files additionally embedded derived data
+// (AmortizationSchedule/ProjectedGrowth), which import now ignores.
+export const EXPORT_SCHEMA_VERSION = 2;
+
 // Serialized versions with Date fields converted to strings
 export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
   StartDate: string;
@@ -13,6 +17,7 @@ export interface SerializedInvestment extends Omit<Investment, 'StartDate'> {
 }
 
 export interface ExportData {
+  schemaVersion: number;
   loans: SerializedLoan[];
   investments: SerializedInvestment[];
   exportDate: string;
@@ -32,7 +37,7 @@ const isValidId = (id: string | undefined): boolean => {
 };
 
 /**
- * Serialize loans and investments to JSON string
+ * Serialize loans and investments to JSON string (schema v2, inputs only)
  * Converts Date objects to ISO strings for JSON compatibility
  */
 export const exportToJson = (
@@ -43,18 +48,17 @@ export const exportToJson = (
     ...loan,
     StartDate: loan.StartDate.toISOString(),
     EndDate: loan.EndDate.toISOString(),
-    AmortizationSchedule: loan.AmortizationSchedule || [],
   }));
 
   const serializedInvestments: SerializedInvestment[] = investments.map(
     (investment) => ({
       ...investment,
       StartDate: investment.StartDate.toISOString(),
-      ProjectedGrowth: investment.ProjectedGrowth || [],
     })
   );
 
   const exportData: ExportData = {
+    schemaVersion: EXPORT_SCHEMA_VERSION,
     loans: serializedLoans,
     investments: serializedInvestments,
     exportDate: new Date().toISOString(),
@@ -66,6 +70,8 @@ export const exportToJson = (
 
 /**
  * Parse JSON string and convert ISO date strings back to Date objects
+ * Accepts schema v2 (inputs only) and legacy v1 files (whose embedded
+ * derived fields are ignored — schedules are always recomputed on demand).
  * Throws error if JSON is invalid or missing required fields
  */
 export const importFromJson = (
@@ -84,6 +90,16 @@ export const importFromJson = (
     if (!Array.isArray(data.loans) || !Array.isArray(data.investments)) {
       throw new Error(
         'Invalid data format: loans and investments must be arrays'
+      );
+    }
+
+    // v1 files have no schemaVersion; reject files from a newer app version
+    if (
+      data.schemaVersion !== undefined &&
+      data.schemaVersion > EXPORT_SCHEMA_VERSION
+    ) {
+      throw new Error(
+        `Unsupported schema version ${data.schemaVersion}: this file was exported by a newer version of the app.`
       );
     }
 
@@ -125,11 +141,18 @@ export const importFromJson = (
         }
       }
 
+      // Pick fields explicitly so legacy v1 derived data (and any unknown
+      // properties) never make it past the import boundary
       return {
-        ...serializedLoan,
+        Id: serializedLoan.Id,
+        Provider: serializedLoan.Provider,
+        Name: serializedLoan.Name,
+        InterestRate: serializedLoan.InterestRate,
+        Principal: serializedLoan.Principal,
+        CurrentAmount: serializedLoan.CurrentAmount,
+        MonthlyPayment: serializedLoan.MonthlyPayment,
         StartDate: new Date(serializedLoan.StartDate),
         EndDate: new Date(serializedLoan.EndDate),
-        AmortizationSchedule: serializedLoan.AmortizationSchedule || [],
       };
     });
 
@@ -173,10 +196,22 @@ export const importFromJson = (
           }
         }
 
+        // Pick fields explicitly so legacy v1 derived data (and any unknown
+        // properties) never make it past the import boundary
         return {
-          ...serializedInvestment,
+          Id: serializedInvestment.Id,
+          Provider: serializedInvestment.Provider,
+          Name: serializedInvestment.Name,
           StartDate: new Date(serializedInvestment.StartDate),
-          ProjectedGrowth: serializedInvestment.ProjectedGrowth || [],
+          StartingBalance: serializedInvestment.StartingBalance,
+          AverageReturnRate: serializedInvestment.AverageReturnRate,
+          CompoundingPeriod: serializedInvestment.CompoundingPeriod,
+          RecurringContribution: serializedInvestment.RecurringContribution,
+          ContributionFrequency: serializedInvestment.ContributionFrequency,
+          ContributionStepUpAmount:
+            serializedInvestment.ContributionStepUpAmount,
+          ContributionStepUpType: serializedInvestment.ContributionStepUpType,
+          CurrentValue: serializedInvestment.CurrentValue,
         };
       }
     );

@@ -14,7 +14,6 @@ describe('exportToJson and importFromJson', () => {
     MonthlyPayment: 500,
     StartDate: new Date('2024-01-01'),
     EndDate: new Date('2044-01-01'),
-    AmortizationSchedule: [],
   };
 
   const testInvestment: Investment = {
@@ -25,7 +24,6 @@ describe('exportToJson and importFromJson', () => {
     StartingBalance: 10000,
     AverageReturnRate: 7.0,
     CompoundingPeriod: CompoundingFrequency.Monthly,
-    ProjectedGrowth: [],
   };
 
   it('should export loans and investments to JSON with metadata', () => {
@@ -35,6 +33,7 @@ describe('exportToJson and importFromJson', () => {
     expect(json).toBeTruthy();
     expect(data.loans).toBeDefined();
     expect(data.investments).toBeDefined();
+    expect(data.schemaVersion).toBe(2);
     expect(data.version).toBeDefined(); // Version should be present
     expect(typeof data.version).toBe('string'); // Version should be a string
     expect(data.exportDate).toBeDefined();
@@ -43,6 +42,97 @@ describe('exportToJson and importFromJson', () => {
     expect(json).toContain('investment-1');
     expect(json).toContain('Test Bank');
     expect(json).toContain('Test Fund');
+  });
+
+  it('should not include derived schedules in exports', () => {
+    const json = exportToJson([testLoan], [testInvestment]);
+    const data = JSON.parse(json);
+
+    expect(data.loans[0].AmortizationSchedule).toBeUndefined();
+    expect(data.investments[0].ProjectedGrowth).toBeUndefined();
+  });
+
+  it('should import legacy v1 files and drop their embedded derived data', () => {
+    // v1 files (no schemaVersion) embedded calculated schedules
+    const v1Json = JSON.stringify({
+      loans: [
+        {
+          ...testLoan,
+          StartDate: testLoan.StartDate.toISOString(),
+          EndDate: testLoan.EndDate.toISOString(),
+          AmortizationSchedule: [
+            {
+              Term: 1,
+              PrincipalPayment: 100,
+              InterestPayment: 400,
+              RemainingBalance: 99900,
+            },
+          ],
+        },
+      ],
+      investments: [
+        {
+          ...testInvestment,
+          StartDate: testInvestment.StartDate.toISOString(),
+          ProjectedGrowth: [
+            {
+              Period: 0,
+              ContributionAmount: 0,
+              InterestEarned: 0,
+              TotalValue: 10000,
+            },
+          ],
+        },
+      ],
+      exportDate: new Date().toISOString(),
+      version: '0.6.0',
+    });
+
+    const { loans, investments } = importFromJson(v1Json);
+
+    expect(loans).toHaveLength(1);
+    expect(loans[0].Name).toBe('Test Loan');
+    expect(investments).toHaveLength(1);
+    expect(
+      (loans[0] as unknown as Record<string, unknown>).AmortizationSchedule
+    ).toBeUndefined();
+    expect(
+      (investments[0] as unknown as Record<string, unknown>).ProjectedGrowth
+    ).toBeUndefined();
+  });
+
+  it('should strip unknown properties at the import boundary', () => {
+    const json = JSON.stringify({
+      schemaVersion: 2,
+      loans: [
+        {
+          ...testLoan,
+          StartDate: testLoan.StartDate.toISOString(),
+          EndDate: testLoan.EndDate.toISOString(),
+          SomeUnknownField: 'junk',
+        },
+      ],
+      investments: [],
+      exportDate: new Date().toISOString(),
+      version: '0.7.0',
+    });
+
+    const { loans } = importFromJson(json);
+    expect(
+      (loans[0] as unknown as Record<string, unknown>).SomeUnknownField
+    ).toBeUndefined();
+  });
+
+  it('should reject files from a newer schema version', () => {
+    const json = JSON.stringify({
+      schemaVersion: 99,
+      loans: [],
+      investments: [],
+      exportDate: new Date().toISOString(),
+      version: '9.9.9',
+    });
+
+    expect(() => importFromJson(json)).toThrow('Unsupported schema version');
   });
 
   it('should import loans and investments from JSON', () => {

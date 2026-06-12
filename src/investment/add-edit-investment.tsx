@@ -23,7 +23,6 @@ import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { NumericFormat } from 'react-number-format';
 import { Delete } from '@mui/icons-material';
-import { generateInvestmentGrowth } from '../helpers/investment-helpers';
 
 export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   const [newInvestment, setNewInvestment] =
@@ -61,29 +60,6 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   useEffect(() => {
     setNewInvestment(props.investment ?? emptyInvestment);
   }, [props.investment]);
-
-  useEffect(() => {
-    if (
-      newInvestment.StartingBalance &&
-      newInvestment.AverageReturnRate >= 0 &&
-      newInvestment.StartDate
-    ) {
-      setNewInvestment({
-        ...newInvestment,
-        ProjectedGrowth: generateInvestmentGrowth(newInvestment),
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    newInvestment.StartingBalance,
-    newInvestment.AverageReturnRate,
-    newInvestment.StartDate,
-    newInvestment.CompoundingPeriod,
-    newInvestment.RecurringContribution,
-    newInvestment.ContributionFrequency,
-    newInvestment.ContributionStepUpAmount,
-    newInvestment.ContributionStepUpType,
-  ]);
 
   return (
     <Popover

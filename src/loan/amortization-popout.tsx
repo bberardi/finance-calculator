@@ -14,10 +14,13 @@ import {
 import { Loan } from '../models/loan-model';
 import { generateAmortizationSchedule } from '../helpers/loan-helpers';
 import dayjs from 'dayjs';
+import { useMemo } from 'react';
 
 export const AmortizationPopout = (props: AmortizationPopoutProps) => {
-  const schedule =
-    props.loan.AmortizationSchedule ?? generateAmortizationSchedule(props.loan);
+  const schedule = useMemo(
+    () => generateAmortizationSchedule(props.loan),
+    [props.loan]
+  );
 
   return (
     <Popover
