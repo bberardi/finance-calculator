@@ -98,33 +98,33 @@ export const LoanTable = (props: LoanTableProps) => {
           {loan.Provider}
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Typography variant="body2">
               <strong>Principal:</strong> {formatCurrency(loan.Principal)}
             </Typography>
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Typography variant="body2">
               <strong>Current:</strong> {formatCurrency(loan.CurrentAmount)}
             </Typography>
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Typography variant="body2">
               <strong>Interest:</strong> {formatPercent(loan.InterestRate)}
             </Typography>
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Typography variant="body2">
               <strong>Payment:</strong>{' '}
               {formatCurrency(loan.MonthlyPayment || 0)}
             </Typography>
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Typography variant="body2">
               <strong>Terms:</strong> {getTerms(loan)} months
             </Typography>
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Typography variant="body2">
               <strong>End Date:</strong> {loan.EndDate.toLocaleDateString()}
             </Typography>
