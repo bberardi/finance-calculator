@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { exportToJson, importFromJson, mergeData } from './data-helpers';
+import {
+  exportToJson,
+  importFromJson,
+  mergeData,
+  SCHEMA_VERSION,
+} from './data-helpers';
 import { Loan } from '../models/loan-model';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
 
@@ -14,7 +19,6 @@ describe('exportToJson and importFromJson', () => {
     MonthlyPayment: 500,
     StartDate: new Date('2024-01-01'),
     EndDate: new Date('2044-01-01'),
-    AmortizationSchedule: [],
   };
 
   const testInvestment: Investment = {
@@ -25,7 +29,6 @@ describe('exportToJson and importFromJson', () => {
     StartingBalance: 10000,
     AverageReturnRate: 7.0,
     CompoundingPeriod: CompoundingFrequency.Monthly,
-    ProjectedGrowth: [],
   };
 
   it('should export loans and investments to JSON with metadata', () => {
@@ -35,14 +38,72 @@ describe('exportToJson and importFromJson', () => {
     expect(json).toBeTruthy();
     expect(data.loans).toBeDefined();
     expect(data.investments).toBeDefined();
-    expect(data.version).toBeDefined(); // Version should be present
-    expect(typeof data.version).toBe('string'); // Version should be a string
+    expect(data.version).toBeDefined();
+    expect(typeof data.version).toBe('string');
+    expect(data.schemaVersion).toBe(SCHEMA_VERSION);
     expect(data.exportDate).toBeDefined();
-    expect(new Date(data.exportDate).getTime()).not.toBeNaN(); // Valid date
+    expect(new Date(data.exportDate).getTime()).not.toBeNaN();
     expect(json).toContain('loan-1');
     expect(json).toContain('investment-1');
     expect(json).toContain('Test Bank');
     expect(json).toContain('Test Fund');
+  });
+
+  it('should not include derived fields in exports (schema v2)', () => {
+    const json = exportToJson([testLoan], [testInvestment]);
+    const data = JSON.parse(json);
+
+    expect(data.loans[0].AmortizationSchedule).toBeUndefined();
+    expect(data.investments[0].ProjectedGrowth).toBeUndefined();
+  });
+
+  it('should import v1 files that contain AmortizationSchedule and ProjectedGrowth without error', () => {
+    const v1Json = JSON.stringify({
+      version: '0.5.0',
+      exportDate: new Date().toISOString(),
+      loans: [
+        {
+          ...testLoan,
+          StartDate: testLoan.StartDate.toISOString(),
+          EndDate: testLoan.EndDate.toISOString(),
+          AmortizationSchedule: [
+            {
+              Term: 1,
+              PrincipalPayment: 100,
+              InterestPayment: 400,
+              RemainingBalance: 94900,
+            },
+          ],
+        },
+      ],
+      investments: [
+        {
+          ...testInvestment,
+          StartDate: testInvestment.StartDate.toISOString(),
+          ProjectedGrowth: [
+            {
+              Period: 1,
+              ContributionAmount: 0,
+              InterestEarned: 58.33,
+              TotalValue: 10058.33,
+            },
+          ],
+        },
+      ],
+    });
+
+    const { loans, investments } = importFromJson(v1Json);
+    expect(loans).toHaveLength(1);
+    expect(investments).toHaveLength(1);
+    expect(loans[0].Id).toBe('loan-1');
+    expect(investments[0].Id).toBe('investment-1');
+    // Derived fields must not be present on the imported models
+    expect(
+      (loans[0] as unknown as Record<string, unknown>).AmortizationSchedule
+    ).toBeUndefined();
+    expect(
+      (investments[0] as unknown as Record<string, unknown>).ProjectedGrowth
+    ).toBeUndefined();
   });
 
   it('should import loans and investments from JSON', () => {

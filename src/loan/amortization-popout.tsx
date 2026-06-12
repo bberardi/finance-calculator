@@ -11,13 +11,16 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import { useMemo } from 'react';
 import { Loan } from '../models/loan-model';
 import { generateAmortizationSchedule } from '../helpers/loan-helpers';
 import dayjs from 'dayjs';
 
 export const AmortizationPopout = (props: AmortizationPopoutProps) => {
-  const schedule =
-    props.loan.AmortizationSchedule ?? generateAmortizationSchedule(props.loan);
+  const schedule = useMemo(
+    () => generateAmortizationSchedule(props.loan),
+    [props.loan]
+  );
 
   return (
     <Popover

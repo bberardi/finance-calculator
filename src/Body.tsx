@@ -13,7 +13,6 @@ import { useState } from 'react';
 import { AddEditLoan } from './loan/add-edit-loan';
 import { emptyLoan, Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
-import { generateAmortizationSchedule } from './helpers/loan-helpers';
 import { AddEditInvestment } from './investment/add-edit-investment';
 import {
   CompoundingFrequency,
@@ -21,7 +20,6 @@ import {
   Investment,
 } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
-import { generateInvestmentGrowth } from './helpers/investment-helpers';
 import { generateId } from './helpers/id-helpers';
 import { DataManager } from './data-manager/data-manager';
 
@@ -47,7 +45,6 @@ export const Body = () => {
       MonthlyPayment: 1610.46,
       StartDate: new Date('2024-11-02'),
       EndDate: new Date('2054-10-02'),
-      AmortizationSchedule: [],
     },
     {
       Id: '00000000-0000-0000-0000-000000000002',
@@ -59,7 +56,6 @@ export const Body = () => {
       MonthlyPayment: 900.12,
       StartDate: new Date('2022-01-01'),
       EndDate: new Date('2042-01-01'),
-      AmortizationSchedule: [],
     },
   ];
 
@@ -73,7 +69,6 @@ export const Body = () => {
       AverageReturnRate: 5.5,
       CompoundingPeriod: CompoundingFrequency.Annually,
       StartDate: new Date('2020-01-01'),
-      ProjectedGrowth: [],
     },
     {
       Id: '00000000-0000-0000-0000-000000000004',
@@ -83,7 +78,6 @@ export const Body = () => {
       AverageReturnRate: 2.1,
       CompoundingPeriod: CompoundingFrequency.Monthly,
       StartDate: new Date('2021-06-15'),
-      ProjectedGrowth: [],
       RecurringContribution: 50,
       ContributionFrequency: CompoundingFrequency.Monthly,
     },
@@ -92,21 +86,9 @@ export const Body = () => {
   // Toggle handler for test data
   const handleToggleTestData = () => {
     if (!testDataEnabled) {
-      // Add fake data
-      setLoans(
-        fakeLoans.map((l) => ({
-          ...l,
-          AmortizationSchedule: generateAmortizationSchedule(l),
-        }))
-      );
-      setInvestments(
-        fakeInvestments.map((i) => ({
-          ...i,
-          ProjectedGrowth: generateInvestmentGrowth(i),
-        }))
-      );
+      setLoans(fakeLoans);
+      setInvestments(fakeInvestments);
     } else {
-      // Remove all data
       setLoans([]);
       setInvestments([]);
     }
@@ -126,8 +108,7 @@ export const Body = () => {
   const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
     const updatedLoan: Loan = {
       ...newLoan,
-      Id: newLoan.Id || generateId(), // Generate ID if not present (new loan)
-      AmortizationSchedule: generateAmortizationSchedule(newLoan),
+      Id: newLoan.Id || generateId(),
     };
 
     if (!oldLoan) {
@@ -159,8 +140,7 @@ export const Body = () => {
   ) => {
     const updatedInvestment: Investment = {
       ...newInvestment,
-      Id: newInvestment.Id || generateId(), // Generate ID if not present (new investment)
-      ProjectedGrowth: generateInvestmentGrowth(newInvestment),
+      Id: newInvestment.Id || generateId(),
     };
 
     if (!oldInvestment) {

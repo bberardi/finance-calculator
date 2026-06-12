@@ -21,8 +21,7 @@ export interface Investment {
   ContributionFrequency?: CompoundingFrequency;
   ContributionStepUpAmount?: number; // Yearly step-up: flat dollar amount or percentage value
   ContributionStepUpType?: StepUpType; // Type of step-up: flat or percentage
-  CurrentValue?: number; // Calculated field
-  ProjectedGrowth?: InvestmentGrowthEntry[]; // Calculated field
+  CurrentValue?: number;
 }
 
 export const emptyInvestment: Investment = {

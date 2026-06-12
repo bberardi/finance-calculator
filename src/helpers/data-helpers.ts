@@ -2,7 +2,10 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import packageJson from '../../package.json';
 
-// Serialized versions with Date fields converted to strings
+// Serialized versions with Date fields converted to strings.
+// schemaVersion 2+: derived fields (AmortizationSchedule, ProjectedGrowth) are
+// never included in exports; schemaVersion 1 files may contain them and are
+// imported cleanly by ignoring those fields.
 export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
   StartDate: string;
   EndDate: string;
@@ -12,7 +15,10 @@ export interface SerializedInvestment extends Omit<Investment, 'StartDate'> {
   StartDate: string;
 }
 
+export const SCHEMA_VERSION = 2;
+
 export interface ExportData {
+  schemaVersion: number;
   loans: SerializedLoan[];
   investments: SerializedInvestment[];
   exportDate: string;
@@ -43,18 +49,17 @@ export const exportToJson = (
     ...loan,
     StartDate: loan.StartDate.toISOString(),
     EndDate: loan.EndDate.toISOString(),
-    AmortizationSchedule: loan.AmortizationSchedule || [],
   }));
 
   const serializedInvestments: SerializedInvestment[] = investments.map(
     (investment) => ({
       ...investment,
       StartDate: investment.StartDate.toISOString(),
-      ProjectedGrowth: investment.ProjectedGrowth || [],
     })
   );
 
   const exportData: ExportData = {
+    schemaVersion: SCHEMA_VERSION,
     loans: serializedLoans,
     investments: serializedInvestments,
     exportDate: new Date().toISOString(),
@@ -125,11 +130,17 @@ export const importFromJson = (
         }
       }
 
+      // Destructure to drop any legacy derived fields present in v1 exports
+      // (AmortizationSchedule) that are no longer part of the Loan model.
+      const {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        AmortizationSchedule: _amort,
+        ...loanInputs
+      } = serializedLoan as SerializedLoan & { AmortizationSchedule?: unknown };
       return {
-        ...serializedLoan,
+        ...loanInputs,
         StartDate: new Date(serializedLoan.StartDate),
         EndDate: new Date(serializedLoan.EndDate),
-        AmortizationSchedule: serializedLoan.AmortizationSchedule || [],
       };
     });
 
@@ -173,10 +184,18 @@ export const importFromJson = (
           }
         }
 
+        // Destructure to drop any legacy derived fields present in v1 exports
+        // (ProjectedGrowth) that are no longer part of the Investment model.
+        const {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          ProjectedGrowth: _growth,
+          ...investmentInputs
+        } = serializedInvestment as SerializedInvestment & {
+          ProjectedGrowth?: unknown;
+        };
         return {
-          ...serializedInvestment,
+          ...investmentInputs,
           StartDate: new Date(serializedInvestment.StartDate),
-          ProjectedGrowth: serializedInvestment.ProjectedGrowth || [],
         };
       }
     );
