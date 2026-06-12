@@ -12,15 +12,20 @@ import { createTheme } from '@mui/material/styles';
 // data-attribute selector lets `useColorScheme()` / InitColorSchemeScript flip
 // `data-mui-color-scheme` on <html> without a flash or re-render of the tree.
 
-// The PathWise brand blues — taken from the original header/footer gradients
-// (#1e3c72 -> #2a5298) and the MUI default primary the AppBar already used.
-const brandBlueDark = '#1e3c72';
-const brandBlueMid = '#2a5298';
+// The PathWise brand greens (roadmap 0.7 rebrand): a fintech "money green"
+// identity — deep forest/emerald foundations for brand surfaces (AppBar pill,
+// header/footer gradient) and a vivid emerald primary for buttons/links/icons.
+// `brandGreenDeep` -> `brandGreenRich` is the deep-to-brighter brand gradient;
+// the emerald primaries live in each colorScheme below.
+const brandGreenDeep = '#0b3d2e';
+const brandGreenRich = '#14532d';
 
 // Reusable header/footer gradient. Exported so Header/Footer can pull the brand
-// gradient from the theme rather than hard-coding it in CSS.
-export const brandGradient = `linear-gradient(135deg, ${brandBlueDark} 0%, ${brandBlueMid} 100%)`;
-export const brandGradientReversed = `linear-gradient(135deg, ${brandBlueMid} 0%, ${brandBlueDark} 100%)`;
+// gradient from the theme rather than hard-coding it in CSS. The same deep-green
+// gradient also backs the AppBar pill (see MuiAppBar styleOverrides) so the
+// command bar, header, and footer share one brand surface in both modes.
+export const brandGradient = `linear-gradient(135deg, ${brandGreenDeep} 0%, ${brandGreenRich} 100%)`;
+export const brandGradientReversed = `linear-gradient(135deg, ${brandGreenRich} 0%, ${brandGreenDeep} 100%)`;
 
 // Spacing (roadmap 0.10): the page used a repeated `marginBottom: '20px'` on the
 // section Papers and the sample-data alert. Express it once as theme spacing
@@ -39,23 +44,29 @@ export const theme = createTheme({
   colorSchemes: {
     light: {
       palette: {
-        primary: { main: brandBlueMid, dark: brandBlueDark },
-        secondary: { main: '#9c27b0' },
+        // Emerald "money green" primary — passes contrast as a button/link/icon
+        // color on white surfaces; `dark` is the deep brand green for hovers.
+        primary: { main: '#00875a', dark: brandGreenDeep },
+        // Complementary teal-leaning green accent (no blue reintroduced).
+        secondary: { main: '#0f766e' },
         background: {
-          // The body previously sat on a pale blue-grey gradient; flatten it to
-          // a solid surface that reads the same but themes cleanly.
-          default: '#eef1f6',
+          // Clean, faintly green-tinted light surface (was a pale blue-grey).
+          default: '#eef5f1',
           paper: '#ffffff',
         },
       },
     },
     dark: {
       palette: {
-        primary: { main: '#5b8def', dark: brandBlueMid },
-        secondary: { main: '#ce93d8' },
+        // Bright spring-green primary so dark mode reads "dark but bright green";
+        // `dark` keeps the deep brand green for pressed/hover states.
+        primary: { main: '#00e676', dark: brandGreenRich },
+        secondary: { main: '#2dd4bf' },
         background: {
-          default: '#121417',
-          paper: '#1c2128',
+          // Very dark green-tinted background (not pure grey/black) + a slightly
+          // lifted green-cast paper, so the whole app carries a money-green cast.
+          default: '#0c1512',
+          paper: '#13201a',
         },
       },
     },
@@ -80,6 +91,13 @@ export const theme = createTheme({
           marginTop: theme.spacing(SECTION_GAP),
           marginBottom: theme.spacing(SECTION_GAP),
           overflow: 'hidden',
+          // The pill is a brand surface, not the (now bright-emerald) primary:
+          // back it with the deep-green brand gradient so the command bar shares
+          // the Header/Footer identity in BOTH modes, with white content on top.
+          // The `contained color="inherit"` Add buttons render as light/white
+          // surfaces that contrast against this deep green in light and dark.
+          backgroundImage: brandGradient,
+          color: '#ffffff',
         }),
       },
     },
