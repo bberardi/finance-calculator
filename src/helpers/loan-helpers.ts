@@ -1,4 +1,9 @@
-import { AmortizationScheduleEntry, Loan, PitLoan } from '../models/loan-model';
+import {
+  AmortizationScheduleEntry,
+  defaultPit,
+  Loan,
+  PitLoan,
+} from '../models/loan-model';
 
 // Returns the number of terms (months) between the start date and end date.
 // If an inputted date is provided it is used as the end date.
@@ -53,6 +58,12 @@ export const getMonthlyPayment = (
 export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
   const paidTerms = getTerms(loan, date);
   const relevantAmortization = generateAmortizationSchedule(loan, paidTerms);
+
+  // A loan without MonthlyPayment has no schedule; return the zero default.
+  if (relevantAmortization.length === 0) {
+    return defaultPit;
+  }
+
   const lastEntry = relevantAmortization[paidTerms - 1];
 
   return {

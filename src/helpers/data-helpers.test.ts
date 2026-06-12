@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { exportToJson, importFromJson, mergeData } from './data-helpers';
+import {
+  exportToJson,
+  importFromJson,
+  mergeData,
+  EXPORT_SCHEMA_VERSION,
+} from './data-helpers';
 import { Loan } from '../models/loan-model';
-import { Investment, CompoundingFrequency } from '../models/investment-model';
+import {
+  Investment,
+  CompoundingFrequency,
+  StepUpType,
+} from '../models/investment-model';
 
 describe('exportToJson and importFromJson', () => {
   const testLoan: Loan = {
@@ -33,7 +42,7 @@ describe('exportToJson and importFromJson', () => {
     expect(json).toBeTruthy();
     expect(data.loans).toBeDefined();
     expect(data.investments).toBeDefined();
-    expect(data.schemaVersion).toBe(2);
+    expect(data.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
     expect(data.version).toBeDefined(); // Version should be present
     expect(typeof data.version).toBe('string'); // Version should be a string
     expect(data.exportDate).toBeDefined();
@@ -103,7 +112,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should strip unknown properties at the import boundary', () => {
     const json = JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [
         {
           ...testLoan,
@@ -387,6 +396,89 @@ describe('exportToJson and importFromJson', () => {
 
     expect(() => importFromJson(invalidJson)).toThrow(
       'Invalid or missing ID in loan'
+    );
+  });
+
+  it('should round-trip optional input fields for Loan and Investment', () => {
+    const loanWithOptional: Loan = {
+      ...testLoan,
+      MonthlyPayment: 1234.56,
+    };
+
+    const investmentWithOptional: Investment = {
+      ...testInvestment,
+      CurrentValue: 15000,
+      RecurringContribution: 500,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+      ContributionStepUpAmount: 50,
+      ContributionStepUpType: StepUpType.Flat,
+    };
+
+    const json = exportToJson([loanWithOptional], [investmentWithOptional]);
+    const { loans, investments } = importFromJson(json);
+
+    expect(loans[0].MonthlyPayment).toBe(1234.56);
+    expect(investments[0].CurrentValue).toBe(15000);
+    expect(investments[0].RecurringContribution).toBe(500);
+    expect(investments[0].ContributionFrequency).toBe(
+      CompoundingFrequency.Monthly
+    );
+    expect(investments[0].ContributionStepUpAmount).toBe(50);
+    expect(investments[0].ContributionStepUpType).toBe(StepUpType.Flat);
+  });
+
+  it('should successfully import a legacy v1 file with no schemaVersion', () => {
+    const v1JsonNoVersion = JSON.stringify({
+      loans: [
+        {
+          ...testLoan,
+          StartDate: testLoan.StartDate.toISOString(),
+          EndDate: testLoan.EndDate.toISOString(),
+        },
+      ],
+      investments: [
+        {
+          ...testInvestment,
+          StartDate: testInvestment.StartDate.toISOString(),
+        },
+      ],
+      exportDate: new Date().toISOString(),
+      version: '0.5.0',
+    });
+
+    const { loans, investments } = importFromJson(v1JsonNoVersion);
+
+    expect(loans).toHaveLength(1);
+    expect(loans[0].Name).toBe('Test Loan');
+    expect(investments).toHaveLength(1);
+    expect(investments[0].Name).toBe('Test Investment');
+  });
+
+  it('should reject a file with schemaVersion: null', () => {
+    const json = JSON.stringify({
+      schemaVersion: null,
+      loans: [],
+      investments: [],
+      exportDate: new Date().toISOString(),
+      version: '1.0.0',
+    });
+
+    expect(() => importFromJson(json)).toThrow(
+      'schemaVersion must be a number'
+    );
+  });
+
+  it('should reject a file with schemaVersion as a string', () => {
+    const json = JSON.stringify({
+      schemaVersion: '2',
+      loans: [],
+      investments: [],
+      exportDate: new Date().toISOString(),
+      version: '1.0.0',
+    });
+
+    expect(() => importFromJson(json)).toThrow(
+      'schemaVersion must be a number'
     );
   });
 });

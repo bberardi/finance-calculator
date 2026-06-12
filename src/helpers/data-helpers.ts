@@ -96,6 +96,12 @@ export const importFromJson = (
     // v1 files have no schemaVersion; reject files from a newer app version
     if (
       data.schemaVersion !== undefined &&
+      typeof data.schemaVersion !== 'number'
+    ) {
+      throw new Error('Invalid data format: schemaVersion must be a number.');
+    }
+    if (
+      data.schemaVersion !== undefined &&
       data.schemaVersion > EXPORT_SCHEMA_VERSION
     ) {
       throw new Error(

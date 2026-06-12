@@ -17,6 +17,7 @@ import {
   getPeriodsPerYear,
 } from '../helpers/investment-helpers';
 import dayjs from 'dayjs';
+import { useMemo } from 'react';
 
 type ScheduleEntry = {
   period: number;
@@ -28,11 +29,13 @@ type ScheduleEntry = {
 };
 
 export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
-  // Project 30 years from today (when the schedule is generated), not from StartDate,
-  // so investments that started in the past can show historical periods plus 30 future years.
-  const endDate = dayjs().add(30, 'years').toDate();
-  // Always generate fresh schedule with 30-year projection (from "today")
-  const schedule = generateInvestmentGrowth(props.investment, endDate);
+  const schedule = useMemo(() => {
+    // Project 30 years from today (when the schedule is generated), not from StartDate,
+    // so investments that started in the past can show historical periods plus 30 future years.
+    const endDate = dayjs().add(30, 'years').toDate();
+    // Always generate fresh schedule with 30-year projection (from "today")
+    return generateInvestmentGrowth(props.investment, endDate);
+  }, [props.investment]);
   const periodsPerYear = getPeriodsPerYear(props.investment.CompoundingPeriod);
 
   // Get period label based on compounding frequency
