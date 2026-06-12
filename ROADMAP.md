@@ -350,3 +350,45 @@ Issue mapping: **#20 → Phase 1**, **#18 → Phase 2**, **#24 → Phase 4**. Ph
 - **Math Correctness Charter (§4) is non-negotiable**: math-touching PRs ship with reference tests (cited sources), uphold the invariants, and keep `src/helpers/**` at 100% line+branch coverage; math bugs get a failing regression test before the fix
 - Semver bump in `package.json` for behavior changes; update `.github/copilot-instructions.md` and README when structure changes
 - Keep models input-only; derived data is computed, never stored (after 0.3)
+
+---
+
+## 8. Proposed Additions (candidate backlog)
+
+This section collects suggestions surfaced during a roadmap/codebase review (June 2026). The existing plan (§5) already covers the load-bearing work — engine, persistence, charts, scenarios, optimizer — and the Phase 7 catalog (§7's neighbor above) is broad. These are **gaps the current document does not address**, not restatements of it. Each is sized to slot into an existing phase rather than reorder the plan; the suggested home is noted. Nothing here changes the §1 vision or crosses a §Phase 7 non-goal.
+
+### A. Resilience & data safety
+
+The roadmap hardens the _math_ (Charter §4) and _corrupt-storage hydration_ (D4), but the running app has no defense against a render-time exception or a destructive user action.
+
+- **A1 — Global error boundary with recovery.** Wrap the app (and, separately, the chart section) in a React error boundary that shows a recover/reload affordance and an "export my data" escape hatch instead of a white screen. _Rationale: once persistence (Phase 1) and charts (Phase 2) land, a single bad data shape or chart edge case shouldn't cost the user their whole session — and the export escape hatch means a crash never traps unsaved data._ Suggested home: Phase 1 or early Phase 2.
+- **A2 — Undo for destructive actions.** Pair the planned delete confirmation (0.7) with a snackbar soft-undo for delete _and_ for import-merge overwrites. _Rationale: confirmation prevents accidents but adds friction on every delete; an undo snackbar is lower-friction and is the only recovery path for an import that clobbers an existing entity by matching Id._ Suggested home: 0.7 (delete) and a follow-up on the DataManager.
+- **A3 — Non-blocking input sanity warnings.** Beyond the field-level required/format validation in 0.8, add cross-field "this looks wrong" warnings: `EndDate` ≤ `StartDate`, `CurrentAmount` > `Principal`, implausible rates, contribution cadence finer than compounding. _Rationale: these inputs pass type validation but silently produce wrong forecasts — exactly the "plausible-looking chart on a wrong premise" failure the Charter exists to prevent, but on the input side rather than the formula side._ Suggested home: extend 0.8.
+
+### B. UX micro-affordances
+
+Small, high-use interactions the current plan doesn't mention.
+
+- **B1 — Duplicate / clone an entity.** One-click copy of a loan or investment ("Car loan (copy)") to seed a variant. _Rationale: modeling a refinance candidate (H1) or a near-identical second account currently means re-typing every field; clone is a cheap affordance and a natural companion to the refinance comparison tool._ Suggested home: Phase 3 table upgrades (3.3) or Phase 6.
+- **B2 — Reorder / sort entities meaningfully.** Sortable columns are already in 3.3; add a default ordering (e.g., by rate, balance, or payoff date) and stable user reordering. _Rationale: the optimizer's "kill the high-rate loan first" logic is more legible when the tables can be ordered the same way the engine reasons._ Suggested home: fold into 3.3.
+
+### C. Performance
+
+The roadmap reserves a Web Worker only for Monte Carlo (H2). Two earlier surfaces have a performance cliff that isn't called out.
+
+- **C1 — Optimizer search off the main thread.** The suggested-split search (5.2) grid-searches many allocation plans, each a full month-by-month engine run across every entity over a 30-year horizon. _Rationale: run on the main thread this will jank the flagship 1.0 interaction; the same Web Worker pattern slated for Monte Carlo should cover the optimizer, and the D7 boundary already keeps the engine worker-safe (no React/MUI imports)._ Suggested home: Phase 5 (note in 5.1/5.2).
+- **C2 — Memoized forecast series + lazy-loaded heavy chunks.** Cache forecast series by `(entity inputs, horizon, scenario)` so charts, dashboard, and scenario overlays don't recompute identical series; code-split the chart library and the popout dialogs. _Rationale: the engine is the single most-called module post-Phase 2; memoizing it and lazy-loading the heaviest bundles (MUI X charts/date-pickers) keeps first paint and hover responsiveness acceptable on mobile and on GitHub Pages._ Suggested home: Phase 2 (memoization) and Phase 6 (bundle splitting).
+
+### D. Accessibility of the data visualization
+
+The Phase 6 a11y audit is general; the chart is the hardest a11y surface and warrants an explicit line.
+
+- **D1 — Accessible chart fallback.** A "view as table" toggle (and screen-reader-readable data table) behind the forecast chart, plus a keyboard-operable legend. _Rationale: a line chart is opaque to screen readers and keyboard-only users; a table fallback also doubles as a data-inspection feature for sighted users and reuses the same series the chart consumes._ Suggested home: Phase 2 (build the toggle with the chart) feeding the Phase 6 audit.
+
+### E. Trust & transparency
+
+Complements the Charter (§4) and "show the math" (H5) from the user's side rather than the formula's.
+
+- **E1 — Stated assumptions / limitations panel.** A small, always-available note on what the forecast assumes: constant rates, no taxes/inflation unless those toggles ship (H2/H4), average-return not guaranteed-return. _Rationale: a deterministic 30-year projection implies false precision; stating the assumptions is the honest framing the Monte Carlo work (H2) makes statistically, done cheaply with prose until then._ Suggested home: Phase 3 dashboard or Phase 2 chart.
+
+> **Reviewer note:** if any of these are judged out of scope or already implicitly covered, they should be struck rather than parked — the value of this section is as a short, curated gap list, not a second catalog.
