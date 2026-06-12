@@ -37,12 +37,16 @@ export const getMonthlyPayment = (
   interestRate: number,
   terms: number
 ): number => {
-  if (principal <= 0 || interestRate <= 0 || terms <= 0) {
+  // interestRate === 0 is valid (interest-free loan); negative rates and
+  // non-positive principal or terms are not.
+  if (principal <= 0 || interestRate < 0 || terms <= 0) {
     return 0;
   }
 
   const monthlyInterestRate = interestRate / 100 / 12;
   if (monthlyInterestRate === 0) {
+    // Interest-free loan: equal principal instalments rounded to cents.
+    // Arithmetic: principal / terms  (e.g. 12000 / 60 = 200.00)
     return Math.round((principal / terms) * 100) / 100;
   }
 

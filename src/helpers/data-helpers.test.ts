@@ -473,6 +473,376 @@ describe('exportToJson and importFromJson', () => {
       'schemaVersion must be a number'
     );
   });
+
+  // ----- Issue #46: numeric field type and range validation -----
+
+  describe('loan numeric field validation', () => {
+    const baseLoan = {
+      Id: 'loan-num-test',
+      Provider: 'Bank',
+      Name: 'Test Loan',
+      StartDate: new Date('2024-01-01').toISOString(),
+      EndDate: new Date('2034-01-01').toISOString(),
+      InterestRate: 5,
+      Principal: 100000,
+      CurrentAmount: 95000,
+    };
+
+    it('should reject a loan where InterestRate is a string ("not-a-number")', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, InterestRate: 'not-a-number' }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'InterestRate'"
+      );
+    });
+
+    it('should reject a loan where InterestRate is NaN', () => {
+      // JSON.stringify serialises NaN as null
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, InterestRate: null }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Missing required field 'InterestRate'"
+      );
+    });
+
+    it('should reject a loan where InterestRate is Infinity', () => {
+      // Infinity serialises as null in JSON; set it via a raw string instead
+      const raw = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan }],
+        investments: [],
+      }).replace('"InterestRate":5', '"InterestRate":1e309');
+      expect(() => importFromJson(raw)).toThrow(
+        "Invalid value for 'InterestRate'"
+      );
+    });
+
+    it('should reject a loan where InterestRate is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, InterestRate: -1 }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'InterestRate'"
+      );
+    });
+
+    it('should accept a loan where InterestRate is 0 (interest-free)', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, InterestRate: 0 }],
+        investments: [],
+      });
+      const { loans } = importFromJson(json);
+      expect(loans[0].InterestRate).toBe(0);
+    });
+
+    it('should reject a loan where Principal is a string', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, Principal: 'not-a-number' }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'Principal'"
+      );
+    });
+
+    it('should reject a loan where Principal is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, Principal: -1000 }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'Principal'"
+      );
+    });
+
+    it('should reject a loan where CurrentAmount is a string', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, CurrentAmount: 'bad' }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'CurrentAmount'"
+      );
+    });
+
+    it('should reject a loan where CurrentAmount is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, CurrentAmount: -500 }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'CurrentAmount'"
+      );
+    });
+
+    it('should reject a loan where MonthlyPayment is a string when present', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, MonthlyPayment: 'bad' }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'MonthlyPayment'"
+      );
+    });
+
+    it('should reject a loan where MonthlyPayment is negative when present', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan, MonthlyPayment: -100 }],
+        investments: [],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'MonthlyPayment'"
+      );
+    });
+
+    it('should accept a loan where MonthlyPayment is absent (undefined)', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan }],
+        investments: [],
+      });
+      const { loans } = importFromJson(json);
+      expect(loans[0].MonthlyPayment).toBeUndefined();
+    });
+  });
+
+  describe('investment numeric field validation', () => {
+    const baseInvestment = {
+      Id: 'inv-num-test',
+      Provider: 'Fund',
+      Name: 'Test Investment',
+      StartDate: new Date('2024-01-01').toISOString(),
+      StartingBalance: 10000,
+      AverageReturnRate: 7,
+      CompoundingPeriod: 'monthly',
+    };
+
+    it('should reject an investment where StartingBalance is a string', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, StartingBalance: 'not-a-number' }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'StartingBalance'"
+      );
+    });
+
+    it('should reject an investment where StartingBalance is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, StartingBalance: -500 }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'StartingBalance'"
+      );
+    });
+
+    it('should reject an investment where AverageReturnRate is a string', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, AverageReturnRate: 'bad' }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'AverageReturnRate'"
+      );
+    });
+
+    it('should reject an investment where AverageReturnRate is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, AverageReturnRate: -1 }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'AverageReturnRate'"
+      );
+    });
+
+    it('should accept an investment where AverageReturnRate is 0', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, AverageReturnRate: 0 }],
+      });
+      const { investments } = importFromJson(json);
+      expect(investments[0].AverageReturnRate).toBe(0);
+    });
+
+    it('should reject an investment where RecurringContribution is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, RecurringContribution: -50 }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'RecurringContribution'"
+      );
+    });
+
+    it('should reject an investment where ContributionStepUpAmount is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, ContributionStepUpAmount: -10 }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'ContributionStepUpAmount'"
+      );
+    });
+
+    it('should reject an investment where CurrentValue is negative', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, CurrentValue: -1 }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'CurrentValue'"
+      );
+    });
+  });
+
+  describe('investment enum field validation', () => {
+    const baseInvestment = {
+      Id: 'inv-enum-test',
+      Provider: 'Fund',
+      Name: 'Test Investment',
+      StartDate: new Date('2024-01-01').toISOString(),
+      StartingBalance: 5000,
+      AverageReturnRate: 5,
+      CompoundingPeriod: 'monthly',
+    };
+
+    it('should reject an investment where CompoundingPeriod is an invalid enum value', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, CompoundingPeriod: 'weekly' }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'CompoundingPeriod'"
+      );
+    });
+
+    it('should reject an investment where CompoundingPeriod is a number', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment, CompoundingPeriod: 12 }],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'CompoundingPeriod'"
+      );
+    });
+
+    it('should accept valid CompoundingPeriod values (monthly, quarterly, annually)', () => {
+      for (const period of ['monthly', 'quarterly', 'annually']) {
+        const json = JSON.stringify({
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          loans: [],
+          investments: [{ ...baseInvestment, CompoundingPeriod: period }],
+        });
+        const { investments } = importFromJson(json);
+        expect(investments[0].CompoundingPeriod).toBe(period);
+      }
+    });
+
+    it('should reject an investment where ContributionFrequency is an invalid enum value', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [
+          {
+            ...baseInvestment,
+            RecurringContribution: 100,
+            ContributionFrequency: 'biweekly',
+          },
+        ],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'ContributionFrequency'"
+      );
+    });
+
+    it('should accept a valid ContributionFrequency when present', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [
+          {
+            ...baseInvestment,
+            RecurringContribution: 100,
+            ContributionFrequency: 'monthly',
+          },
+        ],
+      });
+      const { investments } = importFromJson(json);
+      expect(investments[0].ContributionFrequency).toBe('monthly');
+    });
+
+    it('should accept ContributionFrequency absent (undefined)', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [{ ...baseInvestment }],
+      });
+      const { investments } = importFromJson(json);
+      expect(investments[0].ContributionFrequency).toBeUndefined();
+    });
+
+    it('should reject an investment where ContributionStepUpType is an invalid enum value', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [],
+        investments: [
+          {
+            ...baseInvestment,
+            ContributionStepUpAmount: 50,
+            ContributionStepUpType: 'invalid-type',
+          },
+        ],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        "Invalid value for 'ContributionStepUpType'"
+      );
+    });
+
+    it('should accept valid ContributionStepUpType values (flat, percentage)', () => {
+      for (const stepUpType of ['flat', 'percentage']) {
+        const json = JSON.stringify({
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          loans: [],
+          investments: [
+            {
+              ...baseInvestment,
+              ContributionStepUpAmount: 50,
+              ContributionStepUpType: stepUpType,
+            },
+          ],
+        });
+        const { investments } = importFromJson(json);
+        expect(investments[0].ContributionStepUpType).toBe(stepUpType);
+      }
+    });
+  });
 });
 
 describe('mergeData', () => {

@@ -52,7 +52,9 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   };
 
   const onDelete = () => {
-    props.onSave(emptyInvestment, props.investment);
+    if (props.investment) {
+      props.onDelete(props.investment);
+    }
     props.onClose();
     setNewInvestment(emptyInvestment);
   };
@@ -304,6 +306,7 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
 export interface AddEditInvestmentProps {
   open: boolean;
   onSave: (newInvestment: Investment, oldInvestment?: Investment) => void;
+  onDelete: (investment: Investment) => void;
   onClose: () => void;
   investment?: Investment;
 }

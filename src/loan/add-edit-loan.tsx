@@ -43,7 +43,9 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   };
 
   const onDelete = () => {
-    props.onSave(emptyLoan, props.loan);
+    if (props.loan) {
+      props.onDelete(props.loan);
+    }
     props.onClose();
     setNewLoan(emptyLoan);
   };
@@ -279,6 +281,7 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
 export interface AddEditLoanProps {
   open: boolean;
   onSave: (newLoan: Loan, oldLoan?: Loan) => void;
+  onDelete: (loan: Loan) => void;
   onClose: () => void;
   loan?: Loan;
 }

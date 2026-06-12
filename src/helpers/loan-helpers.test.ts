@@ -22,9 +22,29 @@ describe('Loan Helpers', () => {
 
     it('should return 0 for invalid inputs', () => {
       expect(getMonthlyPayment(0, 3.5, 360)).toBe(0);
-      expect(getMonthlyPayment(100000, 0, 360)).toBe(0);
       expect(getMonthlyPayment(100000, -1, 360)).toBe(0);
       expect(getMonthlyPayment(100000, 3.5, 0)).toBe(0);
+    });
+
+    // Regression tests for issue #44: 0% interest loans returned $0 due to
+    // the guard `interestRate <= 0` blocking the valid zero-rate branch.
+
+    it('should return principal/terms for a 0% interest loan (exact division)', () => {
+      // Arithmetic: 12000 / 60 = 200.00  (no rounding needed)
+      expect(getMonthlyPayment(12000, 0, 60)).toBe(200.0);
+    });
+
+    it('should return principal/terms rounded to cents for a 0% interest loan (non-exact division)', () => {
+      // Arithmetic: 10000 / 36 = 277.7777... → rounds to 277.78
+      expect(getMonthlyPayment(10000, 0, 36)).toBe(277.78);
+    });
+
+    it('should still return 0 for non-positive principal with 0% interest', () => {
+      expect(getMonthlyPayment(0, 0, 60)).toBe(0);
+    });
+
+    it('should still return 0 for non-positive terms with 0% interest', () => {
+      expect(getMonthlyPayment(12000, 0, 0)).toBe(0);
     });
   });
 
@@ -104,6 +124,41 @@ describe('Loan Helpers', () => {
 
       const schedule = generateAmortizationSchedule(loan);
       expect(schedule.length).toBe(0);
+    });
+
+    it('should generate a correct amortization schedule for a 0% interest loan', () => {
+      // Regression for issue #44: 0% loan schedule must have all-zero interest
+      // payments and the balance must reach exactly 0 at the final term.
+      // Arithmetic: 12000 / 60 = 200.00/month
+      const loan: Loan = {
+        Id: 'test-id-zero-rate',
+        Provider: 'Test Lender',
+        Name: 'Zero Rate Loan',
+        StartDate: new Date('2025-01-01'),
+        EndDate: new Date('2029-12-01'),
+        Principal: 12000,
+        CurrentAmount: 12000,
+        InterestRate: 0,
+        MonthlyPayment: 200.0,
+      };
+
+      const schedule = generateAmortizationSchedule(loan);
+
+      expect(schedule.length).toBe(60);
+
+      // Every interest payment must be $0 for a 0% loan
+      schedule.forEach((entry) => {
+        expect(entry.InterestPayment).toBe(0);
+      });
+
+      // Every principal payment must be $200 (except possibly the last due to
+      // the "isLastTerm sets remainingBalance to 0" logic)
+      for (let i = 0; i < schedule.length - 1; i++) {
+        expect(schedule[i].PrincipalPayment).toBe(200.0);
+      }
+
+      // Final remaining balance must be 0
+      expect(schedule[59].RemainingBalance).toBe(0);
     });
 
     it('should generate partial schedule when terms provided', () => {
