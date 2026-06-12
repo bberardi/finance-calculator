@@ -17,7 +17,7 @@ import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
 import { useFinanceData } from './state/use-finance-data';
-import { ColorModeToggle } from './theme';
+import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
 import {
   OnboardingEmptyState,
@@ -159,25 +159,29 @@ export const Body = () => {
   return (
     <Container>
       <AppBar>
+        {/* Command bar (roadmap 0.10): the two "Add" actions are the primary
+            actions — `contained color="inherit"` renders them as solid light
+            buttons that contrast against the brand-blue pill in both light and
+            dark mode. DataManager's import/export are secondary (text variant
+            with icons + tooltips). The dark-mode toggle is pushed to the right
+            with `marginLeft: 'auto'`; on narrow viewports the Toolbar wraps
+            cleanly (theme `MuiToolbar` flexWrap/gap). */}
         <Toolbar>
           <Button
-            variant="outlined"
+            variant="contained"
             color="inherit"
-            sx={{ margin: '5px' }}
             onClick={() => onLoanAddEdit()}
           >
             Add Loan
           </Button>
           <Button
-            variant="outlined"
+            variant="contained"
             color="inherit"
-            sx={{ margin: '5px' }}
             onClick={() => onInvestmentAddEdit()}
           >
             Add Investment
           </Button>
           <DataManager />
-          <div style={{ flex: 1 }} />
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
@@ -188,7 +192,7 @@ export const Body = () => {
       {sampleDataLoaded && (
         <Alert
           severity="info"
-          sx={{ marginBottom: '20px' }}
+          sx={{ marginBottom: SECTION_GAP }}
           action={
             <Button color="inherit" size="small" onClick={clearSampleData}>
               Clear sample data
@@ -200,7 +204,7 @@ export const Body = () => {
       )}
 
       {bothEmpty ? (
-        <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
+        <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
           <OnboardingEmptyState
             onAddLoan={() => onLoanAddEdit()}
             onAddInvestment={() => onInvestmentAddEdit()}
@@ -209,7 +213,7 @@ export const Body = () => {
         </Paper>
       ) : (
         <>
-          <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Loans</Divider>
             {loans.length > 0 ? (
               <LoanTable
@@ -226,7 +230,7 @@ export const Body = () => {
             )}
           </Paper>
 
-          <Paper sx={{ marginBottom: '20px', padding: '5px' }}>
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Investments</Divider>
             {investments.length > 0 ? (
               <InvestmentTable

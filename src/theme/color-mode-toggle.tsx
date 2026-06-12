@@ -25,7 +25,9 @@ export const ColorModeToggle = () => {
         onClick={handleToggle}
         color="inherit"
         aria-label="Toggle light/dark mode"
-        sx={{ margin: '5px' }}
+        // Pushed to the trailing edge of the command bar; when the Toolbar wraps
+        // on narrow viewports this keeps the toggle at the end of its row.
+        sx={{ marginLeft: 'auto' }}
       >
         {isDark ? <LightMode /> : <DarkMode />}
       </IconButton>

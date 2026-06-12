@@ -22,6 +22,14 @@ const brandBlueMid = '#2a5298';
 export const brandGradient = `linear-gradient(135deg, ${brandBlueDark} 0%, ${brandBlueMid} 100%)`;
 export const brandGradientReversed = `linear-gradient(135deg, ${brandBlueMid} 0%, ${brandBlueDark} 100%)`;
 
+// Spacing (roadmap 0.10): the page used a repeated `marginBottom: '20px'` on the
+// section Papers and the sample-data alert. Express it once as theme spacing
+// units (2.5 * 8px = 20px) so the gutter between the AppBar pill, the section
+// Papers, and the page is consistent and tweakable in one place.
+export const SECTION_GAP = 2.5;
+// Padding inside the section Papers (was an ad-hoc `padding: '5px'`).
+export const PAPER_PADDING = 1;
+
 export const theme = createTheme({
   // Enable CSS theme variables (theme.vars) so color-scheme switching is a CSS
   // class/attribute swap, not a React re-render — no flash on toggle/reload.
@@ -67,11 +75,24 @@ export const theme = createTheme({
         position: 'static',
       },
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           borderRadius: 30,
-          marginTop: 15,
-          marginBottom: 15,
+          marginTop: theme.spacing(SECTION_GAP),
+          marginBottom: theme.spacing(SECTION_GAP),
           overflow: 'hidden',
+        }),
+      },
+    },
+    // Command-bar Toolbar: lay the action buttons out with a consistent gap and
+    // let them wrap cleanly on narrow viewports (roadmap 0.10) instead of
+    // overflowing or squashing at ~360px. The dark-mode toggle is pushed to the
+    // right within the same flow so the bar stays single-row when it fits.
+    MuiToolbar: {
+      styleOverrides: {
+        root: {
+          flexWrap: 'wrap',
+          gap: 8,
+          rowGap: 4,
         },
       },
     },
@@ -84,9 +105,9 @@ export const theme = createTheme({
         },
       },
     },
-    // Command-bar buttons all carried `margin: '5px'`. Keep that as the default
-    // so Body/DataManager stop repeating it; `disableElevation` flattens the
-    // contained save buttons to match the previous flat look.
+    // Command-bar buttons previously each carried an ad-hoc `margin: '5px'`;
+    // their spacing now comes from the Toolbar `gap` above (roadmap 0.10).
+    // `disableElevation` flattens the contained buttons to match the flat look.
     MuiButton: {
       defaultProps: {
         disableElevation: true,
