@@ -1,50 +1,89 @@
 import {
+  Alert,
   Box,
   Button,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormHelperText,
   Slider,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { emptyLoan, Loan } from '../models/loan-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { getMonthlyPayment, getTerms } from '../helpers/loan-helpers';
 import { NumericFormat } from 'react-number-format';
 import { ResponsiveDialog } from '../components/responsive-dialog';
+import {
+  isLoanValid,
+  LoanField,
+  validateLoan,
+} from '../helpers/validation-helpers';
+import { fieldHelperText } from '../components/field-helper-text';
 
 export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
+  // Track which fields the user has interacted with, plus a save-attempt flag,
+  // so an untouched add form doesn't open all-red. A field's error shows once it
+  // is touched OR a save has been attempted.
+  const [touched, setTouched] = useState<Partial<Record<LoanField, boolean>>>(
+    {}
+  );
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const isFormValid = () => {
-    return (
-      newLoan.Name.trim() !== '' &&
-      newLoan.Provider.trim() !== '' &&
-      newLoan.Principal > 0 &&
-      newLoan.CurrentAmount > 0 &&
-      newLoan.InterestRate > 0 &&
-      newLoan.StartDate &&
-      newLoan.EndDate &&
-      newLoan.StartDate < newLoan.EndDate
-    );
+  const validation = useMemo(() => validateLoan(newLoan), [newLoan]);
+  const isFormValid = () => isLoanValid(newLoan);
+
+  const showFor = (field: LoanField) => submitAttempted || touched[field];
+  const touch = (field: LoanField) =>
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  const errorFor = (field: LoanField) =>
+    showFor(field) ? validation.errors[field] : undefined;
+  const warningFor = (field: LoanField) =>
+    showFor(field) ? validation.warnings[field] : undefined;
+
+  const resetTracking = () => {
+    setTouched({});
+    setSubmitAttempted(false);
   };
+
+  // Why Save is disabled, always visible while invalid. Once the user has
+  // touched fields (or attempted save) we list the specific revealed errors;
+  // before that we show a neutral prompt so the form doesn't open all-red but
+  // the user still knows what's expected.
+  const revealedErrors = (Object.keys(validation.errors) as LoanField[])
+    .filter((field) => showFor(field))
+    .map((field) => validation.errors[field]);
+  const saveDisabledReason =
+    revealedErrors.length > 0
+      ? revealedErrors.join(' ')
+      : 'Fill in all required fields to enable saving.';
 
   const onSave = () => {
     if (!isFormValid()) {
+      setSubmitAttempted(true);
       return;
     }
     props.onSave(newLoan, props.loan);
     props.onClose();
     setNewLoan(emptyLoan);
+    resetTracking();
+  };
+
+  const onCancel = () => {
+    props.onClose();
+    resetTracking();
   };
 
   useEffect(() => {
     setNewLoan(props.loan ?? emptyLoan);
-  }, [props.loan]);
+    setTouched({});
+    setSubmitAttempted(false);
+  }, [props.loan, props.open]);
 
   useEffect(() => {
     if (
@@ -88,6 +127,9 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
             label="Name"
             value={newLoan.Name}
             onChange={(e) => setNewLoan({ ...newLoan, Name: e.target.value })}
+            onBlur={() => touch('Name')}
+            error={Boolean(errorFor('Name'))}
+            helperText={fieldHelperText(errorFor('Name'), warningFor('Name'))}
             required
           />
           <TextField
@@ -96,6 +138,12 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
             onChange={(e) =>
               setNewLoan({ ...newLoan, Provider: e.target.value })
             }
+            onBlur={() => touch('Provider')}
+            error={Boolean(errorFor('Provider'))}
+            helperText={fieldHelperText(
+              errorFor('Provider'),
+              warningFor('Provider')
+            )}
             required
           />
           <NumericFormat
@@ -108,6 +156,12 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
             onValueChange={(vs) => {
               setNewLoan({ ...newLoan, Principal: Number(vs.value) });
             }}
+            onBlur={() => touch('Principal')}
+            error={Boolean(errorFor('Principal'))}
+            helperText={fieldHelperText(
+              errorFor('Principal'),
+              warningFor('Principal')
+            )}
             required
           />
           <NumericFormat
@@ -120,33 +174,61 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
             onValueChange={(vs) => {
               setNewLoan({ ...newLoan, CurrentAmount: Number(vs.value) });
             }}
+            onBlur={() => touch('CurrentAmount')}
+            error={Boolean(errorFor('CurrentAmount'))}
+            helperText={fieldHelperText(
+              errorFor('CurrentAmount'),
+              warningFor('CurrentAmount')
+            )}
             required
           />
           <DatePicker
             label="Start Date"
             value={dayjs(newLoan.StartDate)}
-            onChange={(date) =>
+            onChange={(date) => {
+              touch('StartDate');
               setNewLoan({
                 ...newLoan,
                 StartDate: date?.toDate() ?? new Date(),
-              })
-            }
+              });
+            }}
             views={['year', 'month', 'day']}
             openTo="day"
+            slotProps={{
+              textField: {
+                onBlur: () => touch('StartDate'),
+                error: Boolean(errorFor('StartDate')),
+                helperText: fieldHelperText(
+                  errorFor('StartDate'),
+                  warningFor('StartDate')
+                ),
+              },
+            }}
           />
           <Stack direction="row" spacing={1}>
             <DatePicker
               label="End Date"
               value={dayjs(newLoan.EndDate)}
-              onChange={(date) =>
+              onChange={(date) => {
+                touch('EndDate');
                 setNewLoan({
                   ...newLoan,
                   EndDate: date?.toDate() ?? new Date(),
-                })
-              }
+                });
+              }}
               views={['year', 'month', 'day']}
               openTo="year"
               sx={{ flex: 5 }}
+              slotProps={{
+                textField: {
+                  onBlur: () => touch('EndDate'),
+                  error: Boolean(errorFor('EndDate')),
+                  helperText: fieldHelperText(
+                    errorFor('EndDate'),
+                    warningFor('EndDate')
+                  ),
+                },
+              }}
             />
             <TextField
               label="Terms"
@@ -200,10 +282,20 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
                     InterestRate: Number(vs.value),
                   });
                 }}
+                onBlur={() => touch('InterestRate')}
+                error={Boolean(errorFor('InterestRate'))}
                 sx={{ flex: 2 }}
                 required
               />
             </Stack>
+            {(errorFor('InterestRate') || warningFor('InterestRate')) && (
+              <FormHelperText error={Boolean(errorFor('InterestRate'))}>
+                {fieldHelperText(
+                  errorFor('InterestRate'),
+                  warningFor('InterestRate')
+                )}
+              </FormHelperText>
+            )}
           </Stack>
 
           <Stack direction="row">
@@ -238,8 +330,15 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
           </Stack>
         </Box>
       </DialogContent>
+      <Box sx={{ px: 3 }}>
+        {!isFormValid() && (
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {saveDisabledReason}
+          </Alert>
+        )}
+      </Box>
       <DialogActions>
-        <Button type="reset" color="secondary" onClick={props.onClose}>
+        <Button type="reset" color="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button
