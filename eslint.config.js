@@ -18,7 +18,14 @@ export default tseslint.config(
       'react-refresh': reactRefresh,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // eslint-plugin-react-hooks v7's "recommended" preset bundles the new
+      // React Compiler lint suite (set-state-in-effect, immutability, etc.).
+      // The dependency-modernization upgrade (roadmap 0.5) intentionally keeps
+      // the lint contract equivalent to the pre-upgrade v5 preset (rules-of-hooks
+      // + exhaustive-deps) so this PR stays a mechanical migration. Adopting the
+      // React Compiler rules and refactoring the affected effects is separate work.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

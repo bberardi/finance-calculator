@@ -118,7 +118,13 @@ export const PitPopout = (props: PitPopoutProps) => {
           <Typography variant="h5" gutterBottom>
             Point-in-Time Calculator
           </Typography>
-          <Box display="flex" flexDirection="column" gap={2}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
             <Stack direction="row">
               <DatePicker
                 label="Projection Date"

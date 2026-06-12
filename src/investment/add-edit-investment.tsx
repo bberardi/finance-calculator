@@ -78,10 +78,22 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
     >
       <Card>
         <CardContent>
-          <Typography variant="h5" gutterBottom textAlign="center">
+          <Typography
+            variant="h5"
+            gutterBottom
+            sx={{
+              textAlign: 'center',
+            }}
+          >
             {!props.investment ? 'Add Investment' : 'Edit Investment'}
           </Typography>
-          <Box display="flex" flexDirection="column" gap={2}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
             <TextField
               label="Investment Name"
               value={newInvestment.Name}

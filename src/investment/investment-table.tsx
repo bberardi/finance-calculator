@@ -120,12 +120,22 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
         <Typography variant="h6" component="div">
           {investment.Name}
         </Typography>
-        <Typography sx={{ mb: 1.5 }} color="text.secondary">
+        <Typography
+          sx={{
+            color: 'text.secondary',
+            mb: 1.5,
+          }}
+        >
           {investment.Provider}
         </Typography>
         <Box sx={{ marginBottom: 1 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid
+              size={{
+                xs: 12,
+                sm: 6,
+              }}
+            >
               <Typography variant="body2">
                 <strong>Starting Balance:</strong>
               </Typography>
@@ -133,7 +143,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 {formatCurrency(investment.StartingBalance)}
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid
+              size={{
+                xs: 12,
+                sm: 6,
+              }}
+            >
               <Typography variant="body2">
                 <strong>Return Rate:</strong>
               </Typography>
@@ -141,7 +156,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 {formatPercent(investment.AverageReturnRate)}
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid
+              size={{
+                xs: 12,
+                sm: 6,
+              }}
+            >
               <Typography variant="body2">
                 <strong>Compounding:</strong>
               </Typography>
@@ -149,7 +169,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 {getCompoundingText(investment.CompoundingPeriod)}
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid
+              size={{
+                xs: 12,
+                sm: 6,
+              }}
+            >
               <Typography variant="body2">
                 <strong>Recurring:</strong>
               </Typography>

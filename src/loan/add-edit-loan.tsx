@@ -93,10 +93,22 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
     >
       <Card>
         <CardContent>
-          <Typography variant="h5" gutterBottom textAlign="center">
+          <Typography
+            variant="h5"
+            gutterBottom
+            sx={{
+              textAlign: 'center',
+            }}
+          >
             {!props.loan ? 'Add new loan' : 'Edit loan'}
           </Typography>
-          <Box display="flex" flexDirection="column" gap={2}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
             <TextField
               label="Name"
               value={newLoan.Name}
@@ -177,7 +189,13 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
             </Stack>
             <Stack>
               <Typography gutterBottom>Interest Percentage</Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: 'center',
+                }}
+              >
                 <Slider
                   value={newLoan.InterestRate}
                   onChange={(_e, newValue) =>
