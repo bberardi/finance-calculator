@@ -25,8 +25,8 @@ export interface FinanceDataContextValue {
   // Undo an investment delete by restoring it at its original index.
   insertInvestmentAt: (investment: Investment, index: number) => void;
   importMerge: (loans: Loan[], investments: Investment[]) => void;
-  enableTestData: (loans: Loan[], investments: Investment[]) => void;
-  disableTestData: () => void;
+  loadSampleData: (loans: Loan[], investments: Investment[]) => void;
+  clearSampleData: () => void;
 }
 
 export const FinanceDataContext = createContext<
@@ -62,9 +62,9 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'InsertInvestmentAt', investment, index }),
       importMerge: (loans: Loan[], investments: Investment[]) =>
         dispatch({ type: 'ImportMerge', loans, investments }),
-      enableTestData: (loans: Loan[], investments: Investment[]) =>
-        dispatch({ type: 'EnableTestData', loans, investments }),
-      disableTestData: () => dispatch({ type: 'DisableTestData' }),
+      loadSampleData: (loans: Loan[], investments: Investment[]) =>
+        dispatch({ type: 'LoadSampleData', loans, investments }),
+      clearSampleData: () => dispatch({ type: 'ClearSampleData' }),
     }),
     [state]
   );

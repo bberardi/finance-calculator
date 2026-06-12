@@ -4,15 +4,15 @@ import { mergeData } from '../helpers/data-helpers';
 
 // State shape for the finance data context (D2).
 //
-// `loans`/`investments` are the data currently shown to the user. When the
-// "Test Data" dev toggle is on, these hold the fake data and the user's real
-// data is parked in `stashedLoans`/`stashedInvestments` until the toggle is
-// turned off again (issue #47). `testDataEnabled` mirrors the toggle.
+// `loans`/`investments` are the data currently shown to the user. While sample
+// data is loaded (roadmap 0.9), these hold the sample entities and the user's
+// real data is parked in `stashedLoans`/`stashedInvestments` until sample data
+// is cleared again. `sampleDataLoaded` mirrors that state.
 export interface FinanceState {
   loans: Loan[];
   investments: Investment[];
-  testDataEnabled: boolean;
-  // User data stashed while test data is enabled; null when test data is off.
+  sampleDataLoaded: boolean;
+  // User data stashed while sample data is loaded; null otherwise.
   stashedLoans: Loan[] | null;
   stashedInvestments: Investment[] | null;
 }
@@ -20,7 +20,7 @@ export interface FinanceState {
 export const initialFinanceState: FinanceState = {
   loans: [],
   investments: [],
-  testDataEnabled: false,
+  sampleDataLoaded: false,
   stashedLoans: null,
   stashedInvestments: null,
 };
@@ -43,8 +43,8 @@ export type FinanceAction =
   | { type: 'DeleteInvestment'; id: string }
   | { type: 'InsertInvestmentAt'; investment: Investment; index: number }
   | { type: 'ImportMerge'; loans: Loan[]; investments: Investment[] }
-  | { type: 'EnableTestData'; loans: Loan[]; investments: Investment[] }
-  | { type: 'DisableTestData' };
+  | { type: 'LoadSampleData'; loans: Loan[]; investments: Investment[] }
+  | { type: 'ClearSampleData' };
 
 // Insert `item` into `list` at `index`, clamping the index into [0, length].
 // Pure helper: returns a new array and never mutates the input.
@@ -142,16 +142,16 @@ export const financeReducer = (
       };
     }
 
-    case 'EnableTestData': {
-      // Toggling on: stash the user's real data and show fake data instead.
-      // Real data is never destroyed (issue #47). Idempotent — re-enabling
-      // while already on does not overwrite an existing stash.
-      if (state.testDataEnabled) {
+    case 'LoadSampleData': {
+      // Loading sample data: stash the user's real data and show the samples
+      // instead. Real data is never destroyed. Idempotent — loading again while
+      // already showing samples does not overwrite an existing stash.
+      if (state.sampleDataLoaded) {
         return state;
       }
       return {
         ...state,
-        testDataEnabled: true,
+        sampleDataLoaded: true,
         stashedLoans: state.loans,
         stashedInvestments: state.investments,
         loans: action.loans,
@@ -159,15 +159,15 @@ export const financeReducer = (
       };
     }
 
-    case 'DisableTestData': {
-      // Toggling off: discard whatever is currently shown (the fake data, plus
-      // any edits made while test data was enabled) and restore the stash.
-      if (!state.testDataEnabled) {
+    case 'ClearSampleData': {
+      // Clearing sample data: discard whatever is currently shown (the samples,
+      // plus any edits made while they were loaded) and restore the stash.
+      if (!state.sampleDataLoaded) {
         return state;
       }
       return {
         ...state,
-        testDataEnabled: false,
+        sampleDataLoaded: false,
         loans: state.stashedLoans ?? [],
         investments: state.stashedInvestments ?? [],
         stashedLoans: null,
