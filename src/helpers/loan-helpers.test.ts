@@ -5,7 +5,7 @@ import {
   getPitCalculation,
   generateAmortizationSchedule,
 } from './loan-helpers';
-import { Loan } from '../models/loan-model';
+import { defaultPit, Loan } from '../models/loan-model';
 
 describe('Loan Helpers', () => {
   describe('getMonthlyPayment', () => {
@@ -151,7 +151,7 @@ describe('Loan Helpers', () => {
       expect(pit.RemainingTerms).toBeGreaterThan(0);
     });
 
-    it('should only sum interest up to paidTerms when a full amortization schedule is pre-generated', () => {
+    it('should only sum interest up to paidTerms', () => {
       const loan: Loan = {
         Id: 'test-id-7',
         Provider: 'Test Lender',
@@ -164,18 +164,10 @@ describe('Loan Helpers', () => {
         MonthlyPayment: 860.66,
       };
 
-      // Pre-generate the full amortization schedule (all 12 terms)
       const fullSchedule = generateAmortizationSchedule(loan);
-      const loanWithSchedule: Loan = {
-        ...loan,
-        AmortizationSchedule: fullSchedule,
-      };
 
       // Query at 6 months into a 12-month loan
-      const pitPartial = getPitCalculation(
-        loanWithSchedule,
-        new Date('2025-07-01')
-      );
+      const pitPartial = getPitCalculation(loan, new Date('2025-07-01'));
 
       // PaidInterest should only reflect the first 7 terms, not the full 12
       const expectedInterest = fullSchedule
@@ -185,8 +177,45 @@ describe('Loan Helpers', () => {
       expect(pitPartial.PaidInterest).toBeCloseTo(expectedInterest, 2);
 
       // Sanity check: interest at 6 months must be less than interest for the full loan
-      const fullPit = getPitCalculation(loanWithSchedule, loan.EndDate);
+      const fullPit = getPitCalculation(loan, loan.EndDate);
       expect(pitPartial.PaidInterest).toBeLessThan(fullPit.PaidInterest);
+    });
+
+    it('should return defaultPit when MonthlyPayment is undefined (no schedule)', () => {
+      const loan: Loan = {
+        Id: 'test-id-no-payment',
+        Provider: 'Test Lender',
+        Name: 'No Payment Loan',
+        StartDate: new Date('2025-01-01'),
+        EndDate: new Date('2026-01-01'),
+        Principal: 10000,
+        CurrentAmount: 10000,
+        InterestRate: 6,
+        // MonthlyPayment intentionally omitted
+      };
+
+      const pit = getPitCalculation(loan, new Date('2025-07-01'));
+
+      expect(pit).toEqual(defaultPit);
+    });
+
+    it('should return term-1 view (PaidTerms === 1) when date is before StartDate', () => {
+      const loan: Loan = {
+        Id: 'test-id-pre-start',
+        Provider: 'Test Lender',
+        Name: 'Pre-Start Loan',
+        StartDate: new Date('2025-06-01'),
+        EndDate: new Date('2026-06-01'),
+        Principal: 12000,
+        CurrentAmount: 12000,
+        InterestRate: 6,
+        MonthlyPayment: 1032.92,
+      };
+
+      // Query a date before the loan's StartDate
+      const pit = getPitCalculation(loan, new Date('2025-01-01'));
+
+      expect(pit.PaidTerms).toBe(1);
     });
   });
 

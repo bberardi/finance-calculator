@@ -9,6 +9,8 @@ export enum StepUpType {
   Percentage = 'percentage',
 }
 
+// Input-only model: derived data (growth schedules, forecasts) is computed
+// on demand by helpers, never stored or serialized.
 export interface Investment {
   Id: string;
   Provider: string;
@@ -21,8 +23,7 @@ export interface Investment {
   ContributionFrequency?: CompoundingFrequency;
   ContributionStepUpAmount?: number; // Yearly step-up: flat dollar amount or percentage value
   ContributionStepUpType?: StepUpType; // Type of step-up: flat or percentage
-  CurrentValue?: number; // Calculated field
-  ProjectedGrowth?: InvestmentGrowthEntry[]; // Calculated field
+  CurrentValue?: number; // Today's actual value when known; forecasts anchor here
 }
 
 export const emptyInvestment: Investment = {

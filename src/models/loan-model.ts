@@ -1,3 +1,5 @@
+// Input-only model: derived data (amortization schedules, forecasts) is
+// computed on demand by helpers, never stored or serialized.
 export interface Loan {
   Id: string;
   Provider: string;
@@ -8,7 +10,6 @@ export interface Loan {
   Principal: number;
   CurrentAmount: number;
   MonthlyPayment?: number;
-  AmortizationSchedule?: AmortizationScheduleEntry[];
   // TODO
   // add actual monthly payment (taxes, insurance, etc)
 }

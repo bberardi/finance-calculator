@@ -7,8 +7,6 @@ import {
   importFromJson,
   mergeData,
 } from '../helpers/data-helpers';
-import { generateAmortizationSchedule } from '../helpers/loan-helpers';
-import { generateInvestmentGrowth } from '../helpers/investment-helpers';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
 
@@ -89,19 +87,8 @@ export const DataManager = ({
         const { items: mergedInvestments, result: investmentsResult } =
           mergeData(investments, importedInvestments);
 
-        // Regenerate calculated fields
-        const updatedLoans = mergedLoans.map((loan) => ({
-          ...loan,
-          AmortizationSchedule: generateAmortizationSchedule(loan),
-        }));
-
-        const updatedInvestments = mergedInvestments.map((investment) => ({
-          ...investment,
-          ProjectedGrowth: generateInvestmentGrowth(investment),
-        }));
-
-        setLoans(updatedLoans);
-        setInvestments(updatedInvestments);
+        setLoans(mergedLoans);
+        setInvestments(mergedInvestments);
 
         // Build detailed success message
         const totalLoansProcessed = loansResult.added + loansResult.updated;
