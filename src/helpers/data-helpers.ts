@@ -2,8 +2,7 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import packageJson from '../../package.json';
 
-// Schema v2: inputs only. v1 files additionally embedded derived data
-// (AmortizationSchedule/ProjectedGrowth), which import now ignores.
+// Schema v2: inputs only. v1 files are rejected — only schema v2 is accepted.
 export const EXPORT_SCHEMA_VERSION = 2;
 
 // Serialized versions with Date fields converted to strings
@@ -70,9 +69,9 @@ export const exportToJson = (
 
 /**
  * Parse JSON string and convert ISO date strings back to Date objects
- * Accepts schema v2 (inputs only) and legacy v1 files (whose embedded
- * derived fields are ignored — schedules are always recomputed on demand).
- * Throws error if JSON is invalid or missing required fields
+ * Accepts schema v2 only. Legacy v1 files (no schemaVersion or schemaVersion < 2)
+ * are rejected. Throws error if JSON is invalid, missing required fields,
+ * or the schema version is not exactly EXPORT_SCHEMA_VERSION.
  */
 export const importFromJson = (
   jsonString: string
@@ -93,19 +92,23 @@ export const importFromJson = (
       );
     }
 
-    // v1 files have no schemaVersion; reject files from a newer app version
-    if (
-      data.schemaVersion !== undefined &&
-      typeof data.schemaVersion !== 'number'
-    ) {
+    // Only schema v2 is accepted; v1 files (missing schemaVersion or < 2) are rejected
+    if (data.schemaVersion === undefined) {
+      throw new Error(
+        'Invalid data format: missing schemaVersion. Legacy (v1) files are not supported.'
+      );
+    }
+    if (typeof data.schemaVersion !== 'number') {
       throw new Error('Invalid data format: schemaVersion must be a number.');
     }
-    if (
-      data.schemaVersion !== undefined &&
-      data.schemaVersion > EXPORT_SCHEMA_VERSION
-    ) {
+    if (data.schemaVersion > EXPORT_SCHEMA_VERSION) {
       throw new Error(
         `Unsupported schema version ${data.schemaVersion}: this file was exported by a newer version of the app.`
+      );
+    }
+    if (data.schemaVersion < EXPORT_SCHEMA_VERSION) {
+      throw new Error(
+        `Unsupported schema version ${data.schemaVersion}: legacy files are not supported.`
       );
     }
 
@@ -147,8 +150,7 @@ export const importFromJson = (
         }
       }
 
-      // Pick fields explicitly so legacy v1 derived data (and any unknown
-      // properties) never make it past the import boundary
+      // Pick fields explicitly so unknown properties are dropped at the import boundary
       return {
         Id: serializedLoan.Id,
         Provider: serializedLoan.Provider,
@@ -202,8 +204,7 @@ export const importFromJson = (
           }
         }
 
-        // Pick fields explicitly so legacy v1 derived data (and any unknown
-        // properties) never make it past the import boundary
+        // Pick fields explicitly so unknown properties are dropped at the import boundary
         return {
           Id: serializedInvestment.Id,
           Provider: serializedInvestment.Provider,

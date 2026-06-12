@@ -61,8 +61,8 @@ describe('exportToJson and importFromJson', () => {
     expect(data.investments[0].ProjectedGrowth).toBeUndefined();
   });
 
-  it('should import legacy v1 files and drop their embedded derived data', () => {
-    // v1 files (no schemaVersion) embedded calculated schedules
+  it('should reject legacy v1 files with no schemaVersion even when they embed derived data', () => {
+    // v1 files (no schemaVersion) embedded calculated schedules — now rejected
     const v1Json = JSON.stringify({
       loans: [
         {
@@ -97,17 +97,9 @@ describe('exportToJson and importFromJson', () => {
       version: '0.6.0',
     });
 
-    const { loans, investments } = importFromJson(v1Json);
-
-    expect(loans).toHaveLength(1);
-    expect(loans[0].Name).toBe('Test Loan');
-    expect(investments).toHaveLength(1);
-    expect(
-      (loans[0] as unknown as Record<string, unknown>).AmortizationSchedule
-    ).toBeUndefined();
-    expect(
-      (investments[0] as unknown as Record<string, unknown>).ProjectedGrowth
-    ).toBeUndefined();
+    expect(() => importFromJson(v1Json)).toThrow(
+      'Legacy (v1) files are not supported'
+    );
   });
 
   it('should strip unknown properties at the import boundary', () => {
@@ -181,6 +173,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for loans with missing required fields', () => {
     const missingProvider = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [
         {
           Id: 'test-1',
@@ -196,6 +189,7 @@ describe('exportToJson and importFromJson', () => {
     );
 
     const missingName = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [
         {
           Id: 'test-1',
@@ -213,6 +207,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for loans with empty string fields', () => {
     const emptyProvider = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [
         {
           Id: 'test-1',
@@ -232,6 +227,7 @@ describe('exportToJson and importFromJson', () => {
     );
 
     const emptyName = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [
         {
           Id: 'test-1',
@@ -253,6 +249,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for investments with missing required fields', () => {
     const missingProvider = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [],
       investments: [
         { Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString() },
@@ -263,6 +260,7 @@ describe('exportToJson and importFromJson', () => {
     );
 
     const missingStartingBalance = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [],
       investments: [
         {
@@ -282,6 +280,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for investments with empty string fields', () => {
     const emptyProvider = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [],
       investments: [
         {
@@ -300,6 +299,7 @@ describe('exportToJson and importFromJson', () => {
     );
 
     const emptyName = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [],
       investments: [
         {
@@ -320,6 +320,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for invalid dates', () => {
     const invalidJson = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [{ ...testLoan, StartDate: 'invalid-date' }],
       investments: [],
     });
@@ -354,6 +355,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for loans with missing IDs', () => {
     const invalidJson = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [{ ...testLoan, Id: '' }],
       investments: [],
     });
@@ -365,6 +367,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for investments with missing IDs', () => {
     const invalidJson = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [],
       investments: [{ ...testInvestment, Id: '' }],
     });
@@ -376,6 +379,7 @@ describe('exportToJson and importFromJson', () => {
 
   it('should throw error for loans with whitespace-only IDs', () => {
     const invalidJson = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [{ ...testLoan, Id: '   ' }],
       investments: [],
     });
@@ -390,6 +394,7 @@ describe('exportToJson and importFromJson', () => {
     delete (loanWithoutId as { Id?: string }).Id;
 
     const invalidJson = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
       loans: [loanWithoutId],
       investments: [],
     });
@@ -427,31 +432,18 @@ describe('exportToJson and importFromJson', () => {
     expect(investments[0].ContributionStepUpType).toBe(StepUpType.Flat);
   });
 
-  it('should successfully import a legacy v1 file with no schemaVersion', () => {
-    const v1JsonNoVersion = JSON.stringify({
-      loans: [
-        {
-          ...testLoan,
-          StartDate: testLoan.StartDate.toISOString(),
-          EndDate: testLoan.EndDate.toISOString(),
-        },
-      ],
-      investments: [
-        {
-          ...testInvestment,
-          StartDate: testInvestment.StartDate.toISOString(),
-        },
-      ],
+  it('should reject a file with schemaVersion: 1 as a legacy version', () => {
+    const json = JSON.stringify({
+      schemaVersion: 1,
+      loans: [],
+      investments: [],
       exportDate: new Date().toISOString(),
-      version: '0.5.0',
+      version: '0.6.0',
     });
 
-    const { loans, investments } = importFromJson(v1JsonNoVersion);
-
-    expect(loans).toHaveLength(1);
-    expect(loans[0].Name).toBe('Test Loan');
-    expect(investments).toHaveLength(1);
-    expect(investments[0].Name).toBe('Test Investment');
+    expect(() => importFromJson(json)).toThrow(
+      'legacy files are not supported'
+    );
   });
 
   it('should reject a file with schemaVersion: null', () => {
