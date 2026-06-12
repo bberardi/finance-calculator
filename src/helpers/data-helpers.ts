@@ -3,9 +3,6 @@ import { Investment } from '../models/investment-model';
 import packageJson from '../../package.json';
 
 // Serialized versions with Date fields converted to strings.
-// schemaVersion 2+: derived fields (AmortizationSchedule, ProjectedGrowth) are
-// never included in exports; schemaVersion 1 files may contain them and are
-// imported cleanly by ignoring those fields.
 export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
   StartDate: string;
   EndDate: string;
@@ -130,15 +127,8 @@ export const importFromJson = (
         }
       }
 
-      // Destructure to drop any legacy derived fields present in v1 exports
-      // (AmortizationSchedule) that are no longer part of the Loan model.
-      const {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        AmortizationSchedule: _amort,
-        ...loanInputs
-      } = serializedLoan as SerializedLoan & { AmortizationSchedule?: unknown };
       return {
-        ...loanInputs,
+        ...serializedLoan,
         StartDate: new Date(serializedLoan.StartDate),
         EndDate: new Date(serializedLoan.EndDate),
       };
@@ -184,17 +174,8 @@ export const importFromJson = (
           }
         }
 
-        // Destructure to drop any legacy derived fields present in v1 exports
-        // (ProjectedGrowth) that are no longer part of the Investment model.
-        const {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          ProjectedGrowth: _growth,
-          ...investmentInputs
-        } = serializedInvestment as SerializedInvestment & {
-          ProjectedGrowth?: unknown;
-        };
         return {
-          ...investmentInputs,
+          ...serializedInvestment,
           StartDate: new Date(serializedInvestment.StartDate),
         };
       }
