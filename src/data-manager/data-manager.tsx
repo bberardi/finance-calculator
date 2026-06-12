@@ -1,7 +1,5 @@
 import { Button, Alert, Snackbar } from '@mui/material';
 import { useState, useRef } from 'react';
-import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
 import {
   exportToJson,
   importFromJson,
@@ -9,20 +7,13 @@ import {
 } from '../helpers/data-helpers';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
+import { useFinanceData } from '../state/use-finance-data';
 
-interface DataManagerProps {
-  loans: Loan[];
-  investments: Investment[];
-  setLoans: (loans: Loan[]) => void;
-  setInvestments: (investments: Investment[]) => void;
-}
-
-export const DataManager = ({
-  loans,
-  investments,
-  setLoans,
-  setInvestments,
-}: DataManagerProps) => {
+export const DataManager = () => {
+  const {
+    state: { loans, investments },
+    importMerge,
+  } = useFinanceData();
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,16 +70,16 @@ export const DataManager = ({
         const { loans: importedLoans, investments: importedInvestments } =
           importFromJson(content);
 
-        // Merge the imported data with existing data
-        const { items: mergedLoans, result: loansResult } = mergeData(
-          loans,
-          importedLoans
+        // Compute merge statistics for the success message. The actual state
+        // update is performed by the reducer's ImportMerge action (which runs
+        // the same mergeData merge), keeping merge semantics in one place.
+        const { result: loansResult } = mergeData(loans, importedLoans);
+        const { result: investmentsResult } = mergeData(
+          investments,
+          importedInvestments
         );
-        const { items: mergedInvestments, result: investmentsResult } =
-          mergeData(investments, importedInvestments);
 
-        setLoans(mergedLoans);
-        setInvestments(mergedInvestments);
+        importMerge(importedLoans, importedInvestments);
 
         // Build detailed success message
         const totalLoansProcessed = loansResult.added + loansResult.updated;

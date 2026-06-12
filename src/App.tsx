@@ -5,24 +5,27 @@ import { Body } from './Body';
 import { Header } from './Header';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { Box, Stack } from '@mui/material';
+import { FinanceDataProvider } from './state/finance-data-context';
 
 function App() {
   return (
     <div className="wrapper">
       <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <Stack sx={{ height: '100vh', flexDirection: 'column' }}>
-          <Header />
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <Body />
-          </Box>
-          <Footer />
-        </Stack>
+        <FinanceDataProvider>
+          <Stack sx={{ height: '100vh', flexDirection: 'column' }}>
+            <Header />
+            <Box
+              sx={{
+                flexGrow: 1,
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <Body />
+            </Box>
+            <Footer />
+          </Stack>
+        </FinanceDataProvider>
       </LocalizationProvider>
     </div>
   );

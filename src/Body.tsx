@@ -11,89 +11,91 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { AddEditLoan } from './loan/add-edit-loan';
-import { emptyLoan, Loan } from './models/loan-model';
+import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { AddEditInvestment } from './investment/add-edit-investment';
-import {
-  CompoundingFrequency,
-  emptyInvestment,
-  Investment,
-} from './models/investment-model';
+import { CompoundingFrequency, Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
-import { generateId } from './helpers/id-helpers';
 import { DataManager } from './data-manager/data-manager';
+import { useFinanceData } from './state/use-finance-data';
+
+// Fake data for the dev "Test Data" toggle. Lives here as a UI seed, not as
+// state — the provider stashes the user's real data when this is loaded.
+const fakeLoans: Loan[] = [
+  {
+    Id: '00000000-0000-0000-0000-000000000001',
+    Name: 'Test Loan 1',
+    Provider: 'Fake Provider',
+    InterestRate: 5,
+    Principal: 300000,
+    CurrentAmount: 300000,
+    MonthlyPayment: 1610.46,
+    StartDate: new Date('2024-11-02'),
+    EndDate: new Date('2054-10-02'),
+  },
+  {
+    Id: '00000000-0000-0000-0000-000000000002',
+    Name: 'Test Loan 2',
+    Provider: 'Sample Bank',
+    InterestRate: 3.5,
+    Principal: 150000,
+    CurrentAmount: 120000,
+    MonthlyPayment: 900.12,
+    StartDate: new Date('2022-01-01'),
+    EndDate: new Date('2042-01-01'),
+  },
+];
+
+const fakeInvestments: Investment[] = [
+  {
+    Id: '00000000-0000-0000-0000-000000000003',
+    Name: 'Test Investment 1',
+    Provider: 'Fake Investment Co.',
+    StartingBalance: 10000,
+    CurrentValue: 12500,
+    AverageReturnRate: 5.5,
+    CompoundingPeriod: CompoundingFrequency.Annually,
+    StartDate: new Date('2020-01-01'),
+  },
+  {
+    Id: '00000000-0000-0000-0000-000000000004',
+    Name: 'Test Investment 2',
+    Provider: 'Sample Fund',
+    StartingBalance: 5000,
+    AverageReturnRate: 2.1,
+    CompoundingPeriod: CompoundingFrequency.Monthly,
+    StartDate: new Date('2021-06-15'),
+    RecurringContribution: 50,
+    ContributionFrequency: CompoundingFrequency.Monthly,
+  },
+];
 
 export const Body = () => {
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [testDataEnabled, setTestDataEnabled] = useState<boolean>(false);
+  const {
+    state: { loans, investments, testDataEnabled },
+    addLoan,
+    updateLoan,
+    deleteLoan,
+    addInvestment,
+    updateInvestment,
+    deleteInvestment,
+    enableTestData,
+    disableTestData,
+  } = useFinanceData();
+
+  // Local UI state only: dialog open/closed and which entity is being edited.
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
   const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
     useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
   const [editInvestment, setEditInvestment] = useState<Investment>();
 
-  // Fake data for testing
-  const fakeLoans: Loan[] = [
-    {
-      Id: '00000000-0000-0000-0000-000000000001',
-      Name: 'Test Loan 1',
-      Provider: 'Fake Provider',
-      InterestRate: 5,
-      Principal: 300000,
-      CurrentAmount: 300000,
-      MonthlyPayment: 1610.46,
-      StartDate: new Date('2024-11-02'),
-      EndDate: new Date('2054-10-02'),
-    },
-    {
-      Id: '00000000-0000-0000-0000-000000000002',
-      Name: 'Test Loan 2',
-      Provider: 'Sample Bank',
-      InterestRate: 3.5,
-      Principal: 150000,
-      CurrentAmount: 120000,
-      MonthlyPayment: 900.12,
-      StartDate: new Date('2022-01-01'),
-      EndDate: new Date('2042-01-01'),
-    },
-  ];
-
-  const fakeInvestments: Investment[] = [
-    {
-      Id: '00000000-0000-0000-0000-000000000003',
-      Name: 'Test Investment 1',
-      Provider: 'Fake Investment Co.',
-      StartingBalance: 10000,
-      CurrentValue: 12500,
-      AverageReturnRate: 5.5,
-      CompoundingPeriod: CompoundingFrequency.Annually,
-      StartDate: new Date('2020-01-01'),
-    },
-    {
-      Id: '00000000-0000-0000-0000-000000000004',
-      Name: 'Test Investment 2',
-      Provider: 'Sample Fund',
-      StartingBalance: 5000,
-      AverageReturnRate: 2.1,
-      CompoundingPeriod: CompoundingFrequency.Monthly,
-      StartDate: new Date('2021-06-15'),
-      RecurringContribution: 50,
-      ContributionFrequency: CompoundingFrequency.Monthly,
-    },
-  ];
-
-  // Toggle handler for test data
   const handleToggleTestData = () => {
     if (!testDataEnabled) {
-      setLoans(fakeLoans);
-      setInvestments(fakeInvestments);
+      enableTestData(fakeLoans, fakeInvestments);
     } else {
-      // Remove all data
-      setLoans([]);
-      setInvestments([]);
+      disableTestData();
     }
-    setTestDataEnabled(!testDataEnabled);
   };
 
   const onLoanAddEdit = (loan?: Loan) => {
@@ -107,22 +109,15 @@ export const Body = () => {
   };
 
   const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
-    const updatedLoan: Loan = {
-      ...newLoan,
-      Id: newLoan.Id || generateId(), // Generate ID if not present (new loan)
-    };
-
     if (!oldLoan) {
-      setLoans([...loans, updatedLoan]);
+      addLoan(newLoan);
     } else {
-      const filteredLoans = loans.filter((l) => l.Id !== oldLoan.Id);
-
-      if (newLoan !== emptyLoan) {
-        setLoans([...filteredLoans, updatedLoan]);
-      } else {
-        setLoans(filteredLoans);
-      }
+      updateLoan(newLoan);
     }
+  };
+
+  const onLoanDelete = (loan: Loan) => {
+    deleteLoan(loan.Id);
   };
 
   const onInvestmentAddEdit = (investment?: Investment) => {
@@ -139,24 +134,15 @@ export const Body = () => {
     newInvestment: Investment,
     oldInvestment?: Investment
   ) => {
-    const updatedInvestment: Investment = {
-      ...newInvestment,
-      Id: newInvestment.Id || generateId(), // Generate ID if not present (new investment)
-    };
-
     if (!oldInvestment) {
-      setInvestments([...investments, updatedInvestment]);
+      addInvestment(newInvestment);
     } else {
-      const filteredInvestments = investments.filter(
-        (i) => i.Id !== oldInvestment.Id
-      );
-
-      if (newInvestment !== emptyInvestment) {
-        setInvestments([...filteredInvestments, updatedInvestment]);
-      } else {
-        setInvestments(filteredInvestments);
-      }
+      updateInvestment(newInvestment);
     }
+  };
+
+  const onInvestmentDelete = (investment: Investment) => {
+    deleteInvestment(investment.Id);
   };
 
   return (
@@ -187,12 +173,7 @@ export const Body = () => {
           >
             Add Investment
           </Button>
-          <DataManager
-            loans={loans}
-            investments={investments}
-            setLoans={setLoans}
-            setInvestments={setInvestments}
-          />
+          <DataManager />
           <div style={{ flex: 1 }} />
           <FormControlLabel
             control={
@@ -237,6 +218,7 @@ export const Body = () => {
       <AddEditLoan
         open={isAddLoanOpen}
         onSave={onLoanAddEditSave}
+        onDelete={onLoanDelete}
         onClose={onLoanAddEditClose}
         loan={editLoan}
       />
@@ -244,6 +226,7 @@ export const Body = () => {
       <AddEditInvestment
         open={isAddInvestmentOpen}
         onSave={onInvestmentAddEditSave}
+        onDelete={onInvestmentDelete}
         onClose={onInvestmentAddEditClose}
         investment={editInvestment}
       />
