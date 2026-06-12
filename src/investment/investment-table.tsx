@@ -120,7 +120,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
         <Typography variant="h6" component="div">
           {investment.Name}
         </Typography>
-        <Typography sx={{ mb: 1.5 }} color="text.secondary">
+        <Typography
+          sx={{
+            color: 'text.secondary',
+            mb: 1.5,
+          }}
+        >
           {investment.Provider}
         </Typography>
         <Box sx={{ marginBottom: 1 }}>

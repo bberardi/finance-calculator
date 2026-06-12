@@ -94,7 +94,13 @@ export const LoanTable = (props: LoanTableProps) => {
         <Typography variant="h6" component="div" gutterBottom>
           {loan.Name}
         </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
+        <Typography
+          variant="body2"
+          gutterBottom
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           {loan.Provider}
         </Typography>
         <Grid container spacing={2}>
