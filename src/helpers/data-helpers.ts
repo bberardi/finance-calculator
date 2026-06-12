@@ -1,5 +1,9 @@
 import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
+import {
+  Investment,
+  CompoundingFrequency,
+  StepUpType,
+} from '../models/investment-model';
 import packageJson from '../../package.json';
 
 // Schema v2: inputs only. v1 files are rejected — only schema v2 is accepted.
@@ -34,6 +38,66 @@ export interface MergeResult {
 const isValidId = (id: string | undefined): boolean => {
   return !!id && id.trim() !== '';
 };
+
+/**
+ * Check that a value is a finite number (rejects NaN, Infinity, non-number types)
+ */
+const isFiniteNumber = (value: unknown): value is number => {
+  return typeof value === 'number' && isFinite(value);
+};
+
+/**
+ * Validate a required numeric field: must be a finite number and satisfy the
+ * given range predicate.  Throws a descriptive error on failure.
+ */
+const validateNumericField = (
+  value: unknown,
+  field: string,
+  entityType: string,
+  index: number,
+  predicate: (n: number) => boolean = () => true,
+  rangeDescription = 'a finite number'
+): void => {
+  if (!isFiniteNumber(value)) {
+    throw new Error(
+      `Invalid value for '${field}' in ${entityType} at index ${index}: expected ${rangeDescription}, got ${JSON.stringify(value)}.`
+    );
+  }
+  if (!predicate(value)) {
+    throw new Error(
+      `Invalid value for '${field}' in ${entityType} at index ${index}: expected ${rangeDescription}, got ${value}.`
+    );
+  }
+};
+
+/**
+ * Validate an optional numeric field when it is present (not undefined/null).
+ */
+const validateOptionalNumericField = (
+  value: unknown,
+  field: string,
+  entityType: string,
+  index: number,
+  predicate: (n: number) => boolean = () => true,
+  rangeDescription = 'a finite number'
+): void => {
+  if (value === undefined || value === null) return;
+  validateNumericField(
+    value,
+    field,
+    entityType,
+    index,
+    predicate,
+    rangeDescription
+  );
+};
+
+/** Valid CompoundingFrequency values derived from the enum */
+const VALID_COMPOUNDING_FREQUENCIES: string[] =
+  Object.values(CompoundingFrequency);
+
+/** Valid StepUpType values derived from the enum */
+const VALID_STEP_UP_TYPES: string[] = Object.values(StepUpType);
 
 /**
  * Serialize loans and investments to JSON string (schema v2, inputs only)
@@ -150,6 +214,42 @@ export const importFromJson = (
         }
       }
 
+      // Validate numeric fields: required fields must be finite numbers in sane ranges
+      validateNumericField(
+        serializedLoan.InterestRate,
+        'InterestRate',
+        'loan',
+        index,
+        (n) => n >= 0,
+        'a non-negative finite number'
+      );
+      validateNumericField(
+        serializedLoan.Principal,
+        'Principal',
+        'loan',
+        index,
+        (n) => n >= 0,
+        'a non-negative finite number'
+      );
+      validateNumericField(
+        serializedLoan.CurrentAmount,
+        'CurrentAmount',
+        'loan',
+        index,
+        (n) => n >= 0,
+        'a non-negative finite number'
+      );
+
+      // Validate optional numeric fields when present
+      validateOptionalNumericField(
+        serializedLoan.MonthlyPayment,
+        'MonthlyPayment',
+        'loan',
+        index,
+        (n) => n >= 0,
+        'a non-negative finite number'
+      );
+
       // Pick fields explicitly so unknown properties are dropped at the import boundary
       return {
         Id: serializedLoan.Id,
@@ -202,6 +302,86 @@ export const importFromJson = (
               `Required field '${field}' cannot be empty in investment at index ${index}.`
             );
           }
+        }
+
+        // Validate numeric fields: required fields must be finite numbers in sane ranges
+        validateNumericField(
+          serializedInvestment.StartingBalance,
+          'StartingBalance',
+          'investment',
+          index,
+          (n) => n >= 0,
+          'a non-negative finite number'
+        );
+        validateNumericField(
+          serializedInvestment.AverageReturnRate,
+          'AverageReturnRate',
+          'investment',
+          index,
+          (n) => n >= 0,
+          'a non-negative finite number'
+        );
+
+        // Validate optional numeric fields when present
+        validateOptionalNumericField(
+          serializedInvestment.RecurringContribution,
+          'RecurringContribution',
+          'investment',
+          index,
+          (n) => n >= 0,
+          'a non-negative finite number'
+        );
+        validateOptionalNumericField(
+          serializedInvestment.ContributionStepUpAmount,
+          'ContributionStepUpAmount',
+          'investment',
+          index,
+          (n) => n >= 0,
+          'a non-negative finite number'
+        );
+        validateOptionalNumericField(
+          serializedInvestment.CurrentValue,
+          'CurrentValue',
+          'investment',
+          index,
+          (n) => n >= 0,
+          'a non-negative finite number'
+        );
+
+        // Validate enum fields: CompoundingPeriod must be a valid CompoundingFrequency value
+        if (
+          !VALID_COMPOUNDING_FREQUENCIES.includes(
+            serializedInvestment.CompoundingPeriod as string
+          )
+        ) {
+          throw new Error(
+            `Invalid value for 'CompoundingPeriod' in investment at index ${index}: expected one of ${VALID_COMPOUNDING_FREQUENCIES.join(', ')}, got ${JSON.stringify(serializedInvestment.CompoundingPeriod)}.`
+          );
+        }
+
+        // Validate optional enum fields when present
+        if (
+          serializedInvestment.ContributionFrequency !== undefined &&
+          serializedInvestment.ContributionFrequency !== null &&
+          !VALID_COMPOUNDING_FREQUENCIES.includes(
+            serializedInvestment.ContributionFrequency as string
+          )
+        ) {
+          throw new Error(
+            `Invalid value for 'ContributionFrequency' in investment at index ${index}: expected one of ${VALID_COMPOUNDING_FREQUENCIES.join(', ')}, got ${JSON.stringify(serializedInvestment.ContributionFrequency)}.`
+          );
+        }
+
+        if (
+          serializedInvestment.ContributionStepUpType !== undefined &&
+          serializedInvestment.ContributionStepUpType !== null &&
+          !VALID_STEP_UP_TYPES.includes(
+            serializedInvestment.ContributionStepUpType as string
+          )
+        ) {
+          throw new Error(
+            `Invalid value for 'ContributionStepUpType' in investment at index ${index}: expected one of ${VALID_STEP_UP_TYPES.join(', ')}, got ${JSON.stringify(serializedInvestment.ContributionStepUpType)}.`
+          );
         }
 
         // Pick fields explicitly so unknown properties are dropped at the import boundary
