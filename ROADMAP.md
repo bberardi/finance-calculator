@@ -355,3 +355,50 @@ Issue mapping: **#20 → Phase 1**, **#18 → Phase 2**, **#24 → Phase 4**. Ph
 - **Math Correctness Charter (§4) is non-negotiable**: math-touching PRs ship with reference tests (cited sources), uphold the invariants, and keep `src/helpers/**` at 100% line+branch coverage; math bugs get a failing regression test before the fix
 - Semver bump in `package.json` for behavior changes; update `.github/copilot-instructions.md` and README when structure changes
 - Keep models input-only; derived data is computed, never stored (after 0.3)
+
+---
+
+## 8. Proposed Additions (for triage)
+
+> Suggestions surfaced from a June 2026 review of the codebase and the open issue tracker. **Additive only** — each item is a candidate for the owner to accept, reschedule, or decline; nothing here changes a decision already made above. The feature horizon (H1–H5) is already remarkably complete, so most of the value below is in **correctness and UX**, not net-new features. Each item carries a one-to-two-line rationale.
+
+### 8.1 Correctness backlog — fold the open math bugs into the Charter pipeline _(highest priority)_
+
+The §2 assessment lists "solid unit test coverage for all helper math" and no known defects, but the tracker now carries a cluster of confirmed, reachable correctness bugs in the very helpers the **Math Correctness Charter (§4)** governs. Several produce _silently wrong_ financial output — exactly the "plausible chart on a subtly wrong formula" failure §4 exists to prevent — and they become user-visible the moment **Phase 2** puts the numbers on a chart. The Charter already mandates that "every math bug … gets a failing regression test before the fix," so these belong in the **0.11** audit (or a dedicated **0.12** regression sweep) **gated before Phase 2**, not discovered after.
+
+| Issue | Defect (summary)                                                                                     | Charter layer that should have caught it                                 |
+| ----- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| #59   | Amortization schedule emits garbage rows (negative interest, catastrophic final row) on early payoff | Edge-case catalog (early payoff) + invariant (balance ≥ 0)               |
+| #51   | A `$0` MonthlyPayment is treated as a real payment → balance grows forever                           | Edge-case (zero payment) + invariant (more payment ⇒ never-later payoff) |
+| #44   | 0% interest loan returns a `$0` monthly payment (guard makes the correct branch dead code)           | Reference test (0% loan = principal ÷ terms) + edge-case (zero rate)     |
+| #57   | `ProjectedAnnualReturn` is a total-period return, not annualized                                     | Reference test (CAGR vs. spreadsheet `RATE`/`FV`)                        |
+| #53   | PIT loan calc reports "Paid Terms: 1" for dates before `StartDate`                                   | Edge-case (horizon before start)                                         |
+| #46   | `importFromJson` accepts non-numeric / negative / out-of-range fields → `NaN` propagation            | Precision/validation; ties to the D4 hydration-robustness requirement    |
+| #52   | "Terms" field accepts empty/non-numeric input → invalid `EndDate` / `NaN`                            | Surfaced by the 0.8 field-validation work                                |
+
+_Rationale: this is the cheapest possible way to honor the Charter — every bug above is already isolated and reproduced in its issue, so turning each repro into a committed failing test before the fix is exactly the process §4 prescribes. Doing it inside 0.11 keeps Phase 2 honest instead of shipping charts on top of known-wrong math._
+
+### 8.2 State-correctness bugs — name them as acceptance criteria on the Phase 0 work
+
+A second cluster concerns state handling and is largely _already addressed in spirit_ by Phase 0 items (state context **0.4**, dialogs/delete **0.7**, empty states **0.9**). The open issues should be linked to those items so they close _as acceptance criteria_ rather than lingering or being silently re-introduced by the rewrites.
+
+| Issue | Defect                                                                  | Where it lands                                                            |
+| ----- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| #47   | "Test Data" toggle wipes/overwrites real data with no confirmation      | 0.9 (which removes the toggle) — call out data-safety explicitly          |
+| #48   | Editing an entity moves it to the bottom of the table                   | 0.4 reducer (`UpdateLoan`/`UpdateInvestment` replaces in place)           |
+| #49   | Delete detection relies on reference-equality to the shared `emptyLoan` | 0.4 reducer (explicit `DeleteLoan` action) + 0.7                          |
+| #56   | Editing a loan silently overwrites a custom/stored `MonthlyPayment`     | 0.7/0.8 form rework (seed from stored value; recompute only on user edit) |
+
+_Rationale: these are quietly being fixed by the architecture work already planned; naming them as acceptance criteria ensures the reducer and dialog rewrites actually close them instead of carrying the bug forward._
+
+### 8.3 UX improvements (new)
+
+- **Table search / filter / grouping.** Sorting, a totals row, and clone are planned (3.3), and the chart legend is explicitly designed for "10+ entities" (2.3) — but the tables themselves never gain a filter or grouping. As H3 adds cash, property, pensions, and custom assets, a long flat list becomes the bottleneck. _Benefit: keeps the tables usable precisely as the model's whole purpose — holding many positions at once — actually fills them up._
+- **Per-entity notes field.** An optional free-text note on a loan/investment ("0% promo until 2027", "why I set a custom payment"). _Benefit: captures the user intent behind exactly the custom inputs that bug #56 shows are easy to lose, at near-zero cost — one optional string, no math, no Charter impact._
+- **Pre-merge "what changed" preview on import.** Before committing an ID-based merge, show which entities will be _added_ vs. _overwritten_. _Benefit: the merge soft-undo in Phase 6 is recovery after the fact; a pre-merge diff prevents the clobber up front and pairs naturally with the #46 import-validation hardening._
+
+### 8.4 New features (new)
+
+- **Annual contribution / payment caps.** An optional yearly cap on an investment's contributions (e.g. 401(k)/IRA limits) that throttles once reached. _Benefit: makes long-horizon forecasts realistic and is a natural companion to the H2 employer-match feature, which the optimizer (Phase 5) already needs to rank "fund the match vs. pay the loan" correctly._
+
+_Beyond this, the H1–H5 catalog already covers the feature space thoroughly; no additional net-new features rose to the bar of "meaningful improvement not already planned."_
