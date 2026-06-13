@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import { createRequire } from 'node:module';
 
 // Read the app version straight from package.json so the footer shows the right
@@ -21,6 +22,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Keep the default ignores and also skip generated dirs — notably the
+    // Stryker sandbox, whose copied *.test.ts files would otherwise be
+    // discovered and double-counted during a local mutation run.
+    exclude: [...configDefaults.exclude, '**/.stryker-tmp/**', 'coverage/**'],
     coverage: {
       // Math Correctness Charter §4 enforcement: the math core is held to a
       // hard 100% line+branch gate (UI gets pragmatic targets in Phase 6). The

@@ -72,7 +72,12 @@ off-by-one in anniversary attribution: the period-indexed
 `generateInvestmentGrowth` first steps up one period later than the monthly-grid
 `forecastInvestment`). Without step-ups the engines are identical to the cent, so
 this is purely a step-up **timing** question, not a compounding error. It is
-called out here and in the consistency suite as a known gap; per the Charter's
-process rule, reconciling it ships as its own PR with a failing regression test
-landed before the fix. Until then, consistency tests cover the no-step-up cases
-that are provably exact and do not assert the step-up case.
+called out here and — so the suite is not silent about it — encoded as an
+executable tripwire in `forecast-consistency.test.ts`: the test
+_"forecastInvestment and generateInvestmentGrowth diverge with a yearly step-up"_
+uses Vitest's `it.fails` to assert the engines **agree**, which currently throws.
+The day the off-by-one is reconciled that body stops throwing and the test flips
+red, forcing the fixer to convert it into a normal passing `it` — exactly the
+"failing regression test committed before the fix" the Charter's process rule
+requires. Until then, the boundary-consistency tests cover only the no-step-up
+cases that are provably exact.

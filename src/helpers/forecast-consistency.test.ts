@@ -10,7 +10,11 @@ import {
 } from './investment-helpers';
 import { forecastLoan, forecastInvestment } from './forecast-helpers';
 import { Loan } from '../models/loan-model';
-import { CompoundingFrequency, Investment } from '../models/investment-model';
+import {
+  CompoundingFrequency,
+  Investment,
+  StepUpType,
+} from '../models/investment-model';
 
 // Compare to the cent. The schedule helpers carry an unrounded running balance
 // while the forecast engine re-rounds every step (PRECISION.md §2), so raw
@@ -167,4 +171,49 @@ describe('Consistency: forecastInvestment matches growth at compounding boundari
       }
     });
   });
+});
+
+describe('Consistency: KNOWN divergence — step-up anniversary attribution', () => {
+  // Charter §4 process rule: "every math bug found gets a failing regression
+  // test committed before the fix." The two investment engines agree to the
+  // cent WITHOUT step-ups (asserted above), but disagree once a yearly step-up
+  // is configured: they attribute an on-anniversary contribution to different
+  // year numbers (an off-by-one). See PRECISION.md §4 "Known divergence".
+  //
+  // This is encoded as `it.fails` so the suite is NOT silent about the bug: the
+  // body asserts the engines AGREE, which currently throws, so `it.fails`
+  // passes. The day the off-by-one is reconciled the body stops throwing and
+  // this test flips red — forcing whoever fixes it to convert this into a normal
+  // passing `it`, exactly the "failing test before the fix" the Charter wants.
+  it.fails(
+    'forecastInvestment and generateInvestmentGrowth diverge with a yearly step-up',
+    () => {
+      const start = new Date(2020, 0, 1);
+      const end = new Date(2030, 0, 1);
+      const inv: Investment = {
+        Id: 'I',
+        Provider: '',
+        Name: '',
+        StartDate: start,
+        StartingBalance: 5000,
+        AverageReturnRate: 7,
+        CompoundingPeriod: CompoundingFrequency.Monthly,
+        RecurringContribution: 500,
+        ContributionFrequency: CompoundingFrequency.Monthly,
+        ContributionStepUpAmount: 5,
+        ContributionStepUpType: StepUpType.Percentage,
+      };
+      const growth = generateInvestmentGrowth(inv, end);
+      const forecast = forecastInvestment(inv, end, 0, start);
+
+      // Monthly compounding => boundary month === period index. They already
+      // diverge at the first anniversary (month 12), where the step-up first
+      // applies. When this assertion starts passing, delete `.fails`.
+      for (let month = 1; month < growth.length; month++) {
+        expect(cents(forecast[month].Value)).toBe(
+          cents(growth[month].TotalValue)
+        );
+      }
+    }
+  );
 });
