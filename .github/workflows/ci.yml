@@ -31,8 +31,11 @@ jobs:
       - name: Check formatting
         run: npm run check:format
 
-      - name: Test
-        run: npm test
+      - name: Test (with math-core coverage gate)
+        # Runs the full suite and enforces the Math Correctness Charter's 100%
+        # line+branch coverage threshold on src/helpers/** (configured in
+        # vite.config.ts). Any PR dropping below it fails here.
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build

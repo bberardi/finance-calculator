@@ -21,6 +21,22 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    coverage: {
+      // Math Correctness Charter §4 enforcement: the math core is held to a
+      // hard 100% line+branch gate (UI gets pragmatic targets in Phase 6). The
+      // scope is the pure helpers only; test files, type-only models, and the
+      // relocated React hook are out of scope by construction.
+      provider: 'v8',
+      include: ['src/helpers/**/*.ts'],
+      exclude: ['src/helpers/**/*.test.ts'],
+      reporter: ['text', 'html'],
+      thresholds: {
+        lines: 100,
+        branches: 100,
+        functions: 100,
+        statements: 100,
+      },
+    },
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any);
