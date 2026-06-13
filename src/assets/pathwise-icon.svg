@@ -1,0 +1,49 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PathWise logo">
+  <title>PathWise</title>
+  <defs>
+    <!-- Deep forest brand gradient (matches theme brandGreenDeep -> brandGreenRich) -->
+    <linearGradient id="pwBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b3d2e"/>
+      <stop offset="1" stop-color="#14532d"/>
+    </linearGradient>
+    <!-- Emerald -> teal bars gradient -->
+    <linearGradient id="pwBars" x1="0" y1="1" x2="0.3" y2="0">
+      <stop offset="0" stop-color="#00875a"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+    <!-- Bright spring-green growth line -->
+    <linearGradient id="pwLine" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#00c853"/>
+      <stop offset="1" stop-color="#00e676"/>
+    </linearGradient>
+    <!-- Subtle top highlight for depth -->
+    <radialGradient id="pwGloss" cx="0.32" cy="0.26" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Modern squircle emblem (rounded, flat) -->
+  <rect x="40" y="40" width="432" height="432" rx="116" fill="url(#pwBg)"/>
+  <rect x="40" y="40" width="432" height="432" rx="116" fill="url(#pwGloss)"/>
+  <!-- Thin inner ring for a crisp, contemporary edge -->
+  <rect x="58" y="58" width="396" height="396" rx="100" fill="none" stroke="#00e676" stroke-opacity="0.18" stroke-width="2"/>
+
+  <!-- Ascending bar chart (growth) -->
+  <g>
+    <rect x="150" y="300" width="42" height="84"  rx="14" fill="url(#pwBars)" opacity="0.92"/>
+    <rect x="214" y="252" width="42" height="132" rx="14" fill="url(#pwBars)" opacity="0.96"/>
+    <rect x="278" y="206" width="42" height="178" rx="14" fill="url(#pwBars)"/>
+    <rect x="342" y="160" width="42" height="224" rx="14" fill="url(#pwBars)"/>
+  </g>
+
+  <!-- Rising growth path with arrowhead ("Path" climbing up-and-to-the-right) -->
+  <g stroke="url(#pwLine)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M150 322 L213 268 L289 214 L372 150"/>
+  </g>
+  <!-- Arrowhead -->
+  <path d="M330 150 L388 138 L376 196 Z" fill="#00e676"/>
+
+  <!-- Path start node -->
+  <circle cx="150" cy="322" r="15" fill="#0b3d2e" stroke="#00e676" stroke-width="9"/>
+</svg>
