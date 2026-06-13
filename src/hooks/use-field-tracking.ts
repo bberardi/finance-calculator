@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ValidationResult } from './validation-helpers';
+import { ValidationResult } from '../helpers/validation-helpers';
 
 // Shared form-field reveal/tracking for the add/edit forms (roadmap 0.8).
 //
