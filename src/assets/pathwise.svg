@@ -25,15 +25,15 @@
   <!-- Emblem (same mark as the app icon), centered in the upper area -->
   <g transform="translate(512,360) scale(1.06) translate(-256,-256)">
     <rect x="96" y="96" width="320" height="320" rx="86" fill="#0e4434" stroke="#00e676" stroke-opacity="0.22" stroke-width="2"/>
-    <rect x="150" y="300" width="42" height="84"  rx="14" fill="url(#pwBars2)" opacity="0.92"/>
-    <rect x="214" y="252" width="42" height="132" rx="14" fill="url(#pwBars2)" opacity="0.96"/>
-    <rect x="278" y="206" width="42" height="178" rx="14" fill="url(#pwBars2)"/>
-    <rect x="342" y="160" width="42" height="224" rx="14" fill="url(#pwBars2)"/>
+    <rect x="150" y="340" width="42" height="44"  rx="14" fill="url(#pwBars2)" opacity="0.92"/>
+    <rect x="214" y="312" width="42" height="72"  rx="14" fill="url(#pwBars2)" opacity="0.96"/>
+    <rect x="278" y="266" width="42" height="118" rx="14" fill="url(#pwBars2)"/>
+    <rect x="342" y="192" width="42" height="192" rx="14" fill="url(#pwBars2)"/>
     <g stroke="url(#pwLine2)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
-      <path d="M150 322 L213 268 L289 214 L372 150"/>
+      <path d="M150 350 C 252 346, 356 228, 376 145"/>
     </g>
-    <path d="M330 150 L388 138 L376 196 Z" fill="#00e676"/>
-    <circle cx="150" cy="322" r="15" fill="#0b3d2e" stroke="#00e676" stroke-width="9"/>
+    <path d="M384 124 L395 156 L359 147 Z" fill="#00e676"/>
+    <circle cx="150" cy="350" r="15" fill="#0b3d2e" stroke="#00e676" stroke-width="9"/>
   </g>
 
   <!-- Wordmark -->
