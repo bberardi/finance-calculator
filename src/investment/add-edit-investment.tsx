@@ -28,7 +28,7 @@ import {
   validateInvestment,
 } from '../helpers/validation-helpers';
 import { fieldHelperText } from '../components/field-helper-text';
-import { useFieldTracking } from '../helpers/use-field-tracking';
+import { useFieldTracking } from '../hooks/use-field-tracking';
 
 export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   const [newInvestment, setNewInvestment] =

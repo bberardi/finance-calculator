@@ -25,11 +25,17 @@ src/
 ├── models/              # TypeScript interfaces and types
 │   ├── loan-model.ts
 │   └── investment-model.ts
-├── helpers/             # Business logic and calculations
+├── helpers/             # Pure business logic and calculations (the math core)
 │   ├── loan-helpers.ts
-│   ├── loan-helpers.test.ts
 │   ├── investment-helpers.ts
-│   └── investment-helpers.test.ts
+│   ├── forecast-helpers.ts
+│   ├── *.test.ts             # Co-located unit tests
+│   ├── math-reference.test.ts    # Charter layer 1: oracle tests (Excel/hand-derived)
+│   ├── forecast-consistency.test.ts # Charter layer 2: engine-vs-schedule
+│   ├── math-properties.test.ts   # Charter layer 3: fast-check invariants
+│   ├── math-edge-cases.test.ts   # Charter layer 4: edge catalog
+│   └── PRECISION.md              # Charter layer 5: rounding & consistency policy
+├── hooks/               # Reusable React hooks (UI state, e.g. use-field-tracking)
 ├── loan/                # Loan-related components
 │   ├── loan-table.tsx
 │   ├── add-edit-loan.tsx
@@ -102,6 +108,8 @@ npm run build      # Build for production (TypeScript compilation + Vite build)
 npm test           # Run tests once
 npm run test:watch # Run tests in watch mode (re-runs on file changes)
 npm run test:ui    # Run tests with UI
+npm run test:coverage  # Run tests + enforce 100% coverage gate on src/helpers/**
+npm run test:mutation  # Run Stryker mutation testing over src/helpers/**
 npm run preview    # Preview production build locally
 npm run deploy     # Deploy to GitHub Pages
 ```
@@ -127,6 +135,7 @@ npm run deploy     # Deploy to GitHub Pages
 - The app is deployed to GitHub Pages with base path `/finance-calculator/`
 - No backend or database; all data is managed in client-side state
 - Models are input-only: derived data (amortization schedules, growth projections, forecasts) is computed on demand by helpers and never stored on models or serialized into exports
+- **Core/UI boundary (decision D7)**: `src/helpers/**` and `src/models/**` are a pure, framework-free layer (TypeScript + dayjs only). An ESLint rule forbids them from importing React, MUI, emotion, or any UI component (`*.tsx`). UI depends on the core, never the reverse — put React hooks in `src/hooks/`, not `src/helpers/`.
 - Future plans include file upload/export for data persistence
 - Test data can be toggled in the UI for development purposes
 
@@ -175,11 +184,29 @@ The project uses **Vitest** as its testing framework, configured with globals en
 - Comprehensive test coverage exists for business logic in helpers
 - Tests use Vitest's `describe`, `it`, and `expect` APIs (Jest-like syntax)
 
+### Math Correctness Charter (non-negotiable for `src/helpers/**`)
+
+Financial math must be provably correct, with the proof executable. Any PR
+touching helper math must uphold all of:
+
+- **100% line + branch coverage** on `src/helpers/**`, enforced as a hard CI
+  gate (`npm run test:coverage`, thresholds in `vite.config.ts`).
+- **Reference tests** for every formula against ≥2 independent external sources
+  (spreadsheet PMT/FV/IPMT/CUMIPMT or hand derivations), with the source cited.
+- **Property/invariant tests** (fast-check) and an **edge-case catalog**.
+- **Rounding** follows `src/helpers/PRECISION.md` (cents, round-half-up); assert
+  exact values where the policy defines them, justify every `toBeCloseTo`.
+- A math bug gets a **failing regression test committed before the fix**.
+- **Mutation testing** (Stryker, `npm run test:mutation`) runs on a schedule;
+  surviving mutants are triaged to zero or waived with a comment.
+- UI never re-implements math — helpers are the single source of truth.
+
 ### Testing Best Practices
 
 - **Always write tests** for new business logic in helpers
 - Test edge cases and invalid inputs
-- Use `toBeCloseTo()` for floating-point comparisons
+- Prefer exact assertions (`toBe`); use `toBeCloseTo()` only with a justifying
+  comment (see PRECISION.md)
 - Group related tests using `describe` blocks
 - Write descriptive test names that explain what is being tested
 

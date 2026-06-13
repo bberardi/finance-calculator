@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Math Correctness Charter §4: mutation testing over the math core. Coverage proves the lines ran; mutation testing proves the tests would actually catch a flipped sign or off-by-one. Run on a schedule / pre-release (npm run test:mutation), not on every PR. Surviving mutants are triaged to zero or explicitly waived with a comment.",
+  "testRunner": "vitest",
+  "coverageAnalysis": "perTest",
+  "mutate": ["src/helpers/**/*.ts", "!src/helpers/**/*.test.ts"],
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "_thresholds_comment": "Baseline established 2026-06-13 (first full run): overall mutation score 85.33% (844 killed / 147 survived / 11 timeout, 0 no-coverage). Per file: id-helpers 100, loan-helpers 89.6, data-helpers 86.3, investment-helpers 85.2, forecast-helpers 85.1, validation-helpers 82.7, format-helpers 73.3. break is set just below that baseline so the weekly run fails on a regression (giving the layer teeth per §4) without flaking; ratchet break upward toward the Charter's zero-survivors target as survivors are triaged (open-ended triage tracked in ROADMAP §8.1).",
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 80
+  }
+}

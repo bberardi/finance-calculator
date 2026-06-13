@@ -1,0 +1,40 @@
+name: Mutation testing
+
+# Math Correctness Charter §4: Stryker mutation testing over src/helpers/**.
+# Run on a schedule (weekly) and on demand, NOT on every PR — a full mutation
+# run is far slower than the unit suite. Coverage proves the lines ran; this
+# proves the tests would actually catch a flipped sign or off-by-one.
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Stryker
+        run: npm run test:mutation
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation
+          if-no-files-found: ignore

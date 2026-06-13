@@ -55,8 +55,8 @@ const validateNumericField = (
   field: string,
   entityType: string,
   index: number,
-  predicate: (n: number) => boolean = () => true,
-  rangeDescription = 'a finite number'
+  predicate: (n: number) => boolean,
+  rangeDescription: string
 ): void => {
   if (!isFiniteNumber(value)) {
     throw new Error(
@@ -78,8 +78,8 @@ const validateOptionalNumericField = (
   field: string,
   entityType: string,
   index: number,
-  predicate: (n: number) => boolean = () => true,
-  rangeDescription = 'a finite number'
+  predicate: (n: number) => boolean,
+  rangeDescription: string
 ): void => {
   if (value === undefined || value === null) return;
   validateNumericField(

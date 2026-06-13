@@ -116,8 +116,10 @@ export const getInvestmentPeriods = (
     }
   }
 
-  // Return at least 1 period if the start date is today or in the past
-  return Math.max(periods, start <= end ? 1 : 0);
+  // Return at least 1 period: an investment whose start is today or in the
+  // past has elapsed at least one period. (end < start already returned 0
+  // above, so end >= start holds here.)
+  return Math.max(periods, 1);
 };
 
 // Get the next compounding date based on frequency
@@ -286,15 +288,13 @@ export const generateInvestmentGrowth = (
 
     // Calculate contributions in this period (with step-up if configured)
     let contributionThisPeriod = 0;
-    if (
-      (investment.RecurringContribution || 0) > 0 &&
-      investment.ContributionFrequency
-    ) {
+    const recurringContribution = investment.RecurringContribution ?? 0;
+    if (recurringContribution > 0 && investment.ContributionFrequency) {
       contributionThisPeriod = getContributionsWithStepUp(
         currentDate,
         periodEndDate,
         investment.StartDate,
-        investment.RecurringContribution || 0,
+        recurringContribution,
         investment.ContributionFrequency,
         investment.ContributionStepUpAmount,
         investment.ContributionStepUpType
