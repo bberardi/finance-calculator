@@ -1,23 +1,23 @@
 import {
-  Card,
-  CardContent,
+  DialogContent,
+  DialogTitle,
   Paper,
-  Popover,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
 import {
   generateInvestmentGrowth,
   getPeriodsPerYear,
 } from '../helpers/investment-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
+import { ResponsiveDialog } from '../components/responsive-dialog';
 
 type ScheduleEntry = {
   period: number;
@@ -114,83 +114,45 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
   });
 
   return (
-    <Popover
+    <ResponsiveDialog
       open={!!props.investment}
       onClose={props.onClose}
-      anchorOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-      transformOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-      sx={{ maxHeight: '90vh' }}
+      maxWidth="md"
     >
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Growth Schedule
-          </Typography>
-          <TableContainer component={Paper} sx={{ maxHeight: '75vh' }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{getPeriodLabel()}</TableCell>
-                  <TableCell>Date</TableCell>
-                  {hasStepUp && <TableCell>Contribution</TableCell>}
-                  <TableCell>Total Invested</TableCell>
-                  <TableCell>Interest This Period</TableCell>
-                  <TableCell>Balance</TableCell>
+      <DialogTitle>Growth Schedule</DialogTitle>
+      <DialogContent>
+        <TableContainer component={Paper}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>{getPeriodLabel()}</TableCell>
+                <TableCell>Date</TableCell>
+                {hasStepUp && <TableCell>Contribution</TableCell>}
+                <TableCell>Total Invested</TableCell>
+                <TableCell>Interest This Period</TableCell>
+                <TableCell>Balance</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {scheduleEntries.map((entry) => (
+                <TableRow key={entry.period}>
+                  <TableCell>{entry.period}</TableCell>
+                  <TableCell>{entry.date}</TableCell>
+                  {hasStepUp && (
+                    <TableCell>
+                      {formatCurrency(entry.contributionAmount)}
+                    </TableCell>
+                  )}
+                  <TableCell>{formatCurrency(entry.totalInvested)}</TableCell>
+                  <TableCell>{formatCurrency(entry.interestAccrued)}</TableCell>
+                  <TableCell>{formatCurrency(entry.balance)}</TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {scheduleEntries.map((entry) => (
-                  <TableRow key={entry.period}>
-                    <TableCell>{entry.period}</TableCell>
-                    <TableCell>{entry.date}</TableCell>
-                    {hasStepUp && (
-                      <TableCell>
-                        {entry.contributionAmount.toLocaleString(undefined, {
-                          style: 'currency',
-                          currency: 'USD',
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      {entry.totalInvested.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {entry.interestAccrued.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {entry.balance.toLocaleString(undefined, {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-    </Popover>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+    </ResponsiveDialog>
   );
 };
 

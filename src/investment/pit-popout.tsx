@@ -1,8 +1,7 @@
 import {
   Box,
-  Card,
-  CardContent,
-  Popover,
+  DialogContent,
+  DialogTitle,
   Stack,
   TextField,
   Typography,
@@ -17,7 +16,9 @@ import {
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs, { Dayjs } from 'dayjs';
 import { getPitInvestmentCalculation } from '../helpers/investment-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import { NumericFormat, NumberFormatValues } from 'react-number-format';
+import { ResponsiveDialog } from '../components/responsive-dialog';
 
 export const PitPopout = (props: PitPopoutProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -101,94 +102,62 @@ export const PitPopout = (props: PitPopoutProps) => {
   }, [props.investment, selectedDate]);
 
   return (
-    <Popover
-      open={!!props.investment}
-      onClose={props.onClose}
-      anchorOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-      transformOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-    >
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Point-in-Time Calculator
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
-            <Stack direction="row">
-              <DatePicker
-                label="Projection Date"
-                value={dayjs(selectedDate)}
-                onChange={(date: Dayjs | null) =>
-                  setSelectedDate(date?.toDate() ?? props.investment.StartDate)
-                }
-                minDate={dayjs(props.investment.StartDate)}
-                views={getDatePickerViews()}
-                openTo={
-                  props.investment.CompoundingPeriod ===
-                  CompoundingFrequency.Annually
-                    ? 'year'
-                    : 'month'
-                }
-                sx={{ flex: 4 }}
-              />
-              <NumericFormat
-                label={getPeriodLabel()}
-                value={getPeriodsFromStart(selectedDate)}
-                thousandSeparator
-                decimalScale={2}
-                customInput={TextField}
-                onValueChange={(vs: NumberFormatValues) => {
-                  handlePeriodChange(Number(vs.value));
-                }}
-                isAllowed={(values) => {
-                  const { floatValue } = values;
-                  return floatValue === undefined || floatValue >= 0;
-                }}
-                sx={{ flex: 2 }}
-              />
-            </Stack>
-            <Typography>{`Total Contributions: ${pitInvestment.TotalContributions.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+    <ResponsiveDialog open={!!props.investment} onClose={props.onClose}>
+      <DialogTitle>Point-in-Time Calculator</DialogTitle>
+      <DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            mt: 1,
+          }}
+        >
+          <Stack direction="row">
+            <DatePicker
+              label="Projection Date"
+              value={dayjs(selectedDate)}
+              onChange={(date: Dayjs | null) =>
+                setSelectedDate(date?.toDate() ?? props.investment.StartDate)
               }
-            )}`}</Typography>
-            <Typography>{`Total Interest Earned: ${pitInvestment.TotalInterestEarned.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+              minDate={dayjs(props.investment.StartDate)}
+              views={getDatePickerViews()}
+              openTo={
+                props.investment.CompoundingPeriod ===
+                CompoundingFrequency.Annually
+                  ? 'year'
+                  : 'month'
               }
-            )}`}</Typography>
-            <Typography>{`Current Value: ${pitInvestment.CurrentValue.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            )}`}</Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Popover>
+              sx={{ flex: 4 }}
+            />
+            <NumericFormat
+              label={getPeriodLabel()}
+              value={getPeriodsFromStart(selectedDate)}
+              thousandSeparator
+              decimalScale={2}
+              customInput={TextField}
+              onValueChange={(vs: NumberFormatValues) => {
+                handlePeriodChange(Number(vs.value));
+              }}
+              isAllowed={(values) => {
+                const { floatValue } = values;
+                return floatValue === undefined || floatValue >= 0;
+              }}
+              sx={{ flex: 2 }}
+            />
+          </Stack>
+          <Typography>{`Total Contributions: ${formatCurrency(
+            pitInvestment.TotalContributions
+          )}`}</Typography>
+          <Typography>{`Total Interest Earned: ${formatCurrency(
+            pitInvestment.TotalInterestEarned
+          )}`}</Typography>
+          <Typography>{`Current Value: ${formatCurrency(
+            pitInvestment.CurrentValue
+          )}`}</Typography>
+        </Box>
+      </DialogContent>
+    </ResponsiveDialog>
   );
 };
 

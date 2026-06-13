@@ -115,6 +115,82 @@ describe('financeReducer', () => {
     });
   });
 
+  describe('InsertLoanAt (delete soft-undo, roadmap 0.7)', () => {
+    it('delete then undo restores the identical loan at its original index', () => {
+      const a = makeLoan('a');
+      const b = makeLoan('b', { Name: 'Middle', Principal: 42 });
+      const c = makeLoan('c');
+      const start = stateWith({ loans: [a, b, c] });
+
+      // Delete the middle loan, remembering its index (1).
+      const index = start.loans.findIndex((l) => l.Id === 'b');
+      const deleted = financeReducer(start, { type: 'DeleteLoan', id: 'b' });
+      expect(deleted.loans.map((l) => l.Id)).toEqual(['a', 'c']);
+
+      // Undo restores it at the same position, byte-for-byte identical.
+      const undone = financeReducer(deleted, {
+        type: 'InsertLoanAt',
+        loan: b,
+        index,
+      });
+      expect(undone.loans.map((l) => l.Id)).toEqual(['a', 'b', 'c']);
+      expect(undone.loans[1]).toEqual(b);
+    });
+
+    it('inserts at the front when index is 0', () => {
+      const start = stateWith({ loans: [makeLoan('b'), makeLoan('c')] });
+      const next = financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('a'),
+        index: 0,
+      });
+      expect(next.loans.map((l) => l.Id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('clamps an out-of-range index by appending (list shrank meanwhile)', () => {
+      // Original index was 5, but the list only has one item now.
+      const start = stateWith({ loans: [makeLoan('a')] });
+      const next = financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('z'),
+        index: 5,
+      });
+      expect(next.loans.map((l) => l.Id)).toEqual(['a', 'z']);
+    });
+
+    it('restores into an emptied list', () => {
+      const restored = makeLoan('only');
+      const next = financeReducer(initialFinanceState, {
+        type: 'InsertLoanAt',
+        loan: restored,
+        index: 0,
+      });
+      expect(next.loans).toEqual([restored]);
+    });
+
+    it('is a no-op when the same Id is already present (double undo)', () => {
+      const start = stateWith({ loans: [makeLoan('a'), makeLoan('b')] });
+      const next = financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('a', { Name: 'Dup' }),
+        index: 0,
+      });
+      expect(next).toBe(start);
+    });
+
+    it('does not mutate the input state', () => {
+      const start = stateWith({ loans: [makeLoan('a')] });
+      const snapshot = start.loans;
+      financeReducer(start, {
+        type: 'InsertLoanAt',
+        loan: makeLoan('b'),
+        index: 0,
+      });
+      expect(start.loans).toBe(snapshot);
+      expect(start.loans).toHaveLength(1);
+    });
+  });
+
   describe('AddInvestment', () => {
     it('appends an investment, preserving order', () => {
       const start = stateWith({
@@ -161,6 +237,50 @@ describe('financeReducer', () => {
         id: 'b',
       });
       expect(next.investments.map((i) => i.Id)).toEqual(['a', 'c']);
+    });
+  });
+
+  describe('InsertInvestmentAt (delete soft-undo, roadmap 0.7)', () => {
+    it('delete then undo restores the identical investment at its original index', () => {
+      const x = makeInvestment('x');
+      const y = makeInvestment('y', { Name: 'Middle', StartingBalance: 7 });
+      const z = makeInvestment('z');
+      const start = stateWith({ investments: [x, y, z] });
+
+      const index = start.investments.findIndex((i) => i.Id === 'y');
+      const deleted = financeReducer(start, {
+        type: 'DeleteInvestment',
+        id: 'y',
+      });
+      expect(deleted.investments.map((i) => i.Id)).toEqual(['x', 'z']);
+
+      const undone = financeReducer(deleted, {
+        type: 'InsertInvestmentAt',
+        investment: y,
+        index,
+      });
+      expect(undone.investments.map((i) => i.Id)).toEqual(['x', 'y', 'z']);
+      expect(undone.investments[1]).toEqual(y);
+    });
+
+    it('clamps an out-of-range index by appending', () => {
+      const start = stateWith({ investments: [makeInvestment('x')] });
+      const next = financeReducer(start, {
+        type: 'InsertInvestmentAt',
+        investment: makeInvestment('z'),
+        index: 9,
+      });
+      expect(next.investments.map((i) => i.Id)).toEqual(['x', 'z']);
+    });
+
+    it('is a no-op when the same Id is already present', () => {
+      const start = stateWith({ investments: [makeInvestment('x')] });
+      const next = financeReducer(start, {
+        type: 'InsertInvestmentAt',
+        investment: makeInvestment('x', { Name: 'Dup' }),
+        index: 0,
+      });
+      expect(next).toBe(start);
     });
   });
 
@@ -221,51 +341,51 @@ describe('financeReducer', () => {
     });
   });
 
-  describe('Test data toggle (issue #47)', () => {
-    it('EnableTestData stashes user data and shows fake data', () => {
+  describe('Sample data load/clear (roadmap 0.9)', () => {
+    it('LoadSampleData stashes user data and shows sample data', () => {
       const userLoans = [makeLoan('user-1')];
       const userInvestments = [makeInvestment('user-inv-1')];
       const start = stateWith({
         loans: userLoans,
         investments: userInvestments,
       });
-      const fakeLoans = [makeLoan('fake-1')];
-      const fakeInvestments = [makeInvestment('fake-inv-1')];
+      const sampleLoans = [makeLoan('sample-1')];
+      const sampleInvestments = [makeInvestment('sample-inv-1')];
 
       const next = financeReducer(start, {
-        type: 'EnableTestData',
-        loans: fakeLoans,
-        investments: fakeInvestments,
+        type: 'LoadSampleData',
+        loans: sampleLoans,
+        investments: sampleInvestments,
       });
 
-      expect(next.testDataEnabled).toBe(true);
-      expect(next.loans).toEqual(fakeLoans);
-      expect(next.investments).toEqual(fakeInvestments);
+      expect(next.sampleDataLoaded).toBe(true);
+      expect(next.loans).toEqual(sampleLoans);
+      expect(next.investments).toEqual(sampleInvestments);
       expect(next.stashedLoans).toEqual(userLoans);
       expect(next.stashedInvestments).toEqual(userInvestments);
     });
 
-    it('DisableTestData restores the stashed user data and clears fake data', () => {
+    it('ClearSampleData restores the stashed user data and clears sample data', () => {
       const userLoans = [makeLoan('user-1')];
       const userInvestments = [makeInvestment('user-inv-1')];
-      const enabled = stateWith({
-        testDataEnabled: true,
-        loans: [makeLoan('fake-1')],
-        investments: [makeInvestment('fake-inv-1')],
+      const loaded = stateWith({
+        sampleDataLoaded: true,
+        loans: [makeLoan('sample-1')],
+        investments: [makeInvestment('sample-inv-1')],
         stashedLoans: userLoans,
         stashedInvestments: userInvestments,
       });
 
-      const next = financeReducer(enabled, { type: 'DisableTestData' });
+      const next = financeReducer(loaded, { type: 'ClearSampleData' });
 
-      expect(next.testDataEnabled).toBe(false);
+      expect(next.sampleDataLoaded).toBe(false);
       expect(next.loans).toEqual(userLoans);
       expect(next.investments).toEqual(userInvestments);
       expect(next.stashedLoans).toBeNull();
       expect(next.stashedInvestments).toBeNull();
     });
 
-    it('round-trips: enable then disable restores the exact original data', () => {
+    it('round-trips: load then clear restores the exact original data', () => {
       const userLoans = [makeLoan('a'), makeLoan('b')];
       const userInvestments = [makeInvestment('x')];
       const start = stateWith({
@@ -273,75 +393,75 @@ describe('financeReducer', () => {
         investments: userInvestments,
       });
 
-      const enabled = financeReducer(start, {
-        type: 'EnableTestData',
-        loans: [makeLoan('fake')],
-        investments: [makeInvestment('fake-inv')],
+      const loaded = financeReducer(start, {
+        type: 'LoadSampleData',
+        loans: [makeLoan('sample')],
+        investments: [makeInvestment('sample-inv')],
       });
-      const disabled = financeReducer(enabled, { type: 'DisableTestData' });
+      const cleared = financeReducer(loaded, { type: 'ClearSampleData' });
 
-      expect(disabled.testDataEnabled).toBe(false);
-      expect(disabled.loans).toEqual(userLoans);
-      expect(disabled.investments).toEqual(userInvestments);
+      expect(cleared.sampleDataLoaded).toBe(false);
+      expect(cleared.loans).toEqual(userLoans);
+      expect(cleared.investments).toEqual(userInvestments);
     });
 
-    it('test data never destroys user data even when starting empty', () => {
+    it('sample data never destroys user data even when starting empty', () => {
       const start = initialFinanceState;
-      const enabled = financeReducer(start, {
-        type: 'EnableTestData',
-        loans: [makeLoan('fake')],
+      const loaded = financeReducer(start, {
+        type: 'LoadSampleData',
+        loans: [makeLoan('sample')],
         investments: [],
       });
-      const disabled = financeReducer(enabled, { type: 'DisableTestData' });
-      expect(disabled.loans).toEqual([]);
-      expect(disabled.investments).toEqual([]);
+      const cleared = financeReducer(loaded, { type: 'ClearSampleData' });
+      expect(cleared.loans).toEqual([]);
+      expect(cleared.investments).toEqual([]);
     });
 
-    it('edits made while test data is enabled are discarded on disable (stash wins)', () => {
+    it('edits made while sample data is loaded are discarded on clear (stash wins)', () => {
       const userLoans = [makeLoan('real')];
       const start = stateWith({ loans: userLoans });
 
-      // Enable test data, then the user fiddles with the fake data.
-      const enabled = financeReducer(start, {
-        type: 'EnableTestData',
-        loans: [makeLoan('fake')],
+      // Load sample data, then the user fiddles with the samples.
+      const loaded = financeReducer(start, {
+        type: 'LoadSampleData',
+        loans: [makeLoan('sample')],
         investments: [],
       });
-      const edited = financeReducer(enabled, {
+      const edited = financeReducer(loaded, {
         type: 'AddLoan',
-        loan: makeLoan('added-while-fake'),
+        loan: makeLoan('added-while-sample'),
       });
       expect(edited.loans.map((l) => l.Id)).toEqual([
-        'fake',
-        'added-while-fake',
+        'sample',
+        'added-while-sample',
       ]);
 
-      // Disabling discards those edits and restores the real data.
-      const disabled = financeReducer(edited, { type: 'DisableTestData' });
-      expect(disabled.loans).toEqual(userLoans);
-      expect(disabled.stashedLoans).toBeNull();
+      // Clearing discards those edits and restores the real data.
+      const cleared = financeReducer(edited, { type: 'ClearSampleData' });
+      expect(cleared.loans).toEqual(userLoans);
+      expect(cleared.stashedLoans).toBeNull();
     });
 
-    it('EnableTestData is idempotent and does not overwrite an existing stash', () => {
+    it('LoadSampleData is idempotent and does not overwrite an existing stash', () => {
       const userLoans = [makeLoan('real')];
-      const enabled = financeReducer(stateWith({ loans: userLoans }), {
-        type: 'EnableTestData',
-        loans: [makeLoan('fake-1')],
+      const loaded = financeReducer(stateWith({ loans: userLoans }), {
+        type: 'LoadSampleData',
+        loans: [makeLoan('sample-1')],
         investments: [],
       });
-      const enabledAgain = financeReducer(enabled, {
-        type: 'EnableTestData',
-        loans: [makeLoan('fake-2')],
+      const loadedAgain = financeReducer(loaded, {
+        type: 'LoadSampleData',
+        loans: [makeLoan('sample-2')],
         investments: [],
       });
-      // Stash must still hold the original user data, not fake-1.
-      expect(enabledAgain.stashedLoans).toEqual(userLoans);
-      expect(enabledAgain).toBe(enabled);
+      // Stash must still hold the original user data, not sample-1.
+      expect(loadedAgain.stashedLoans).toEqual(userLoans);
+      expect(loadedAgain).toBe(loaded);
     });
 
-    it('DisableTestData is a no-op when test data is already off', () => {
+    it('ClearSampleData is a no-op when sample data is not loaded', () => {
       const start = stateWith({ loans: [makeLoan('a')] });
-      const next = financeReducer(start, { type: 'DisableTestData' });
+      const next = financeReducer(start, { type: 'ClearSampleData' });
       expect(next).toBe(start);
     });
   });

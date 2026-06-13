@@ -1,4 +1,4 @@
-import { Button, Alert, Snackbar } from '@mui/material';
+import { Button, Alert, Snackbar, Tooltip } from '@mui/material';
 import { useState, useRef } from 'react';
 import {
   exportToJson,
@@ -124,25 +124,35 @@ export const DataManager = () => {
 
   return (
     <>
-      <Button
-        variant="outlined"
-        color="inherit"
-        sx={{ margin: '5px' }}
-        onClick={handleUploadClick}
-        startIcon={<UploadFileIcon />}
+      {/* Import/export are secondary actions (roadmap 0.10): de-emphasized as
+          `text` buttons with icons + tooltips, so the primary "Add" actions
+          lead the command bar. */}
+      <Tooltip title="Import data from a JSON file">
+        <Button
+          variant="text"
+          color="inherit"
+          onClick={handleUploadClick}
+          startIcon={<UploadFileIcon />}
+        >
+          Upload
+        </Button>
+      </Tooltip>
+      <Tooltip
+        title={hasData ? 'Export your data as JSON' : 'No data to export'}
       >
-        Upload
-      </Button>
-      <Button
-        variant="outlined"
-        color="inherit"
-        sx={{ margin: '5px' }}
-        onClick={handleExport}
-        disabled={!hasData}
-        startIcon={<DownloadIcon />}
-      >
-        Export
-      </Button>
+        {/* Span keeps the tooltip working while the button is disabled. */}
+        <span>
+          <Button
+            variant="text"
+            color="inherit"
+            onClick={handleExport}
+            disabled={!hasData}
+            startIcon={<DownloadIcon />}
+          >
+            Export
+          </Button>
+        </span>
+      </Tooltip>
       <input
         ref={fileInputRef}
         type="file"

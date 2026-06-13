@@ -1,8 +1,7 @@
 import {
   Box,
-  Card,
-  CardContent,
-  Popover,
+  DialogContent,
+  DialogTitle,
   Stack,
   TextField,
   Typography,
@@ -12,7 +11,9 @@ import { defaultPit, Loan, PitLoan } from '../models/loan-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { getPitCalculation, getTerms } from '../helpers/loan-helpers';
+import { formatCurrency } from '../helpers/format-helpers';
 import { NumericFormat } from 'react-number-format';
+import { ResponsiveDialog } from '../components/responsive-dialog';
 
 export const PitPopout = (props: PitPopoutProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(props.loan.EndDate);
@@ -39,87 +40,53 @@ export const PitPopout = (props: PitPopoutProps) => {
   }, [props.loan, selectedDate]);
 
   return (
-    <Popover
-      open={!!props.loan}
-      onClose={props.onClose}
-      anchorOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-      transformOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-    >
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Point-in-Time Calculator
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
-            <Stack direction="row">
-              <DatePicker
-                label="Start Date"
-                value={dayjs(selectedDate)}
-                onChange={(date) =>
-                  setSelectedDate(date?.toDate() ?? new Date())
-                }
-                minDate={dayjs(props.loan.StartDate).add(-1, 'month')}
-                maxDate={dayjs(props.loan.EndDate)}
-                views={['year', 'month']}
-                sx={{ flex: 4 }}
-              />
-              <NumericFormat
-                label="Terms"
-                value={getTerms(props.loan, selectedDate)}
-                thousandSeparator
-                decimalScale={0}
-                customInput={TextField}
-                onValueChange={(vs) => {
-                  handleTermsChange(Number(vs.value));
-                }}
-                sx={{ flex: 2 }}
-              />
-            </Stack>
-            <Typography>{`Paid Terms: ${pitLoan.PaidTerms}`}</Typography>
-            <Typography>{`Remaining Terms: ${pitLoan.RemainingTerms}`}</Typography>
-            <Typography>{`Paid Principal: ${pitLoan.PaidPrincipal.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            )}`}</Typography>
-            <Typography>{`Paid Interest: ${pitLoan.PaidInterest.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            )}`}</Typography>
-            <Typography>{`Remaining Principal: ${pitLoan.RemainingPrincipal.toLocaleString(
-              undefined,
-              {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            )}`}</Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Popover>
+    <ResponsiveDialog open={!!props.loan} onClose={props.onClose}>
+      <DialogTitle>Point-in-Time Calculator</DialogTitle>
+      <DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            mt: 1,
+          }}
+        >
+          <Stack direction="row">
+            <DatePicker
+              label="Start Date"
+              value={dayjs(selectedDate)}
+              onChange={(date) => setSelectedDate(date?.toDate() ?? new Date())}
+              minDate={dayjs(props.loan.StartDate).add(-1, 'month')}
+              maxDate={dayjs(props.loan.EndDate)}
+              views={['year', 'month']}
+              sx={{ flex: 4 }}
+            />
+            <NumericFormat
+              label="Terms"
+              value={getTerms(props.loan, selectedDate)}
+              thousandSeparator
+              decimalScale={0}
+              customInput={TextField}
+              onValueChange={(vs) => {
+                handleTermsChange(Number(vs.value));
+              }}
+              sx={{ flex: 2 }}
+            />
+          </Stack>
+          <Typography>{`Paid Terms: ${pitLoan.PaidTerms}`}</Typography>
+          <Typography>{`Remaining Terms: ${pitLoan.RemainingTerms}`}</Typography>
+          <Typography>{`Paid Principal: ${formatCurrency(
+            pitLoan.PaidPrincipal
+          )}`}</Typography>
+          <Typography>{`Paid Interest: ${formatCurrency(
+            pitLoan.PaidInterest
+          )}`}</Typography>
+          <Typography>{`Remaining Principal: ${formatCurrency(
+            pitLoan.RemainingPrincipal
+          )}`}</Typography>
+        </Box>
+      </DialogContent>
+    </ResponsiveDialog>
   );
 };
 

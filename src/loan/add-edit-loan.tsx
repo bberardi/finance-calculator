@@ -1,58 +1,68 @@
 import {
+  Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Popover,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormHelperText,
   Slider,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { emptyLoan, Loan } from '../models/loan-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { getMonthlyPayment, getTerms } from '../helpers/loan-helpers';
 import { NumericFormat } from 'react-number-format';
-import { Delete } from '@mui/icons-material';
+import { ResponsiveDialog } from '../components/responsive-dialog';
+import {
+  isLoanValid,
+  LOAN_RATE_WARNING_THRESHOLD,
+  validateLoan,
+} from '../helpers/validation-helpers';
+import { fieldHelperText } from '../components/field-helper-text';
+import { useFieldTracking } from '../helpers/use-field-tracking';
 
 export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
 
-  const isFormValid = () => {
-    return (
-      newLoan.Name.trim() !== '' &&
-      newLoan.Provider.trim() !== '' &&
-      newLoan.Principal > 0 &&
-      newLoan.CurrentAmount > 0 &&
-      newLoan.InterestRate > 0 &&
-      newLoan.StartDate &&
-      newLoan.EndDate &&
-      newLoan.StartDate < newLoan.EndDate
-    );
-  };
+  const validation = useMemo(() => validateLoan(newLoan), [newLoan]);
+  const isFormValid = () => isLoanValid(newLoan);
+
+  // Touched / submit-attempt reveal logic + the save-disabled explanation,
+  // shared with the investment form (see use-field-tracking).
+  const {
+    touch,
+    errorFor,
+    warningFor,
+    resetTracking,
+    markSubmitAttempted,
+    saveDisabledReason,
+  } = useFieldTracking(validation);
 
   const onSave = () => {
     if (!isFormValid()) {
+      markSubmitAttempted();
       return;
     }
     props.onSave(newLoan, props.loan);
     props.onClose();
     setNewLoan(emptyLoan);
+    resetTracking();
   };
 
-  const onDelete = () => {
-    if (props.loan) {
-      props.onDelete(props.loan);
-    }
+  const onCancel = () => {
     props.onClose();
-    setNewLoan(emptyLoan);
+    resetTracking();
   };
 
   useEffect(() => {
     setNewLoan(props.loan ?? emptyLoan);
-  }, [props.loan]);
+    resetTracking();
+  }, [props.loan, props.open, resetTracking]);
 
   useEffect(() => {
     if (
@@ -79,227 +89,257 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   ]);
 
   return (
-    <Popover
-      open={props.open}
-      onClose={props.onClose}
-      anchorOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-      transformOrigin={{
-        vertical: 'center',
-        horizontal: 'center',
-      }}
-    >
-      <Card>
-        <CardContent>
-          <Typography
-            variant="h5"
-            gutterBottom
-            sx={{
-              textAlign: 'center',
+    <ResponsiveDialog open={props.open} onClose={props.onClose}>
+      <DialogTitle sx={{ textAlign: 'center' }}>
+        {!props.loan ? 'Add new loan' : 'Edit loan'}
+      </DialogTitle>
+      <DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            mt: 1,
+          }}
+        >
+          <TextField
+            label="Name"
+            value={newLoan.Name}
+            onChange={(e) => setNewLoan({ ...newLoan, Name: e.target.value })}
+            onBlur={() => touch('Name')}
+            error={Boolean(errorFor('Name'))}
+            helperText={fieldHelperText(errorFor('Name'), warningFor('Name'))}
+            required
+          />
+          <TextField
+            label="Loan Provider"
+            value={newLoan.Provider}
+            onChange={(e) =>
+              setNewLoan({ ...newLoan, Provider: e.target.value })
+            }
+            onBlur={() => touch('Provider')}
+            error={Boolean(errorFor('Provider'))}
+            helperText={fieldHelperText(
+              errorFor('Provider'),
+              warningFor('Provider')
+            )}
+            required
+          />
+          <NumericFormat
+            label="Principal"
+            value={newLoan.Principal}
+            thousandSeparator
+            decimalScale={2}
+            prefix={'$'}
+            customInput={TextField}
+            onValueChange={(vs) => {
+              setNewLoan({ ...newLoan, Principal: Number(vs.value) });
             }}
-          >
-            {!props.loan ? 'Add new loan' : 'Edit loan'}
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
+            onBlur={() => touch('Principal')}
+            error={Boolean(errorFor('Principal'))}
+            helperText={fieldHelperText(
+              errorFor('Principal'),
+              warningFor('Principal')
+            )}
+            required
+          />
+          <NumericFormat
+            label="Current Amount"
+            value={newLoan.CurrentAmount}
+            thousandSeparator
+            decimalScale={2}
+            prefix={'$'}
+            customInput={TextField}
+            onValueChange={(vs) => {
+              setNewLoan({ ...newLoan, CurrentAmount: Number(vs.value) });
             }}
-          >
-            <TextField
-              label="Name"
-              value={newLoan.Name}
-              onChange={(e) => setNewLoan({ ...newLoan, Name: e.target.value })}
-              required
-            />
-            <TextField
-              label="Loan Provider"
-              value={newLoan.Provider}
-              onChange={(e) =>
-                setNewLoan({ ...newLoan, Provider: e.target.value })
-              }
-              required
-            />
-            <NumericFormat
-              label="Principal"
-              value={newLoan.Principal}
-              thousandSeparator
-              decimalScale={2}
-              prefix={'$'}
-              customInput={TextField}
-              onValueChange={(vs) => {
-                setNewLoan({ ...newLoan, Principal: Number(vs.value) });
-              }}
-              required
-            />
-            <NumericFormat
-              label="Current Amount"
-              value={newLoan.CurrentAmount}
-              thousandSeparator
-              decimalScale={2}
-              prefix={'$'}
-              customInput={TextField}
-              onValueChange={(vs) => {
-                setNewLoan({ ...newLoan, CurrentAmount: Number(vs.value) });
-              }}
-              required
-            />
+            onBlur={() => touch('CurrentAmount')}
+            error={Boolean(errorFor('CurrentAmount'))}
+            helperText={fieldHelperText(
+              errorFor('CurrentAmount'),
+              warningFor('CurrentAmount')
+            )}
+            required
+          />
+          <DatePicker
+            label="Start Date"
+            value={dayjs(newLoan.StartDate)}
+            onChange={(date) => {
+              touch('StartDate');
+              setNewLoan({
+                ...newLoan,
+                StartDate: date?.toDate() ?? new Date(),
+              });
+            }}
+            views={['year', 'month', 'day']}
+            openTo="day"
+            slotProps={{
+              textField: {
+                onBlur: () => touch('StartDate'),
+                error: Boolean(errorFor('StartDate')),
+                helperText: fieldHelperText(
+                  errorFor('StartDate'),
+                  warningFor('StartDate')
+                ),
+              },
+            }}
+          />
+          <Stack direction="row" spacing={1}>
             <DatePicker
-              label="Start Date"
-              value={dayjs(newLoan.StartDate)}
-              onChange={(date) =>
+              label="End Date"
+              value={dayjs(newLoan.EndDate)}
+              onChange={(date) => {
+                touch('EndDate');
                 setNewLoan({
                   ...newLoan,
-                  StartDate: date?.toDate() ?? new Date(),
+                  EndDate: date?.toDate() ?? new Date(),
+                });
+              }}
+              views={['year', 'month', 'day']}
+              openTo="year"
+              sx={{ flex: 5 }}
+              slotProps={{
+                textField: {
+                  onBlur: () => touch('EndDate'),
+                  error: Boolean(errorFor('EndDate')),
+                  helperText: fieldHelperText(
+                    errorFor('EndDate'),
+                    warningFor('EndDate')
+                  ),
+                },
+              }}
+            />
+            <TextField
+              label="Terms"
+              value={getTerms(newLoan)}
+              onChange={(e) =>
+                setNewLoan({
+                  ...newLoan,
+                  EndDate: dayjs(newLoan.StartDate)
+                    .add(Number(e.target.value) - 1, 'months')
+                    .toDate(),
                 })
               }
-              views={['year', 'month', 'day']}
-              openTo="day"
+              sx={{ flex: 2 }}
             />
-            <Stack direction="row" spacing={1}>
-              <DatePicker
-                label="End Date"
-                value={dayjs(newLoan.EndDate)}
-                onChange={(date) =>
+          </Stack>
+          <Stack>
+            <Typography gutterBottom>Interest Percentage</Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: 'center',
+              }}
+            >
+              <Slider
+                value={newLoan.InterestRate}
+                onChange={(_e, newValue) =>
                   setNewLoan({
                     ...newLoan,
-                    EndDate: date?.toDate() ?? new Date(),
+                    InterestRate: Array.isArray(newValue)
+                      ? newValue[0]
+                      : newValue,
                   })
                 }
-                views={['year', 'month', 'day']}
-                openTo="year"
+                valueLabelDisplay="auto"
+                step={0.25}
+                min={0}
+                // Headroom above the warning threshold so the slider can
+                // actually reach a rate that trips the "unusually high" warning,
+                // and so the ceiling tracks the threshold instead of drifting.
+                max={LOAN_RATE_WARNING_THRESHOLD + 10}
                 sx={{ flex: 5 }}
               />
-              <TextField
-                label="Terms"
-                value={getTerms(newLoan)}
-                onChange={(e) =>
-                  setNewLoan({
-                    ...newLoan,
-                    EndDate: dayjs(newLoan.StartDate)
-                      .add(Number(e.target.value) - 1, 'months')
-                      .toDate(),
-                  })
-                }
-                sx={{ flex: 2 }}
-              />
-            </Stack>
-            <Stack>
-              <Typography gutterBottom>Interest Percentage</Typography>
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{
-                  alignItems: 'center',
-                }}
-              >
-                <Slider
-                  value={newLoan.InterestRate}
-                  onChange={(_e, newValue) =>
-                    setNewLoan({
-                      ...newLoan,
-                      InterestRate: Array.isArray(newValue)
-                        ? newValue[0]
-                        : newValue,
-                    })
-                  }
-                  valueLabelDisplay="auto"
-                  step={0.25}
-                  min={0}
-                  max={30}
-                  sx={{ flex: 5 }}
-                />
-                <NumericFormat
-                  label="Interest Rate"
-                  value={newLoan.InterestRate}
-                  thousandSeparator
-                  decimalScale={3}
-                  suffix={'%'}
-                  customInput={TextField}
-                  onValueChange={(vs) => {
-                    setNewLoan({
-                      ...newLoan,
-                      InterestRate: Number(vs.value),
-                    });
-                  }}
-                  sx={{ flex: 2 }}
-                  required
-                />
-              </Stack>
-            </Stack>
-
-            <Stack direction="row">
               <NumericFormat
-                label="Monthly Payment"
-                value={newLoan.MonthlyPayment}
+                label="Interest Rate"
+                value={newLoan.InterestRate}
                 thousandSeparator
-                decimalScale={2}
-                prefix={'$'}
+                decimalScale={3}
+                suffix={'%'}
                 customInput={TextField}
                 onValueChange={(vs) => {
-                  setNewLoan({ ...newLoan, MonthlyPayment: Number(vs.value) });
-                }}
-                sx={{ flex: 6 }}
-                required
-              />
-              <Button
-                onClick={() =>
                   setNewLoan({
                     ...newLoan,
-                    MonthlyPayment: getMonthlyPayment(
-                      newLoan.Principal,
-                      newLoan.InterestRate,
-                      getTerms(newLoan)
-                    ),
-                  })
-                }
-                sx={{ flex: 1 }}
-              >
-                Reset
-              </Button>
+                    InterestRate: Number(vs.value),
+                  });
+                }}
+                onBlur={() => touch('InterestRate')}
+                error={Boolean(errorFor('InterestRate'))}
+                sx={{ flex: 2 }}
+                required
+              />
             </Stack>
-            <Stack direction="row">
-              {props.loan && (
-                <Button
-                  onClick={onDelete}
-                  sx={{ backgroundColor: 'error.main', color: 'white' }}
-                >
-                  <Delete />
-                </Button>
-              )}
-              <Button
-                type="reset"
-                color="secondary"
-                onClick={props.onClose}
-                sx={{ flex: 3 }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                onClick={onSave}
-                disabled={!isFormValid()}
-                sx={{ flex: 5 }}
-              >
-                {!props.loan ? 'Add loan' : 'Save loan'}
-              </Button>
-            </Stack>
-          </Box>
-        </CardContent>
-      </Card>
-    </Popover>
+            {(errorFor('InterestRate') || warningFor('InterestRate')) && (
+              <FormHelperText error={Boolean(errorFor('InterestRate'))}>
+                {fieldHelperText(
+                  errorFor('InterestRate'),
+                  warningFor('InterestRate')
+                )}
+              </FormHelperText>
+            )}
+          </Stack>
+
+          <Stack direction="row">
+            <NumericFormat
+              label="Monthly Payment"
+              value={newLoan.MonthlyPayment}
+              thousandSeparator
+              decimalScale={2}
+              prefix={'$'}
+              customInput={TextField}
+              onValueChange={(vs) => {
+                setNewLoan({ ...newLoan, MonthlyPayment: Number(vs.value) });
+              }}
+              sx={{ flex: 6 }}
+              required
+            />
+            <Button
+              onClick={() =>
+                setNewLoan({
+                  ...newLoan,
+                  MonthlyPayment: getMonthlyPayment(
+                    newLoan.Principal,
+                    newLoan.InterestRate,
+                    getTerms(newLoan)
+                  ),
+                })
+              }
+              sx={{ flex: 1 }}
+            >
+              Reset
+            </Button>
+          </Stack>
+        </Box>
+      </DialogContent>
+      <Box sx={{ px: 3 }}>
+        {!isFormValid() && (
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {saveDisabledReason}
+          </Alert>
+        )}
+      </Box>
+      <DialogActions>
+        <Button type="reset" color="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          onClick={onSave}
+          disabled={!isFormValid()}
+        >
+          {!props.loan ? 'Add loan' : 'Save loan'}
+        </Button>
+      </DialogActions>
+    </ResponsiveDialog>
   );
 };
 
 export interface AddEditLoanProps {
   open: boolean;
   onSave: (newLoan: Loan, oldLoan?: Loan) => void;
-  onDelete: (loan: Loan) => void;
   onClose: () => void;
   loan?: Loan;
 }

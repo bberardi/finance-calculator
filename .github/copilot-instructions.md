@@ -63,7 +63,7 @@ src/
 - **Interfaces**: PascalCase (e.g., `Loan`, `Investment`, `AmortizationScheduleEntry`)
 - **Interface Properties**: PascalCase (e.g., `Principal`, `InterestRate`, `StartDate`)
 - **Functions**: camelCase (e.g., `generateAmortizationSchedule`, `calculateMonthlyPayment`)
-- **Variables**: camelCase (e.g., `loans`, `testDataEnabled`)
+- **Variables**: camelCase (e.g., `loans`, `sampleDataLoaded`)
 - **Files**: kebab-case (e.g., `loan-helpers.ts`, `add-edit-loan.tsx`)
 
 ### Material-UI Usage
