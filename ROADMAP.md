@@ -359,3 +359,43 @@ Issue mapping: **#20 → Phase 1**, **#18 → Phase 2**, **#24 → Phase 4**. Ph
 - **Math Correctness Charter (§4) is non-negotiable**: math-touching PRs ship with reference tests (cited sources), uphold the invariants, and keep `src/helpers/**` at 100% line+branch coverage; math bugs get a failing regression test before the fix
 - Semver bump in `package.json` for behavior changes; update `.github/copilot-instructions.md` and README when structure changes
 - Keep models input-only; derived data is computed, never stored (after 0.3)
+
+---
+
+## 8. Correctness Backlog
+
+Open math/quality items surfaced by the Charter (§4) work that don't belong to a
+single feature phase. Each is already pinned in code or config, so the tracking
+lives here rather than as standalone issues. These are prerequisites-of-trust,
+not features; schedule them alongside the phases as capacity allows (the dayjs
+migration is tagged for Phase 6).
+
+### 8.1 — Reconcile the step-up anniversary off-by-one between the two investment engines
+
+`forecastInvestment` (monthly-grid) and `generateInvestmentGrowth` (period-indexed)
+agree to the cent **without** yearly step-ups but **diverge** once a step-up is
+configured: they attribute an on-anniversary contribution to different year
+numbers. It is purely a step-up **timing** question, not a compounding error.
+
+- **Pinned in code**: `src/helpers/forecast-consistency.test.ts` → _"forecastInvestment and generateInvestmentGrowth diverge with a yearly step-up"_, currently `it.fails` (asserts the engines agree; flips red the day it's fixed, forcing conversion to a normal `it`).
+- **Documented**: `src/helpers/PRECISION.md` §4 ("Known divergence").
+- **Done when**: the anniversary attribution is reconciled against a step-up reference oracle (decide which engine is canonical), a Charter §4 reference test is added, the `it.fails` tripwire becomes a passing `it`, and the PRECISION.md §4 "Known divergence" note is removed.
+
+### 8.2 — Migrate forecast/investment date math to dayjs (Phase 6)
+
+Decision D7 states the core is "TypeScript + dayjs only," but `investment-helpers`
+date stepping still uses raw `Date` arithmetic, which has a silent month-end
+rollover quirk: **Jan 31 + 1 month → Mar 3** (February skipped), so a contribution
+that should compound in February lands in March.
+
+- **Pinned in code**: `src/helpers/math-edge-cases.test.ts` → "documents the JS Date rollover for Jan 31 + 1 month", which tightly pins the current (quirky) output so a migration is a deliberate, reviewed behavior change rather than a silent one.
+- **Done when**: `getNextCompoundingDate`/the forecast date stepping use dayjs (consistent with D7); the month-end edge test asserts **correct** calendar behavior (Jan 31 + 1 month → Feb); regression/reference tests cover month-end and leap-day stepping under the new implementation. Fixing this also makes the engine and the Growth Schedule popout agree on period dates (the display defect previously filed separately).
+
+### 8.3 — Ratchet the Stryker mutation threshold toward zero surviving mutants
+
+Mutation testing (Stryker) runs over `src/helpers/**` as a weekly + on-demand
+workflow. The Charter §4 rule is "surviving mutants triaged to zero or explicitly
+waived with a comment," which a non-blocking weekly run won't drive on its own.
+
+- **Baseline (first full run, 2026-06-13)**: overall **85.33%** (844 killed / 147 survived / 11 timeout). Lowest files: `format-helpers.ts` 73.3%, `validation-helpers.ts` 82.7%, `forecast-helpers.ts` 85.1%, `investment-helpers.ts` 85.2%. `stryker.config.json` `thresholds.break` is **80** (just below baseline, so the weekly run fails on regression without flaking).
+- **Done when**: surviving mutants are triaged (each killed by a strengthened test or explicitly waived as equivalent), and `break` is ratcheted up toward zero survivors as the score improves. `format-helpers.ts` is a good first target.
