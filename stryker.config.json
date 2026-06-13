@@ -8,10 +8,10 @@
   "htmlReporter": {
     "fileName": "reports/mutation/index.html"
   },
-  "_thresholds_comment": "break is a conservative floor so the scheduled run reports a score rather than flaking red; the Charter target is zero surviving mutants, so ratchet break upward as survivors are triaged.",
+  "_thresholds_comment": "Baseline established 2026-06-13 (first full run): overall mutation score 85.33% (844 killed / 147 survived / 11 timeout, 0 no-coverage). Per file: id-helpers 100, loan-helpers 89.6, data-helpers 86.3, investment-helpers 85.2, forecast-helpers 85.1, validation-helpers 82.7, format-helpers 73.3. break is set just below that baseline so the weekly run fails on a regression (giving the layer teeth per §4) without flaking; ratchet break upward toward the Charter's zero-survivors target as survivors are triaged (open-ended triage tracked in ROADMAP §8.1).",
   "thresholds": {
     "high": 90,
     "low": 80,
-    "break": 70
+    "break": 80
   }
 }
