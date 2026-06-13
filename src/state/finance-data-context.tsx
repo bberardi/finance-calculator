@@ -36,10 +36,12 @@ export const FinanceDataContext = createContext<
 export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(financeReducer, initialFinanceState);
 
-  const value = useMemo<FinanceDataContextValue>(
+  // The action creators close over only the stable `dispatch` (and their own
+  // arguments), so build them once. Stable identities mean a consumer that reads
+  // a single method off the context isn't re-rendered by every unrelated state
+  // change — only the `value` object below re-memoizes when `state` changes.
+  const actions = useMemo(
     () => ({
-      state,
-      dispatch,
       addLoan: (loan: Loan) =>
         dispatch({
           type: 'AddLoan',
@@ -66,7 +68,12 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'LoadSampleData', loans, investments }),
       clearSampleData: () => dispatch({ type: 'ClearSampleData' }),
     }),
-    [state]
+    []
+  );
+
+  const value = useMemo<FinanceDataContextValue>(
+    () => ({ state, dispatch, ...actions }),
+    [state, actions]
   );
 
   return (

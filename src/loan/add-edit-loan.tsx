@@ -20,52 +20,32 @@ import { NumericFormat } from 'react-number-format';
 import { ResponsiveDialog } from '../components/responsive-dialog';
 import {
   isLoanValid,
-  LoanField,
+  LOAN_RATE_WARNING_THRESHOLD,
   validateLoan,
 } from '../helpers/validation-helpers';
 import { fieldHelperText } from '../components/field-helper-text';
+import { useFieldTracking } from '../helpers/use-field-tracking';
 
 export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
-  // Track which fields the user has interacted with, plus a save-attempt flag,
-  // so an untouched add form doesn't open all-red. A field's error shows once it
-  // is touched OR a save has been attempted.
-  const [touched, setTouched] = useState<Partial<Record<LoanField, boolean>>>(
-    {}
-  );
-  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const validation = useMemo(() => validateLoan(newLoan), [newLoan]);
   const isFormValid = () => isLoanValid(newLoan);
 
-  const showFor = (field: LoanField) => submitAttempted || touched[field];
-  const touch = (field: LoanField) =>
-    setTouched((prev) => ({ ...prev, [field]: true }));
-  const errorFor = (field: LoanField) =>
-    showFor(field) ? validation.errors[field] : undefined;
-  const warningFor = (field: LoanField) =>
-    showFor(field) ? validation.warnings[field] : undefined;
-
-  const resetTracking = () => {
-    setTouched({});
-    setSubmitAttempted(false);
-  };
-
-  // Why Save is disabled, always visible while invalid. Once the user has
-  // touched fields (or attempted save) we list the specific revealed errors;
-  // before that we show a neutral prompt so the form doesn't open all-red but
-  // the user still knows what's expected.
-  const revealedErrors = (Object.keys(validation.errors) as LoanField[])
-    .filter((field) => showFor(field))
-    .map((field) => validation.errors[field]);
-  const saveDisabledReason =
-    revealedErrors.length > 0
-      ? revealedErrors.join(' ')
-      : 'Fill in all required fields to enable saving.';
+  // Touched / submit-attempt reveal logic + the save-disabled explanation,
+  // shared with the investment form (see use-field-tracking).
+  const {
+    touch,
+    errorFor,
+    warningFor,
+    resetTracking,
+    markSubmitAttempted,
+    saveDisabledReason,
+  } = useFieldTracking(validation);
 
   const onSave = () => {
     if (!isFormValid()) {
-      setSubmitAttempted(true);
+      markSubmitAttempted();
       return;
     }
     props.onSave(newLoan, props.loan);
@@ -81,9 +61,8 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
 
   useEffect(() => {
     setNewLoan(props.loan ?? emptyLoan);
-    setTouched({});
-    setSubmitAttempted(false);
-  }, [props.loan, props.open]);
+    resetTracking();
+  }, [props.loan, props.open, resetTracking]);
 
   useEffect(() => {
     if (
@@ -266,7 +245,10 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
                 valueLabelDisplay="auto"
                 step={0.25}
                 min={0}
-                max={30}
+                // Headroom above the warning threshold so the slider can
+                // actually reach a rate that trips the "unusually high" warning,
+                // and so the ceiling tracks the threshold instead of drifting.
+                max={LOAN_RATE_WARNING_THRESHOLD + 10}
                 sx={{ flex: 5 }}
               />
               <NumericFormat

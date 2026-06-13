@@ -13,7 +13,6 @@ import {
   Grid,
   useTheme,
   useMediaQuery,
-  IconButton,
 } from '@mui/material';
 import {
   Investment,
@@ -26,6 +25,170 @@ import { Calculate, Delete, Edit, TrendingUp } from '@mui/icons-material';
 import { useState } from 'react';
 import { PitPopout } from './pit-popout';
 import { GrowthSchedulePopout } from './growth-schedule-popout';
+import { EntityRowActions, RowAction } from '../components/entity-row-actions';
+
+// Callbacks an investment row/card needs. Passed down from the table so the row
+// and card components can live at module scope (no remount-on-render).
+interface InvestmentRowHandlers {
+  onGrowth: (investment: Investment) => void;
+  onPit: (investment: Investment) => void;
+  onEdit: (investment: Investment) => void;
+  onDelete: (investment: Investment) => void;
+}
+
+const investmentActions = (
+  investment: Investment,
+  handlers: InvestmentRowHandlers
+): RowAction[] => [
+  {
+    icon: <TrendingUp />,
+    title: 'View Growth Schedule',
+    onClick: () => handlers.onGrowth(investment),
+  },
+  {
+    icon: <Calculate />,
+    title: 'Point-in-Time Calculator',
+    onClick: () => handlers.onPit(investment),
+  },
+  {
+    icon: <Edit />,
+    title: 'Edit Investment',
+    onClick: () => handlers.onEdit(investment),
+  },
+  {
+    icon: <Delete />,
+    title: 'Delete Investment',
+    onClick: () => handlers.onDelete(investment),
+    color: 'error',
+  },
+];
+
+const formatContribution = (investment: Investment): string => {
+  if (!investment.RecurringContribution) return 'None';
+  const base = formatCurrency(investment.RecurringContribution);
+  if (
+    !investment.ContributionStepUpType ||
+    !investment.ContributionStepUpAmount
+  )
+    return base;
+  const stepUp =
+    investment.ContributionStepUpType === StepUpType.Flat
+      ? `+${formatCurrency(investment.ContributionStepUpAmount)}/yr`
+      : `+${investment.ContributionStepUpAmount}%/yr`;
+  return `${base} (${stepUp})`;
+};
+
+const getCompoundingText = (period: CompoundingFrequency) => {
+  switch (period) {
+    case CompoundingFrequency.Monthly:
+      return 'Monthly';
+    case CompoundingFrequency.Quarterly:
+      return 'Quarterly';
+    case CompoundingFrequency.Annually:
+      return 'Annually';
+    default:
+      return period;
+  }
+};
+
+const InvestmentCard = ({
+  investment,
+  handlers,
+  isMobile,
+}: {
+  investment: Investment;
+  handlers: InvestmentRowHandlers;
+  isMobile: boolean;
+}) => (
+  <Card sx={{ marginBottom: 2 }}>
+    <CardContent>
+      <Typography variant="h6" component="div">
+        {investment.Name}
+      </Typography>
+      <Typography
+        sx={{
+          color: 'text.secondary',
+          mb: 1.5,
+        }}
+      >
+        {investment.Provider}
+      </Typography>
+      <Box sx={{ marginBottom: 1 }}>
+        <Grid container spacing={2}>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 6,
+            }}
+          >
+            <Typography variant="body2">
+              <strong>Starting Balance:</strong>
+            </Typography>
+            <Typography variant="body2">
+              {formatCurrency(investment.StartingBalance)}
+            </Typography>
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 6,
+            }}
+          >
+            <Typography variant="body2">
+              <strong>Return Rate:</strong>
+            </Typography>
+            <Typography variant="body2">
+              {formatPercent(investment.AverageReturnRate, 3)}
+            </Typography>
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 6,
+            }}
+          >
+            <Typography variant="body2">
+              <strong>Compounding:</strong>
+            </Typography>
+            <Typography variant="body2">
+              {getCompoundingText(investment.CompoundingPeriod)}
+            </Typography>
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 6,
+            }}
+          >
+            <Typography variant="body2">
+              <strong>Recurring:</strong>
+            </Typography>
+            <Typography variant="body2">
+              {formatContribution(investment)}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 0 },
+        }}
+      >
+        <Typography variant="body2">
+          <strong>Periods:</strong> {getInvestmentPeriods(investment)}
+        </Typography>
+        <EntityRowActions
+          actions={investmentActions(investment, handlers)}
+          isMobile={isMobile}
+        />
+      </Box>
+    </CardContent>
+  </Card>
+);
 
 export const InvestmentTable = (props: InvestmentTableProps) => {
   const [selectedPit, setSelectedPit] = useState<Investment | undefined>();
@@ -35,170 +198,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const formatContribution = (investment: Investment): string => {
-    if (!investment.RecurringContribution) return 'None';
-    const base = formatCurrency(investment.RecurringContribution);
-    if (
-      !investment.ContributionStepUpType ||
-      !investment.ContributionStepUpAmount
-    )
-      return base;
-    const stepUp =
-      investment.ContributionStepUpType === StepUpType.Flat
-        ? `+${formatCurrency(investment.ContributionStepUpAmount)}/yr`
-        : `+${investment.ContributionStepUpAmount}%/yr`;
-    return `${base} (${stepUp})`;
+  const handlers: InvestmentRowHandlers = {
+    onGrowth: setSelectedGrowth,
+    onPit: setSelectedPit,
+    onEdit: props.onInvestmentEdit,
+    onDelete: props.onInvestmentDelete,
   };
-
-  const getCompoundingText = (period: CompoundingFrequency) => {
-    switch (period) {
-      case CompoundingFrequency.Monthly:
-        return 'Monthly';
-      case CompoundingFrequency.Quarterly:
-        return 'Quarterly';
-      case CompoundingFrequency.Annually:
-        return 'Annually';
-      default:
-        return period;
-    }
-  };
-
-  const InvestmentActions = ({
-    investment,
-    isMobile = false,
-  }: {
-    investment: Investment;
-    isMobile?: boolean;
-  }) => (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: isMobile ? 'space-around' : 'flex-start',
-        gap: isMobile ? 0 : 1,
-      }}
-    >
-      <IconButton
-        onClick={() => setSelectedGrowth(investment)}
-        color="primary"
-        size={isMobile ? 'medium' : 'small'}
-        title="View Growth Schedule"
-      >
-        <TrendingUp />
-      </IconButton>
-      <IconButton
-        onClick={() => setSelectedPit(investment)}
-        color="primary"
-        size={isMobile ? 'medium' : 'small'}
-        title="Point-in-Time Calculator"
-      >
-        <Calculate />
-      </IconButton>
-      <IconButton
-        onClick={() => props.onInvestmentEdit(investment)}
-        color="primary"
-        size={isMobile ? 'medium' : 'small'}
-        title="Edit Investment"
-      >
-        <Edit />
-      </IconButton>
-      <IconButton
-        onClick={() => props.onInvestmentDelete(investment)}
-        color="error"
-        size={isMobile ? 'medium' : 'small'}
-        title="Delete Investment"
-      >
-        <Delete />
-      </IconButton>
-    </Box>
-  );
-
-  const InvestmentCard = ({ investment }: { investment: Investment }) => (
-    <Card sx={{ marginBottom: 2 }}>
-      <CardContent>
-        <Typography variant="h6" component="div">
-          {investment.Name}
-        </Typography>
-        <Typography
-          sx={{
-            color: 'text.secondary',
-            mb: 1.5,
-          }}
-        >
-          {investment.Provider}
-        </Typography>
-        <Box sx={{ marginBottom: 1 }}>
-          <Grid container spacing={2}>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 6,
-              }}
-            >
-              <Typography variant="body2">
-                <strong>Starting Balance:</strong>
-              </Typography>
-              <Typography variant="body2">
-                {formatCurrency(investment.StartingBalance)}
-              </Typography>
-            </Grid>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 6,
-              }}
-            >
-              <Typography variant="body2">
-                <strong>Return Rate:</strong>
-              </Typography>
-              <Typography variant="body2">
-                {formatPercent(investment.AverageReturnRate, 3)}
-              </Typography>
-            </Grid>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 6,
-              }}
-            >
-              <Typography variant="body2">
-                <strong>Compounding:</strong>
-              </Typography>
-              <Typography variant="body2">
-                {getCompoundingText(investment.CompoundingPeriod)}
-              </Typography>
-            </Grid>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 6,
-              }}
-            >
-              <Typography variant="body2">
-                <strong>Recurring:</strong>
-              </Typography>
-              <Typography variant="body2">
-                {formatContribution(investment)}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1, sm: 0 },
-          }}
-        >
-          <Typography variant="body2">
-            <strong>Periods:</strong> {getInvestmentPeriods(investment)}
-          </Typography>
-          <InvestmentActions investment={investment} isMobile={isMobile} />
-        </Box>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <>
@@ -218,7 +223,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
       {isMobile ? (
         <Box>
           {props.investments.map((investment) => (
-            <InvestmentCard key={investment.Id} investment={investment} />
+            <InvestmentCard
+              key={investment.Id}
+              investment={investment}
+              handlers={handlers}
+              isMobile={isMobile}
+            />
           ))}
         </Box>
       ) : (
@@ -249,7 +259,9 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                   </TableCell>
                   <TableCell>{formatContribution(row)}</TableCell>
                   <TableCell>
-                    <InvestmentActions investment={row} isMobile={false} />
+                    <EntityRowActions
+                      actions={investmentActions(row, handlers)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

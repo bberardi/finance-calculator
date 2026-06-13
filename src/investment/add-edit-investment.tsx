@@ -24,21 +24,15 @@ import dayjs from 'dayjs';
 import { NumericFormat } from 'react-number-format';
 import { ResponsiveDialog } from '../components/responsive-dialog';
 import {
-  InvestmentField,
   isInvestmentValid,
   validateInvestment,
 } from '../helpers/validation-helpers';
 import { fieldHelperText } from '../components/field-helper-text';
+import { useFieldTracking } from '../helpers/use-field-tracking';
 
 export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   const [newInvestment, setNewInvestment] =
     useState<Investment>(emptyInvestment);
-  // Reveal a field's error only once it's touched or a save was attempted, so an
-  // untouched add form doesn't open all-red.
-  const [touched, setTouched] = useState<
-    Partial<Record<InvestmentField, boolean>>
-  >({});
-  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const hasRecurringContribution =
     typeof newInvestment.RecurringContribution === 'number' &&
@@ -50,32 +44,20 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   );
   const isFormValid = () => isInvestmentValid(newInvestment);
 
-  const showFor = (field: InvestmentField) => submitAttempted || touched[field];
-  const touch = (field: InvestmentField) =>
-    setTouched((prev) => ({ ...prev, [field]: true }));
-  const errorFor = (field: InvestmentField) =>
-    showFor(field) ? validation.errors[field] : undefined;
-  const warningFor = (field: InvestmentField) =>
-    showFor(field) ? validation.warnings[field] : undefined;
-
-  const resetTracking = () => {
-    setTouched({});
-    setSubmitAttempted(false);
-  };
-
-  // Why Save is disabled, always visible while invalid. Lists revealed errors
-  // once fields are touched/save attempted; otherwise a neutral prompt.
-  const revealedErrors = (Object.keys(validation.errors) as InvestmentField[])
-    .filter((field) => showFor(field))
-    .map((field) => validation.errors[field]);
-  const saveDisabledReason =
-    revealedErrors.length > 0
-      ? revealedErrors.join(' ')
-      : 'Fill in all required fields to enable saving.';
+  // Touched / submit-attempt reveal logic + the save-disabled explanation,
+  // shared with the loan form (see use-field-tracking).
+  const {
+    touch,
+    errorFor,
+    warningFor,
+    resetTracking,
+    markSubmitAttempted,
+    saveDisabledReason,
+  } = useFieldTracking(validation);
 
   const onSave = () => {
     if (!isFormValid()) {
-      setSubmitAttempted(true);
+      markSubmitAttempted();
       return;
     }
     props.onSave(newInvestment, props.investment);
@@ -91,9 +73,8 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
 
   useEffect(() => {
     setNewInvestment(props.investment ?? emptyInvestment);
-    setTouched({});
-    setSubmitAttempted(false);
-  }, [props.investment, props.open]);
+    resetTracking();
+  }, [props.investment, props.open, resetTracking]);
 
   return (
     <ResponsiveDialog open={props.open} onClose={props.onClose}>
