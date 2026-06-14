@@ -152,6 +152,27 @@ describe('Forecast Helpers', () => {
       series.forEach((point) => expect(point.Value).toBe(0));
     });
 
+    it('treats a stored zero MonthlyPayment as unset and amortizes instead of growing forever (#51)', () => {
+      // With the bug, a stored 0 was a real $0/month payment, so the balance
+      // grew under interest indefinitely. It must instead derive an amortizing
+      // payment from today's balance and remaining term and pay the loan down.
+      const loan = makeLoan({
+        InterestRate: 5,
+        Principal: 100000,
+        CurrentAmount: 100000,
+        MonthlyPayment: 0,
+        EndDate: monthsFromToday(120),
+      });
+
+      const series = forecastLoan(loan, monthsFromToday(120), 0, today);
+      const start = series[0].Value;
+      const end = series[series.length - 1].Value;
+
+      expect(start).toBe(100000);
+      expect(end).toBeLessThan(start); // amortizes, never grows
+      expect(end).toBeLessThan(1); // effectively paid off by the end date
+    });
+
     it('should grow the balance when the payment does not cover interest', () => {
       const loan = makeLoan({
         InterestRate: 12,

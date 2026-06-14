@@ -95,6 +95,11 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   if (loan.StartDate && loan.EndDate && !(loan.StartDate < loan.EndDate)) {
     errors.EndDate = 'End date must be after the start date.';
   }
+  // A non-positive monthly payment never amortizes the loan (the balance would
+  // grow under interest forever), so block it at the source. (#51)
+  if (!(typeof loan.MonthlyPayment === 'number' && loan.MonthlyPayment > 0)) {
+    errors.MonthlyPayment = 'Monthly payment must be greater than 0.';
+  }
 
   // --- Non-blocking sanity warnings ---
   if (

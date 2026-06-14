@@ -12,8 +12,11 @@ export const getTerms = (loan: Loan, date?: Date): number => {
     return 0;
   }
 
+  // A date before the loan starts means no terms have been paid. Returning 0
+  // (not 1) keeps the PIT view from reporting a phantom first payment for dates
+  // earlier than StartDate. (#53)
   if (date && date < loan.StartDate) {
-    return 1;
+    return 0;
   }
 
   if (date && date >= loan.EndDate) {
@@ -68,7 +71,12 @@ export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
     return defaultPit;
   }
 
-  const lastEntry = relevantAmortization[paidTerms - 1];
+  // The schedule may stop early at payoff (#59), so it can hold fewer rows than
+  // the requested paidTerms. Read the last *emitted* entry, not the requested
+  // index — otherwise a PIT date at/after an early payoff indexes past the end
+  // and throws. The last emitted row is the payoff row (RemainingBalance 0),
+  // which is also the correct point-in-time answer for any date past payoff.
+  const lastEntry = relevantAmortization[relevantAmortization.length - 1];
 
   return {
     PaidTerms: lastEntry.Term,
@@ -87,7 +95,11 @@ export const generateAmortizationSchedule = (
   loan: Loan,
   terms?: number
 ): AmortizationScheduleEntry[] => {
-  if (loan.MonthlyPayment === undefined) {
+  // A non-positive (or unset) MonthlyPayment is "no payment specified" — there
+  // is nothing to amortize. Guarding here (not only on `undefined`) stops a
+  // stored 0 from producing a schedule whose balance grows under interest
+  // forever. (#51)
+  if (loan.MonthlyPayment === undefined || loan.MonthlyPayment <= 0) {
     return [];
   }
 
@@ -98,13 +110,20 @@ export const generateAmortizationSchedule = (
   let remainingBalance = loan.Principal;
 
   for (let term = 1; term <= numberOfPayments; term++) {
-    const isLastTerm = term === totalTerms;
-
     const interestPayment =
       Math.round(remainingBalance * monthlyInterestRate * 100) / 100;
-    const principalPayment = !isLastTerm
-      ? Math.round((loan.MonthlyPayment - interestPayment) * 100) / 100
-      : remainingBalance;
+
+    // Close the loan out on the scheduled final term, or as soon as a normal
+    // payment would cover the entire remaining balance (an early payoff, when
+    // the monthly payment exceeds the amortizing amount). Clamping principal to
+    // the remaining balance stops the running balance from going negative and
+    // emitting garbage rows — negative interest, a catastrophic final row —
+    // past the payoff point. (#59)
+    const normalPrincipal =
+      Math.round((loan.MonthlyPayment - interestPayment) * 100) / 100;
+    const isFinalTerm =
+      term === totalTerms || normalPrincipal >= remainingBalance;
+    const principalPayment = isFinalTerm ? remainingBalance : normalPrincipal;
     remainingBalance -= principalPayment;
 
     schedule.push({
@@ -113,6 +132,11 @@ export const generateAmortizationSchedule = (
       InterestPayment: interestPayment,
       RemainingBalance: Math.max(remainingBalance, 0), // Ensure no negative balance
     });
+
+    // Once the balance is cleared, stop — never emit rows after payoff.
+    if (remainingBalance <= 0) {
+      break;
+    }
   }
 
   return schedule;

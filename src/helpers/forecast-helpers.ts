@@ -68,15 +68,19 @@ export const forecastLoan = (
 
   let balance = roundToCents(Math.max(loan.CurrentAmount, 0));
 
-  // When no payment is stored, derive one that amortizes today's actual
-  // balance over the remaining term — not the original principal over the
-  // full term, which would mis-estimate an anchored forecast.
+  // When no usable payment is stored, derive one that amortizes today's actual
+  // balance over the remaining term — not the original principal over the full
+  // term, which would mis-estimate an anchored forecast. A stored 0 (or any
+  // non-positive value) is treated as "unset" rather than a real $0/month
+  // payment, which would otherwise grow the balance forever. (#51)
   const remainingTerms = Math.max(1, getMonthsBetween(today, loan.EndDate));
+  const storedPayment = loan.MonthlyPayment ?? 0;
   const basePayment =
-    loan.MonthlyPayment ??
-    (loan.InterestRate > 0
-      ? getMonthlyPayment(balance, loan.InterestRate, remainingTerms)
-      : roundToCents(balance / remainingTerms));
+    storedPayment > 0
+      ? storedPayment
+      : loan.InterestRate > 0
+        ? getMonthlyPayment(balance, loan.InterestRate, remainingTerms)
+        : roundToCents(balance / remainingTerms);
   const payment = basePayment + extraMonthlyPayment;
 
   const points: ForecastPoint[] = [{ Date: start.toDate(), Value: balance }];
