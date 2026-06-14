@@ -80,7 +80,12 @@ export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
 
   return {
     PaidTerms: lastEntry.Term,
-    RemainingTerms: getTerms(loan) - lastEntry.Term,
+    // Derive remaining terms from the payoff state, not the scheduled term
+    // count: when the schedule stops early at payoff (RemainingBalance 0), the
+    // loan has no terms left, so report 0 rather than (scheduled − payoff term),
+    // which would contradict the $0 remaining principal on the same row. (#73)
+    RemainingTerms:
+      lastEntry.RemainingBalance > 0 ? getTerms(loan) - lastEntry.Term : 0,
     RemainingPrincipal: lastEntry.RemainingBalance,
     PaidPrincipal: loan.Principal - lastEntry.RemainingBalance,
     PaidInterest: relevantAmortization
@@ -121,6 +126,19 @@ export const generateAmortizationSchedule = (
     // past the payoff point. (#59)
     const normalPrincipal =
       Math.round((loan.MonthlyPayment - interestPayment) * 100) / 100;
+
+    // An under-amortizing payment (one that does not cover the period's
+    // interest) would emit negative-principal rows and a balance that grows
+    // every month, finally closing with a catastrophic balloon on the scheduled
+    // final term. That schedule is nonsensical, so stop rather than emit it —
+    // the symmetric counterpart of the early-payoff guard below. The only
+    // exception is a genuine single closing term (term === totalTerms), where
+    // the balance is paid in full regardless. validateLoan surfaces a matching
+    // sanity warning on the input side. (#70)
+    if (normalPrincipal <= 0 && term !== totalTerms) {
+      break;
+    }
+
     const isFinalTerm =
       term === totalTerms || normalPrincipal >= remainingBalance;
     const principalPayment = isFinalTerm ? remainingBalance : normalPrincipal;

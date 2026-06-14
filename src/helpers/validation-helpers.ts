@@ -80,8 +80,12 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   if (!(loan.CurrentAmount > 0)) {
     errors.CurrentAmount = 'Current amount must be greater than 0.';
   }
-  if (!(loan.InterestRate > 0)) {
-    errors.InterestRate = 'Interest rate must be greater than 0.';
+  // 0% is a real, fully-supported rate (interest-free loans) — the engine and
+  // the JSON import boundary both accept it, so the form must too, otherwise an
+  // imported 0% loan becomes uneditable. Only negative (or non-numeric) rates
+  // are rejected. (#72)
+  if (!(loan.InterestRate >= 0)) {
+    errors.InterestRate = 'Interest rate cannot be negative.';
   }
   if (!loan.StartDate) {
     errors.StartDate = 'Start date is required.';
@@ -112,6 +116,20 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   }
   if (loan.InterestRate > LOAN_RATE_WARNING_THRESHOLD) {
     warnings.InterestRate = `Interest rate above ${LOAN_RATE_WARNING_THRESHOLD}% is unusually high — double-check the value.`;
+  }
+  // A payment that does not cover the first period's interest never amortizes
+  // the loan — the balance grows forever and the amortization schedule has
+  // nothing sensible to show. Warn (don't block: the value is type-valid) so
+  // the user sees why their projection looks wrong. (#70)
+  if (
+    loan.Principal > 0 &&
+    loan.InterestRate > 0 &&
+    typeof loan.MonthlyPayment === 'number' &&
+    loan.MonthlyPayment > 0 &&
+    loan.MonthlyPayment < (loan.Principal * loan.InterestRate) / 100 / 12
+  ) {
+    warnings.MonthlyPayment =
+      'Monthly payment is below the first month’s interest — it will never pay the loan off.';
   }
 
   return { errors, warnings, formErrors };
@@ -145,8 +163,12 @@ export const validateInvestment = (
   if (investment.Provider.trim() === '') {
     errors.Provider = 'Provider is required.';
   }
-  if (!(investment.StartingBalance > 0)) {
-    errors.StartingBalance = 'Starting balance must be greater than 0.';
+  // $0 is a real starting point (a brand-new account funded only by recurring
+  // contributions) — the engine and the JSON import boundary both accept it, so
+  // the form must too, otherwise an imported $0-balance investment becomes
+  // uneditable. Only negative (or non-numeric) balances are rejected. (#72)
+  if (!(investment.StartingBalance >= 0)) {
+    errors.StartingBalance = 'Starting balance cannot be negative.';
   }
   // Original rule: AverageReturnRate >= 0 (0 is valid; negative is not).
   if (!(investment.AverageReturnRate >= 0)) {
@@ -157,6 +179,19 @@ export const validateInvestment = (
   }
 
   // --- Non-blocking sanity warnings ---
+  // A $0 starting balance is valid, but $0 AND no recurring contribution
+  // describes an empty investment that will never grow — warn rather than block,
+  // since the value is type-valid and the forecast still runs (flat at 0). (#72)
+  if (
+    investment.StartingBalance === 0 &&
+    !(
+      typeof investment.RecurringContribution === 'number' &&
+      investment.RecurringContribution > 0
+    )
+  ) {
+    warnings.StartingBalance =
+      'Starting balance is 0 with no recurring contribution — this investment will never grow.';
+  }
   if (investment.AverageReturnRate > INVESTMENT_RETURN_WARNING_THRESHOLD) {
     warnings.AverageReturnRate = `A return above ${INVESTMENT_RETURN_WARNING_THRESHOLD}%/yr beats every broad index historically — double-check the value.`;
   }

@@ -85,13 +85,15 @@ describe('validateLoan — errors', () => {
     ).toBeUndefined();
   });
 
-  it('requires InterestRate > 0 (boundary: 0 fails, 0.001 passes)', () => {
+  it('allows InterestRate of 0 (interest-free) but rejects negative (#72)', () => {
+    // 0% is engine- and import-supported, so the form must accept it too —
+    // otherwise an imported 0% loan is uneditable.
     expect(
       validateLoan({ ...validLoan(), InterestRate: 0 }).errors.InterestRate
-    ).toBeDefined();
-    expect(
-      validateLoan({ ...validLoan(), InterestRate: 0.001 }).errors.InterestRate
     ).toBeUndefined();
+    expect(
+      validateLoan({ ...validLoan(), InterestRate: -0.01 }).errors.InterestRate
+    ).toBeDefined();
   });
 
   it('requires EndDate strictly after StartDate (equal dates fail)', () => {
@@ -167,6 +169,34 @@ describe('validateLoan — warnings (non-blocking)', () => {
     expect(validateLoan(high).warnings.InterestRate).toBeDefined();
     expect(isLoanValid(high)).toBe(true);
   });
+
+  it('warns when MonthlyPayment cannot cover the first month’s interest (#70)', () => {
+    // 100k @ 12% => 1000 first-month interest; a 500 payment never amortizes.
+    const underwater = {
+      ...validLoan(),
+      Principal: 100000,
+      CurrentAmount: 100000,
+      InterestRate: 12,
+      MonthlyPayment: 500,
+    };
+    const result = validateLoan(underwater);
+    expect(result.warnings.MonthlyPayment).toBeDefined();
+    // Non-blocking: the value is type-valid, so saving is still allowed.
+    expect(result.errors.MonthlyPayment).toBeUndefined();
+    expect(isLoanValid(underwater)).toBe(true);
+  });
+
+  it('does not warn when MonthlyPayment exactly covers the interest (boundary)', () => {
+    // A payment equal to the first month's interest is not strictly below it.
+    const breakEven = {
+      ...validLoan(),
+      Principal: 100000,
+      CurrentAmount: 100000,
+      InterestRate: 12,
+      MonthlyPayment: 1000,
+    };
+    expect(validateLoan(breakEven).warnings.MonthlyPayment).toBeUndefined();
+  });
 });
 
 describe('validateInvestment — errors', () => {
@@ -185,15 +215,18 @@ describe('validateInvestment — errors', () => {
     ).toBeDefined();
   });
 
-  it('requires StartingBalance > 0 (boundary: 0 fails, 0.01 passes)', () => {
+  it('allows StartingBalance of 0 but rejects negative (#72)', () => {
+    // $0 is engine- and import-supported (a new account funded only by
+    // contributions), so the form must accept it too — otherwise an imported
+    // $0-balance investment is uneditable. (The warning is asserted separately.)
     expect(
       validateInvestment({ ...validInvestment(), StartingBalance: 0 }).errors
         .StartingBalance
-    ).toBeDefined();
-    expect(
-      validateInvestment({ ...validInvestment(), StartingBalance: 0.01 }).errors
-        .StartingBalance
     ).toBeUndefined();
+    expect(
+      validateInvestment({ ...validInvestment(), StartingBalance: -0.01 })
+        .errors.StartingBalance
+    ).toBeDefined();
   });
 
   it('allows AverageReturnRate of 0 but rejects negative (boundary)', () => {
@@ -210,7 +243,7 @@ describe('validateInvestment — errors', () => {
   it('isInvestmentValid is false whenever any error is present', () => {
     expect(isInvestmentValid({ ...validInvestment(), Name: '' })).toBe(false);
     expect(
-      isInvestmentValid({ ...validInvestment(), StartingBalance: 0 })
+      isInvestmentValid({ ...validInvestment(), StartingBalance: -1 })
     ).toBe(false);
   });
 });
@@ -229,6 +262,29 @@ describe('validateInvestment — warnings (non-blocking)', () => {
     };
     expect(validateInvestment(high).warnings.AverageReturnRate).toBeDefined();
     expect(isInvestmentValid(high)).toBe(true);
+  });
+
+  it('warns on a $0 balance with no recurring contribution (#72)', () => {
+    const empty = {
+      ...validInvestment(),
+      StartingBalance: 0,
+      RecurringContribution: 0,
+    };
+    const result = validateInvestment(empty);
+    expect(result.warnings.StartingBalance).toBeDefined();
+    // Non-blocking: $0 is a valid starting balance.
+    expect(result.errors.StartingBalance).toBeUndefined();
+    expect(isInvestmentValid(empty)).toBe(true);
+  });
+
+  it('does not warn on a $0 balance when a recurring contribution is set (#72)', () => {
+    const funded = {
+      ...validInvestment(),
+      StartingBalance: 0,
+      RecurringContribution: 100,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    };
+    expect(validateInvestment(funded).warnings.StartingBalance).toBeUndefined();
   });
 
   it('warns when contribution cadence is finer than the compounding period', () => {

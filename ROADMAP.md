@@ -379,16 +379,23 @@ lives here rather than as standalone issues. These are prerequisites-of-trust,
 not features; schedule them alongside the phases as capacity allows (the dayjs
 migration is tagged for Phase 6).
 
-### 8.1 — Reconcile the step-up anniversary off-by-one between the two investment engines
+### 8.1 — Reconcile the step-up anniversary off-by-one between the two investment engines — ✅ RESOLVED (2026-06-14)
 
 `forecastInvestment` (monthly-grid) and `generateInvestmentGrowth` (period-indexed)
-agree to the cent **without** yearly step-ups but **diverge** once a step-up is
-configured: they attribute an on-anniversary contribution to different year
-numbers. It is purely a step-up **timing** question, not a compounding error.
+agreed to the cent **without** yearly step-ups but **diverged** once a step-up was
+configured: they attributed an on-anniversary contribution to different year
+numbers. It was purely a step-up **timing** question, not a compounding error.
 
-- **Pinned in code**: `src/helpers/forecast-consistency.test.ts` → _"forecastInvestment and generateInvestmentGrowth diverge with a yearly step-up"_, currently `it.fails` (asserts the engines agree; flips red the day it's fixed, forcing conversion to a normal `it`).
-- **Documented**: `src/helpers/PRECISION.md` §4 ("Known divergence").
-- **Done when**: the anniversary attribution is reconciled against a step-up reference oracle (decide which engine is canonical), a Charter §4 reference test is added, the `it.fails` tripwire becomes a passing `it`, and the PRECISION.md §4 "Known divergence" note is removed.
+**Resolution**: `generateInvestmentGrowth` (which backs the PIT view and Growth
+Schedule popout) is canonical. `forecastInvestment` now attributes each grid-month
+contribution to the period-opening contribution one contribution-interval earlier
+(`getInvestmentYear(monthDate − interval)`), matching the period engine. The two
+now agree to the cent at every compounding boundary with or without step-ups.
+
+- **Reconciled in**: `src/helpers/forecast-helpers.ts` (`forecastInvestment` year attribution).
+- **Tripwire flipped**: `src/helpers/forecast-consistency.test.ts` — the former `it.fails` is now a normal passing `it` asserting the engines agree with a yearly step-up.
+- **Reference oracle added** (Charter §4 layer 1): `src/helpers/math-reference.test.ts` — a hand-derived 0%-return step-up total pins the absolute value and that both engines match it.
+- **Documentation updated**: `src/helpers/PRECISION.md` §4 now records the reconciliation instead of a known divergence.
 
 ### 8.2 — Migrate forecast/investment date math to dayjs (Phase 6)
 

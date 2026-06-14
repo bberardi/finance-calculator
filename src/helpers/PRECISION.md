@@ -61,23 +61,22 @@ and **must not drift**. The enforced, tested guarantees:
 - **Investments — exact at compounding boundaries.** `forecastInvestment`
   anchored at the start matches `generateInvestmentGrowth`'s `TotalValue` **to the
   cent** at every compounding boundary (month `period × 12 / periodsPerYear`),
-  for monthly/quarterly/annual compounding with monthly/quarterly contributions
-  and **no step-up**.
+  for monthly/quarterly/annual compounding with monthly/quarterly contributions,
+  **including with yearly step-ups** (see below).
 
-### Known divergence (documented, not yet reconciled)
+### Step-up anniversary attribution (reconciled, ROADMAP §8.1)
 
-With **yearly step-ups enabled**, the two investment engines assign a
-contribution that lands on an anniversary to **different year numbers** (an
-off-by-one in anniversary attribution: the period-indexed
-`generateInvestmentGrowth` first steps up one period later than the monthly-grid
-`forecastInvestment`). Without step-ups the engines are identical to the cent, so
-this is purely a step-up **timing** question, not a compounding error. It is
-called out here and — so the suite is not silent about it — encoded as an
-executable tripwire in `forecast-consistency.test.ts`: the test
-_"forecastInvestment and generateInvestmentGrowth diverge with a yearly step-up"_
-uses Vitest's `it.fails` to assert the engines **agree**, which currently throws.
-The day the off-by-one is reconciled that body stops throwing and the test flips
-red, forcing the fixer to convert it into a normal passing `it` — exactly the
-"failing regression test committed before the fix" the Charter's process rule
-requires. Until then, the boundary-consistency tests cover only the no-step-up
-cases that are provably exact.
+The two investment engines previously diverged once a **yearly step-up** was
+enabled: they assigned a contribution that lands on an anniversary to different
+year numbers (an off-by-one — the monthly-grid `forecastInvestment` stepped up
+one contribution earlier than the period-indexed `generateInvestmentGrowth`).
+The period engine is canonical (it backs the PIT view and the Growth Schedule
+popout), so `forecastInvestment` was reconciled to it: the contribution fired at
+grid month `m` is attributed to the period-opening contribution one
+contribution-interval earlier (`getInvestmentYear(monthDate − interval)`), which
+is exactly the contribution `generateInvestmentGrowth` applies in the matching
+period. With that shift the engines now agree to the cent at every compounding
+boundary **with or without** step-ups. The previous `it.fails` tripwire in
+`forecast-consistency.test.ts` is now a normal passing `it` that asserts the
+agreement, and a hand-derived step-up oracle pins the absolute value in
+`math-reference.test.ts`.
