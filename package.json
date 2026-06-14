@@ -2,7 +2,7 @@
   "homepage": "https://bberardi.github.io/finance-calculator/",
   "name": "finance-calculator",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.7.1",
   "type": "module",
   "scripts": {
     "start": "npm run dev",
@@ -32,6 +32,9 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-number-format": "^5.4.5"
+  },
+  "overrides": {
+    "qs": "^6.15.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.11.1",
