@@ -8,10 +8,10 @@
   "htmlReporter": {
     "fileName": "reports/mutation/index.html"
   },
-  "_thresholds_comment": "Baseline established 2026-06-13 (first full run): overall mutation score 85.33% (844 killed / 147 survived / 11 timeout, 0 no-coverage). Per file: id-helpers 100, loan-helpers 89.6, data-helpers 86.3, investment-helpers 85.2, forecast-helpers 85.1, validation-helpers 82.7, format-helpers 73.3. break is set just below that baseline so the weekly run fails on a regression (giving the layer teeth per §4) without flaking; ratchet break upward toward the Charter's zero-survivors target as survivors are triaged (open-ended triage tracked in ROADMAP §8.3).",
+  "_thresholds_comment": "Baseline refreshed 2026-06-14 (ROADMAP §8.3 ratchet): overall mutation score 85.04% (924 killed / 165 survived / 14 timeout, 0 no-coverage). Per file: id-helpers 100, loan-helpers 88.2, data-helpers 86.3, forecast-helpers 84.9, investment-helpers 83.9, validation-helpers 83.7, format-helpers 73.3. break ratcheted 80 -> 83 (just below baseline, with headroom for run-to-run timeout variance) so the weekly run fails on a regression (giving the layer teeth per §4) without flaking; keep ratcheting break upward toward the Charter's zero-survivors target as survivors are triaged (open-ended triage tracked in ROADMAP §8.3). format-helpers' 4 survivors are the Intl.NumberFormat caching layer (cache-hit branch / .set call) — equivalent mutants that change performance, not output, so no test can kill them; left as a documented waiver.",
   "thresholds": {
     "high": 90,
     "low": 80,
-    "break": 80
+    "break": 83
   }
 }
