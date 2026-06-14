@@ -413,6 +413,33 @@ describe('Investment Helpers', () => {
         // Note: TotalInterestEarned is cumulative over all years
         expect(pit.TotalInterestEarned).toBe(24656.3);
       });
+
+      it('reports ProjectedAnnualReturn as an annualized rate, not a cumulative total (#57)', () => {
+        // 10,000 grew to 34,656.30 over ~30 years of 4.23%/yr annual
+        // compounding. The OLD bug reported the CUMULATIVE return
+        // (totalInterest / contributions ≈ 246.6%); the field must instead be
+        // an annual %, comparable to AverageReturnRate (a single-digit rate).
+        const endDate = new Date(2055, 0, 1);
+        const pit = getPitInvestmentCalculation(investment, endDate);
+
+        const cumulativeReturn =
+          (pit.TotalInterestEarned / pit.TotalContributions) * 100; // ≈ 246.6
+
+        expect(pit.ProjectedAnnualReturn).toBeGreaterThan(0);
+        expect(pit.ProjectedAnnualReturn).toBeLessThan(10);
+        // Far below the cumulative figure the bug used to return.
+        expect(pit.ProjectedAnnualReturn).toBeLessThan(cumulativeReturn / 10);
+
+        // Reference: CAGR over contributions =
+        //   (CurrentValue / TotalContributions)^(1 / years) - 1,
+        // years = CurrentPeriods / periodsPerYear(Annually = 1) = CurrentPeriods.
+        // Closed-form float reference, so toBeCloseTo per PRECISION.md §3.
+        const years = pit.CurrentPeriods;
+        const expected =
+          (Math.pow(pit.CurrentValue / pit.TotalContributions, 1 / years) - 1) *
+          100;
+        expect(pit.ProjectedAnnualReturn).toBeCloseTo(expected, 2);
+      });
     });
   });
 

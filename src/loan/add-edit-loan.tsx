@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { emptyLoan, Loan } from '../models/loan-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
@@ -59,28 +59,39 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
     resetTracking();
   };
 
+  // When the dialog opens to EDIT an existing loan, the driving fields below
+  // transition from emptyLoan defaults to the loaded values, which would
+  // otherwise trigger the auto-recompute effect and clobber the loan's stored
+  // MonthlyPayment. Suppress that one recompute so a saved/custom payment
+  // survives opening the editor. (#56)
+  const skipNextPaymentRecompute = useRef(false);
+
   useEffect(() => {
     setNewLoan(props.loan ?? emptyLoan);
     resetTracking();
+    skipNextPaymentRecompute.current = Boolean(props.loan);
   }, [props.loan, props.open, resetTracking]);
 
   useEffect(() => {
+    if (skipNextPaymentRecompute.current) {
+      skipNextPaymentRecompute.current = false;
+      return;
+    }
     if (
       newLoan.Principal &&
       newLoan.InterestRate &&
       newLoan.StartDate &&
       newLoan.EndDate
     ) {
-      setNewLoan({
-        ...newLoan,
+      setNewLoan((prev) => ({
+        ...prev,
         MonthlyPayment: getMonthlyPayment(
-          newLoan.Principal,
-          newLoan.InterestRate,
-          getTerms(newLoan)
+          prev.Principal,
+          prev.InterestRate,
+          getTerms(prev)
         ),
-      });
+      }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     newLoan.Principal,
     newLoan.InterestRate,
@@ -212,14 +223,21 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
             <TextField
               label="Terms"
               value={getTerms(newLoan)}
-              onChange={(e) =>
+              onChange={(e) => {
+                // Ignore empty / non-numeric / sub-1 input so the field can't
+                // drive EndDate before StartDate or to an Invalid Date (which
+                // would propagate NaN through getTerms / MonthlyPayment). (#52)
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n) || n < 1) {
+                  return;
+                }
                 setNewLoan({
                   ...newLoan,
                   EndDate: dayjs(newLoan.StartDate)
-                    .add(Number(e.target.value) - 1, 'months')
+                    .add(n - 1, 'months')
                     .toDate(),
-                })
-              }
+                });
+              }}
               sx={{ flex: 2 }}
             />
           </Stack>

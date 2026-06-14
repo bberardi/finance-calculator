@@ -180,6 +180,56 @@ describe('Loan Helpers', () => {
       expect(schedule.length).toBe(6);
       expect(schedule[5].Term).toBe(6);
     });
+
+    it('stops at payoff without emitting garbage rows when the payment exceeds the amortizing amount', () => {
+      // Regression for #59: a MonthlyPayment large enough to clear the balance
+      // before the full term must end the schedule at payoff — no extra rows
+      // with negative interest, and no catastrophic final row.
+      const loan: Loan = {
+        Id: 'test-id-early-payoff',
+        Provider: 'Test Lender',
+        Name: 'Aggressive Payoff',
+        StartDate: new Date('2024-01-01'),
+        EndDate: new Date('2034-01-01'), // 121 scheduled terms
+        Principal: 100000,
+        CurrentAmount: 100000,
+        InterestRate: 5,
+        MonthlyPayment: 5000, // far above the ~1060 amortizing payment
+      };
+
+      const schedule = generateAmortizationSchedule(loan);
+
+      // Far fewer than the 121 scheduled terms — it ends at payoff (~term 21).
+      expect(schedule.length).toBeLessThan(30);
+      // The balance closes to exactly 0 on the final emitted row.
+      expect(schedule[schedule.length - 1].RemainingBalance).toBe(0);
+      // No post-payoff garbage anywhere in the schedule.
+      schedule.forEach((entry) => {
+        expect(entry.InterestPayment).toBeGreaterThanOrEqual(0); // never negative
+        expect(entry.RemainingBalance).toBeGreaterThanOrEqual(0);
+        expect(entry.PrincipalPayment).toBeGreaterThanOrEqual(0);
+        // No catastrophic payment: principal can't exceed the monthly payment.
+        expect(entry.PrincipalPayment).toBeLessThanOrEqual(5000);
+      });
+    });
+
+    it('returns an empty schedule for a non-positive MonthlyPayment', () => {
+      // Regression for #51: a stored 0 is "no payment specified", not a real
+      // $0/month payment — which would otherwise grow the balance forever.
+      const loan: Loan = {
+        Id: 'test-id-zero-payment',
+        Provider: 'Test Lender',
+        Name: 'Zero Payment Loan',
+        StartDate: new Date('2024-01-01'),
+        EndDate: new Date('2034-01-01'),
+        Principal: 100000,
+        CurrentAmount: 100000,
+        InterestRate: 5,
+        MonthlyPayment: 0,
+      };
+
+      expect(generateAmortizationSchedule(loan)).toEqual([]);
+    });
   });
 
   describe('getPitCalculation', () => {
@@ -254,7 +304,10 @@ describe('Loan Helpers', () => {
       expect(pit).toEqual(defaultPit);
     });
 
-    it('should return term-1 view (PaidTerms === 1) when date is before StartDate', () => {
+    it('should return defaultPit (no paid terms) when the date is before StartDate', () => {
+      // Regression for #53: a date earlier than StartDate has zero paid terms,
+      // not one — the loan has not made any payment yet, so the PIT view must
+      // report nothing paid rather than a phantom first installment.
       const loan: Loan = {
         Id: 'test-id-pre-start',
         Provider: 'Test Lender',
@@ -267,10 +320,14 @@ describe('Loan Helpers', () => {
         MonthlyPayment: 1032.92,
       };
 
+      // getTerms for a pre-start date is 0 (no payments made yet).
+      expect(getTerms(loan, new Date('2025-01-01'))).toBe(0);
+
       // Query a date before the loan's StartDate
       const pit = getPitCalculation(loan, new Date('2025-01-01'));
 
-      expect(pit.PaidTerms).toBe(1);
+      expect(pit.PaidTerms).toBe(0);
+      expect(pit).toEqual(defaultPit);
     });
   });
 

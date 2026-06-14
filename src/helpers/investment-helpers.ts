@@ -353,9 +353,17 @@ export const getPitInvestmentCalculation = (
 
   const totalInterestEarned = currentValue - totalContributions;
 
+  // Annualized (compound) return, not the cumulative total. Deriving years from
+  // the period count / compounding frequency, the figure is the constant annual
+  // rate that grows total contributions to the current value — dimensionally an
+  // annual %, comparable to AverageReturnRate. (Approximate when contributions
+  // arrive mid-period.) The previous (total ÷ contributions) figure overstated
+  // the annual return on any multi-year holding. (#57)
+  const years =
+    currentPeriods / getPeriodsPerYear(investment.CompoundingPeriod);
   const projectedAnnualReturn =
-    totalContributions > 0
-      ? (totalInterestEarned / totalContributions) * 100
+    years > 0 && totalContributions > 0 && currentValue > 0
+      ? (Math.pow(currentValue / totalContributions, 1 / years) - 1) * 100
       : 0;
 
   return {

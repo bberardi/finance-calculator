@@ -115,6 +115,24 @@ describe('validateLoan — errors', () => {
     expect(validateLoan(valid).errors.EndDate).toBeUndefined();
   });
 
+  it('requires MonthlyPayment > 0 (0, negative, and missing all fail; 0.01 passes)', () => {
+    // Regression for #51: a non-positive payment never amortizes the loan.
+    expect(
+      validateLoan({ ...validLoan(), MonthlyPayment: 0 }).errors.MonthlyPayment
+    ).toBeDefined();
+    expect(
+      validateLoan({ ...validLoan(), MonthlyPayment: -5 }).errors.MonthlyPayment
+    ).toBeDefined();
+    expect(
+      validateLoan({ ...validLoan(), MonthlyPayment: undefined }).errors
+        .MonthlyPayment
+    ).toBeDefined();
+    expect(
+      validateLoan({ ...validLoan(), MonthlyPayment: 0.01 }).errors
+        .MonthlyPayment
+    ).toBeUndefined();
+  });
+
   it('isLoanValid is false whenever any error is present', () => {
     expect(isLoanValid({ ...validLoan(), Name: '' })).toBe(false);
     expect(isLoanValid({ ...validLoan(), Principal: 0 })).toBe(false);
