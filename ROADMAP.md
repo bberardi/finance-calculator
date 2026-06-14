@@ -91,7 +91,7 @@ Per issue #20: explicit toggle, disabling clears stored data, the toggle state i
 
 ### D5 — Export schema v2
 
-Once derived fields are stripped (G2), exports shrink dramatically. Bump the export `version`, and make import accept both v1 (ignore embedded schedules) and v2. No breaking change for existing user files.
+Once derived fields are stripped (G2), exports shrink dramatically. Bump the export `version`, and make import accept both v1 (ignore embedded schedules) and v2. No breaking change for existing user files. Import and `localStorage` hydration both run through the single migration ladder (D8) rather than ad-hoc per-version branches.
 
 ### D6 — Keep MUI; modernize dependencies in Phase 0, not Phase 6
 
@@ -108,6 +108,10 @@ Once derived fields are stripped (G2), exports shrink dramatically. Bump the exp
 - **Graduation triggers** (revisit when any occurs): a genuine second consumer — a CLI, a second frontend, or publishing the engine as an open-source npm package (`@pathwise/engine`, see H5). The boundary rules make the eventual extraction mechanical: if nothing in the core imports UI, moving it to `packages/core` is a file move, not a refactor.
 
 Same philosophy as D2: take the architectural discipline now, skip the speculative tooling until something concrete demands it.
+
+### D8 — One versioned schema-migration ladder
+
+The persisted schema bumps at least four times across the plan (export v2 in D5, scenarios in 4.5, snapshots in H4, multi-profile in H5). Rather than each reader carrying its own pairwise "accept v_n" backward-compat branch, define a single `schemaVersion`-keyed `migrate(data): CurrentSchema` step ladder that **every** entry point runs through — JSON import (D5), `localStorage` hydration (D4), and every future bump. Each new version adds exactly one migration step, tested to the same standard as the import validator, so old exports and stale `localStorage` upgrade forward deterministically instead of becoming a combinatorial compatibility hazard. Lands with the first persistence work (Phase 1), where stored data first has to survive a version change.
 
 ---
 
@@ -168,12 +172,12 @@ _Unblocks everything else — and fixes the baseline experience so every later p
 
 _Highest value-to-effort ratio in the backlog; independent of charts._
 
-| #   | Work item                                                                                                                                                     | Notes / acceptance                                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1.1 | `storage-helpers.ts`: versioned save/load/clear of inputs-only schema; validation-on-load reusing import logic (D4)                                           | Unit tested, including corrupt-data and quota-exceeded paths.                                                                 |
-| 1.2 | "Save data on this device" toggle in command bar; hydrate on app load; debounced auto-save on change; disabling clears storage; toggle state itself persisted | All four behaviors from issue #20. Snackbar feedback consistent with DataManager's.                                           |
-| 1.3 | First-visit notice explaining data stays on-device (ties into the toggle)                                                                                     | Doubles as the privacy story: no backend, no tracking.                                                                        |
-| 1.4 | **Global error boundary with recovery**: app-level (and later chart-level) React error boundary with a reload affordance and an "export my data" escape hatch | A render-time exception must never white-screen the app or trap unsaved data — matters most once persistence and charts land. |
+| #   | Work item                                                                                                                                                     | Notes / acceptance                                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | `storage-helpers.ts`: versioned save/load/clear of inputs-only schema; validation-on-load reusing import logic (D4)                                           | Unit tested, including corrupt-data and quota-exceeded paths. Hydration runs through the D8 migration ladder so older stored schemas upgrade forward. |
+| 1.2 | "Save data on this device" toggle in command bar; hydrate on app load; debounced auto-save on change; disabling clears storage; toggle state itself persisted | All four behaviors from issue #20. Snackbar feedback consistent with DataManager's.                                                                   |
+| 1.3 | First-visit notice explaining data stays on-device (ties into the toggle)                                                                                     | Doubles as the privacy story: no backend, no tracking.                                                                                                |
+| 1.4 | **Global error boundary with recovery**: app-level (and later chart-level) React error boundary with a reload affordance and an "export my data" escape hatch | A render-time exception must never white-screen the app or trap unsaved data — matters most once persistence and charts land.                         |
 
 ---
 
@@ -245,7 +249,12 @@ _Independent items; good filler between phases or alongside reviews. (The big UX
 - Snackbar soft-undo for import-merge overwrites in DataManager (the delete undo lands with 0.7; merge-by-Id clobbers are otherwise unrecoverable)
 - **Pre-merge "what changed" preview in DataManager**: before committing an ID-based import merge, show which entities will be _added_ vs. _overwritten_, so the clobber is prevented up front rather than only recoverable after the fact via the soft-undo above; pairs with the #46 import-validation hardening (0.12)
 - **Table search / filter / grouping**: filter and grouping controls on the loan/investment tables (sorting, a totals row, and clone already land in 3.3) — keeps the tables usable as H3 fills them with cash, property, pension, and custom-asset rows
+- **Bulk multi-select table actions**: select multiple loans/investments to delete or duplicate at once, reusing the 0.7 confirm + soft-undo pattern; complements per-row clone (3.3) and the filter/grouping above as H3 fills the tables
 - Code-split the heaviest bundles (MUI X charts, date pickers, popout dialogs) to protect first paint on mobile/GitHub Pages
+- **Performance regression gate in CI**: a bundle-size budget on the production build (optionally a Lighthouse-CI run) wired into `ci.yml`, soft-then-hard, so the code-split win above can't silently regress as charts, the Web Worker optimizer (5.2), and Monte Carlo (H2) land — making "protect first paint" an enforced invariant, mirroring §4's coverage gate
+- **Social/SEO + share metadata in `index.html`**: `<meta name="description">`, Open Graph / Twitter-card tags, and a static preview image so links to the deployed site (and the H5 shareable-links use case) render a real preview instead of a bare URL
+- **Production-correct favicon / app icons**: serve the icon from `public/` — the current `<link rel="icon">` points at a `/src/assets/...` source path that bypasses Vite's `base: '/finance-calculator/'` and is typed `svg+xml` while pointing at a `.png` — and add the icon sizes a future PWA install (H5) needs
+- **Open-source repo health**: add a `LICENSE` (the repo currently ships none — all-rights-reserved by default; owner picks the license, keeping D1/D6's MIT-compatibility reasoning in mind), plus `CHANGELOG.md`, `CONTRIBUTING.md`, and issue/PR templates, so the README's invitation to contribute and the §7 Working Agreements are discoverable
 
 ---
 
