@@ -188,8 +188,11 @@ describe('validateLoan — warnings (non-blocking)', () => {
     expect(isLoanValid(underwater)).toBe(true);
   });
 
-  it('does not warn when MonthlyPayment exactly covers the interest (boundary)', () => {
-    // A payment equal to the first month's interest is not strictly below it.
+  it('warns at exactly break-even, where the schedule also never pays off (#70 boundary)', () => {
+    // 100k @ 12% => 1000 first-month interest. A payment of exactly 1000 pays
+    // $0 principal forever, so generateAmortizationSchedule returns [] (its
+    // guard is normalPrincipal <= 0). The warning uses the same <= boundary so
+    // this case is explained rather than silently producing a zero projection.
     const breakEven = {
       ...validLoan(),
       Principal: 100000,
@@ -197,7 +200,21 @@ describe('validateLoan — warnings (non-blocking)', () => {
       InterestRate: 12,
       MonthlyPayment: 1000,
     };
-    expect(validateLoan(breakEven).warnings.MonthlyPayment).toBeUndefined();
+    expect(validateLoan(breakEven).warnings.MonthlyPayment).toContain(
+      'interest'
+    );
+  });
+
+  it('does not warn when MonthlyPayment exceeds the first month’s interest', () => {
+    // One cent above break-even amortizes (slowly), so no warning.
+    const amortizing = {
+      ...validLoan(),
+      Principal: 100000,
+      CurrentAmount: 100000,
+      InterestRate: 12,
+      MonthlyPayment: 1000.01,
+    };
+    expect(validateLoan(amortizing).warnings.MonthlyPayment).toBeUndefined();
   });
 });
 

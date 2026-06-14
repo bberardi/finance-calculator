@@ -117,19 +117,23 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   if (loan.InterestRate > LOAN_RATE_WARNING_THRESHOLD) {
     warnings.InterestRate = `Interest rate above ${LOAN_RATE_WARNING_THRESHOLD}% is unusually high — double-check the value.`;
   }
-  // A payment that does not cover the first period's interest never amortizes
-  // the loan — the balance grows forever and the amortization schedule has
-  // nothing sensible to show. Warn (don't block: the value is type-valid) so
-  // the user sees why their projection looks wrong. (#70)
+  // A payment that does not exceed the first period's interest never amortizes
+  // the loan — the principal portion is <= 0, so the balance never shrinks and
+  // the amortization schedule has nothing sensible to show. The `<=` boundary
+  // mirrors generateAmortizationSchedule's guard (`normalPrincipal <= 0`), so a
+  // break-even payment (interest exactly == payment) that yields an empty
+  // schedule also gets this explanation rather than a silent zero projection.
+  // Warn (don't block: the value is type-valid) so the user sees why their
+  // projection looks wrong. (#70)
   if (
     loan.Principal > 0 &&
     loan.InterestRate > 0 &&
     typeof loan.MonthlyPayment === 'number' &&
     loan.MonthlyPayment > 0 &&
-    loan.MonthlyPayment < (loan.Principal * loan.InterestRate) / 100 / 12
+    loan.MonthlyPayment <= (loan.Principal * loan.InterestRate) / 100 / 12
   ) {
     warnings.MonthlyPayment =
-      'Monthly payment is below the first month’s interest — it will never pay the loan off.';
+      'Monthly payment does not exceed the first month’s interest — it will never pay the loan off.';
   }
 
   return { errors, warnings, formErrors };
