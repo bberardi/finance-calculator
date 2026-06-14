@@ -7,6 +7,7 @@ import {
   generateInvestmentGrowth,
   getContributionForYear,
 } from './investment-helpers';
+import { forecastInvestment } from './forecast-helpers';
 import { Loan } from '../models/loan-model';
 import {
   CompoundingFrequency,
@@ -212,5 +213,31 @@ describe('Reference: contribution step-ups (closed form)', () => {
     expect(getContributionForYear(1000, 2, 10, StepUpType.Percentage)).toBe(
       1100
     );
+  });
+
+  it('both engines step up on the anniversary against a hand-derived oracle (§8.1)', () => {
+    // Oracle: $0 start, $100/mo, $10/yr FLAT step-up, 0% return so the value is
+    // purely the sum of contributions (no compounding to obscure it). Over two
+    // full years the canonical attribution is:
+    //   year 1 (months on the start date through the 11th month): 12 × $100 = $1200
+    //   year 2 (from the first anniversary onward):               12 × $110 = $1320
+    //   total after 24 months = $2520.
+    // This pins the absolute number AND that the two engines agree (ROADMAP §8.1
+    // reconciliation), which is the second, independent reference point.
+    const start = new Date(2020, 0, 1);
+    const end = new Date(2022, 0, 1); // exactly 24 months
+    const inv = makeInvestment({
+      StartDate: start,
+      RecurringContribution: 100,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+      ContributionStepUpAmount: 10,
+      ContributionStepUpType: StepUpType.Flat,
+    });
+
+    const growth = generateInvestmentGrowth(inv, end);
+    const forecast = forecastInvestment(inv, end, 0, start);
+
+    expect(growth[growth.length - 1].TotalValue).toBe(2520);
+    expect(forecast[24].Value).toBe(2520);
   });
 });

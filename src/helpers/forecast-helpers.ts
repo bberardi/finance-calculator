@@ -158,8 +158,18 @@ export const forecastInvestment = (
       elapsedMonths >= 0 &&
       elapsedMonths % contributionInterval === 0
     ) {
+      // Step-up year attribution (ROADMAP §8.1). The canonical engine,
+      // generateInvestmentGrowth, applies the contribution that *opens* each
+      // compounding period (dated one contribution-interval before this grid
+      // month). On the monthly grid the contribution fired at `monthDate`
+      // corresponds to that period-opening contribution, so attribute it to the
+      // year of `monthDate − contributionInterval`. Without this shift the
+      // monthly grid stepped up one contribution early, diverging from the
+      // period engine the day a step-up was configured (the off-by-one this
+      // reconciles). Without step-ups the year is irrelevant to the amount, so
+      // the no-step-up boundary consistency is unaffected.
       const yearNumber = getInvestmentYear(
-        monthDate.toDate(),
+        monthDate.subtract(contributionInterval, 'month').toDate(),
         investment.StartDate
       );
       value += getContributionForYear(

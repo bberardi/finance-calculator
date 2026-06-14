@@ -330,6 +330,10 @@ describe('Loan Helpers', () => {
       expect(pit.PaidTerms).toBe(payoffTerm); // the payoff term, not 121
       expect(pit.RemainingPrincipal).toBe(0); // loan is paid off
       expect(pit.PaidPrincipal).toBe(100000); // full principal paid
+      // #73: a paid-off loan has zero remaining terms — it must not report
+      // (scheduled terms − payoff term), which contradicts the $0 remaining
+      // principal on the same row.
+      expect(pit.RemainingTerms).toBe(0);
     });
 
     it('should return defaultPit (no paid terms) when the date is before StartDate', () => {
