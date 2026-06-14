@@ -145,7 +145,7 @@ describe('validateLoan — warnings (non-blocking)', () => {
   it('warns when CurrentAmount exceeds Principal but does not block saving', () => {
     const loan = { ...validLoan(), Principal: 10000, CurrentAmount: 15000 };
     const result = validateLoan(loan);
-    expect(result.warnings.CurrentAmount).toBeDefined();
+    expect(result.warnings.CurrentAmount).toContain('greater than');
     expect(result.errors.CurrentAmount).toBeUndefined();
     expect(isLoanValid(loan)).toBe(true);
   });
@@ -166,7 +166,9 @@ describe('validateLoan — warnings (non-blocking)', () => {
       ...validLoan(),
       InterestRate: LOAN_RATE_WARNING_THRESHOLD + 0.01,
     };
-    expect(validateLoan(high).warnings.InterestRate).toBeDefined();
+    expect(validateLoan(high).warnings.InterestRate).toContain(
+      'unusually high'
+    );
     expect(isLoanValid(high)).toBe(true);
   });
 
@@ -180,7 +182,7 @@ describe('validateLoan — warnings (non-blocking)', () => {
       MonthlyPayment: 500,
     };
     const result = validateLoan(underwater);
-    expect(result.warnings.MonthlyPayment).toBeDefined();
+    expect(result.warnings.MonthlyPayment).toContain('interest');
     // Non-blocking: the value is type-valid, so saving is still allowed.
     expect(result.errors.MonthlyPayment).toBeUndefined();
     expect(isLoanValid(underwater)).toBe(true);
@@ -260,7 +262,9 @@ describe('validateInvestment — warnings (non-blocking)', () => {
       ...validInvestment(),
       AverageReturnRate: INVESTMENT_RETURN_WARNING_THRESHOLD + 0.01,
     };
-    expect(validateInvestment(high).warnings.AverageReturnRate).toBeDefined();
+    expect(validateInvestment(high).warnings.AverageReturnRate).toContain(
+      'beats every broad index'
+    );
     expect(isInvestmentValid(high)).toBe(true);
   });
 
@@ -271,7 +275,7 @@ describe('validateInvestment — warnings (non-blocking)', () => {
       RecurringContribution: 0,
     };
     const result = validateInvestment(empty);
-    expect(result.warnings.StartingBalance).toBeDefined();
+    expect(result.warnings.StartingBalance).toContain('never grow');
     // Non-blocking: $0 is a valid starting balance.
     expect(result.errors.StartingBalance).toBeUndefined();
     expect(isInvestmentValid(empty)).toBe(true);
@@ -296,7 +300,7 @@ describe('validateInvestment — warnings (non-blocking)', () => {
       ContributionFrequency: CompoundingFrequency.Monthly,
     };
     const result = validateInvestment(inv);
-    expect(result.warnings.ContributionFrequency).toBeDefined();
+    expect(result.warnings.ContributionFrequency).toContain('frequent');
     expect(isInvestmentValid(inv)).toBe(true);
   });
 
@@ -353,9 +357,13 @@ describe('validateInvestment — warnings (non-blocking)', () => {
       ContributionStepUpType: StepUpType.Flat,
       ContributionStepUpAmount: 0,
     };
+    // Assert the message CONTENT, not just presence, so the flat/percentage
+    // branch (a ternary) and its two distinct messages are exercised — the
+    // .toBeDefined() form left the branch and message strings as surviving
+    // mutants (ROADMAP §8.3).
     expect(
       validateInvestment(flat).warnings.ContributionStepUpAmount
-    ).toBeDefined();
+    ).toContain('amount');
 
     const pct = {
       ...validInvestment(),
@@ -363,9 +371,9 @@ describe('validateInvestment — warnings (non-blocking)', () => {
       ContributionStepUpType: StepUpType.Percentage,
       ContributionStepUpAmount: undefined,
     };
-    expect(
-      validateInvestment(pct).warnings.ContributionStepUpAmount
-    ).toBeDefined();
+    expect(validateInvestment(pct).warnings.ContributionStepUpAmount).toContain(
+      'percentage'
+    );
   });
 
   it('does not warn about step-up when an amount is provided', () => {
