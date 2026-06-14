@@ -304,6 +304,34 @@ describe('Loan Helpers', () => {
       expect(pit).toEqual(defaultPit);
     });
 
+    it('does not crash and reports payoff for a date past an early payoff', () => {
+      // Regression for the #66 review of #59: the early-payoff break makes the
+      // schedule shorter than the requested term count, so getPitCalculation
+      // must read the last EMITTED (payoff) row rather than index past the end
+      // (which threw "Cannot read properties of undefined"). PitPopout defaults
+      // the date to EndDate, so this fired on open for early-payoff loans.
+      const loan: Loan = {
+        Id: 'test-id-early-payoff-pit',
+        Provider: 'Test Lender',
+        Name: 'Aggressive Payoff',
+        StartDate: new Date('2024-01-01'),
+        EndDate: new Date('2034-01-01'), // 121 scheduled terms
+        Principal: 100000,
+        CurrentAmount: 100000,
+        InterestRate: 5,
+        MonthlyPayment: 5000, // pays off ~term 21
+      };
+
+      const payoffTerm = generateAmortizationSchedule(loan).length;
+
+      // Querying the end date (well past payoff) must not throw.
+      const pit = getPitCalculation(loan, loan.EndDate);
+
+      expect(pit.PaidTerms).toBe(payoffTerm); // the payoff term, not 121
+      expect(pit.RemainingPrincipal).toBe(0); // loan is paid off
+      expect(pit.PaidPrincipal).toBe(100000); // full principal paid
+    });
+
     it('should return defaultPit (no paid terms) when the date is before StartDate', () => {
       // Regression for #53: a date earlier than StartDate has zero paid terms,
       // not one — the loan has not made any payment yet, so the PIT view must

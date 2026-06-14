@@ -71,7 +71,12 @@ export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
     return defaultPit;
   }
 
-  const lastEntry = relevantAmortization[paidTerms - 1];
+  // The schedule may stop early at payoff (#59), so it can hold fewer rows than
+  // the requested paidTerms. Read the last *emitted* entry, not the requested
+  // index — otherwise a PIT date at/after an early payoff indexes past the end
+  // and throws. The last emitted row is the payoff row (RemainingBalance 0),
+  // which is also the correct point-in-time answer for any date past payoff.
+  const lastEntry = relevantAmortization[relevantAmortization.length - 1];
 
   return {
     PaidTerms: lastEntry.Term,
