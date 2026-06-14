@@ -22,8 +22,11 @@ export const sampleLoans: Loan[] = [
     Principal: 350000,
     CurrentAmount: 332500,
     MonthlyPayment: 2155.18,
-    StartDate: new Date('2023-05-01'),
-    EndDate: new Date('2053-05-01'),
+    // Local-time constructors (year, month-index, day) so these match how the
+    // rest of the app builds dates. A bare 'YYYY-MM-DD' string parses as UTC
+    // midnight, which reads back as the previous day west of UTC. (#68)
+    StartDate: new Date(2023, 4, 1),
+    EndDate: new Date(2053, 4, 1),
   },
   {
     Id: '00000000-0000-0000-0000-000000000002',
@@ -33,8 +36,8 @@ export const sampleLoans: Loan[] = [
     Principal: 28000,
     CurrentAmount: 19500,
     MonthlyPayment: 527.63,
-    StartDate: new Date('2024-02-15'),
-    EndDate: new Date('2029-02-15'),
+    StartDate: new Date(2024, 1, 15),
+    EndDate: new Date(2029, 1, 15),
   },
 ];
 
@@ -47,7 +50,7 @@ export const sampleInvestments: Investment[] = [
     CurrentValue: 22000,
     AverageReturnRate: 7,
     CompoundingPeriod: CompoundingFrequency.Monthly,
-    StartDate: new Date('2021-01-01'),
+    StartDate: new Date(2021, 0, 1),
     RecurringContribution: 500,
     ContributionFrequency: CompoundingFrequency.Monthly,
   },
@@ -59,7 +62,7 @@ export const sampleInvestments: Investment[] = [
     CurrentValue: 58000,
     AverageReturnRate: 6.5,
     CompoundingPeriod: CompoundingFrequency.Monthly,
-    StartDate: new Date('2019-06-01'),
+    StartDate: new Date(2019, 5, 1),
     RecurringContribution: 800,
     ContributionFrequency: CompoundingFrequency.Monthly,
   },
