@@ -24,6 +24,7 @@ import {
 } from '../helpers/format-helpers';
 import { getSeriesColor } from './series-colors';
 import { ChartLegend } from './chart-legend';
+import { ForecastDataTable } from './forecast-data-table';
 
 interface ForecastChartProps {
   loans: Loan[];
@@ -112,12 +113,35 @@ export const ForecastChart = ({
 
   const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
 
+  const [view, setView] = useState<'chart' | 'table'>('chart');
+
   return (
     <Box>
       <Stack
         direction="row"
-        sx={{ marginBottom: 1, justifyContent: 'flex-end' }}
+        sx={{
+          marginBottom: 1,
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 1,
+        }}
       >
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={view}
+          onChange={(_, next: 'chart' | 'table' | null) =>
+            next && setView(next)
+          }
+          aria-label="Forecast view"
+        >
+          <ToggleButton value="chart" aria-label="View as chart">
+            Chart
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="View as table">
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
         <ToggleButtonGroup
           size="small"
           exclusive
@@ -132,36 +156,40 @@ export const ForecastChart = ({
           ))}
         </ToggleButtonGroup>
       </Stack>
-      <LineChart
-        height={chartHeight}
-        hideLegend
-        xAxis={[
-          {
-            data: dates,
-            scaleType: 'time',
-            valueFormatter: (value: Date) => dayjs(value).format('MMM YYYY'),
-          },
-        ]}
-        yAxis={[
-          { valueFormatter: (value: number) => formatCurrencyCompact(value) },
-        ]}
-        series={visibleSeries.map((s) => ({
-          id: s.id,
-          data: s.values,
-          label: s.label,
-          color: getSeriesColor(s.id),
-          showMark: false,
-          valueFormatter: (value: number | null) =>
-            value === null ? '' : formatCurrency(value),
-        }))}
-        margin={{ left: 64 }}
-        // Emphasize the headline net-worth line above the entity lines.
-        sx={{
-          [`& .MuiLineElement-series-${NET_WORTH_SERIES_ID}`]: {
-            strokeWidth: 3,
-          },
-        }}
-      />
+      {view === 'table' ? (
+        <ForecastDataTable dates={dates} series={visibleSeries} />
+      ) : (
+        <LineChart
+          height={chartHeight}
+          hideLegend
+          xAxis={[
+            {
+              data: dates,
+              scaleType: 'time',
+              valueFormatter: (value: Date) => dayjs(value).format('MMM YYYY'),
+            },
+          ]}
+          yAxis={[
+            { valueFormatter: (value: number) => formatCurrencyCompact(value) },
+          ]}
+          series={visibleSeries.map((s) => ({
+            id: s.id,
+            data: s.values,
+            label: s.label,
+            color: getSeriesColor(s.id),
+            showMark: false,
+            valueFormatter: (value: number | null) =>
+              value === null ? '' : formatCurrency(value),
+          }))}
+          margin={{ left: 64 }}
+          // Emphasize the headline net-worth line above the entity lines.
+          sx={{
+            [`& .MuiLineElement-series-${NET_WORTH_SERIES_ID}`]: {
+              strokeWidth: 3,
+            },
+          }}
+        />
+      )}
       <ChartLegend
         items={legendItems}
         hiddenIds={hiddenIds}
