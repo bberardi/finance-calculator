@@ -39,7 +39,13 @@ export const getDefaultHorizon = (
     undefined
   );
 
-  if (!latestLoanEnd) {
+  // No loans to anchor to, or every loan's scheduled EndDate is already in the
+  // past (a loans-only portfolio that is behind on / past the nominal term of
+  // its loans but still owes a balance): there is nothing further out to anchor
+  // the horizon to, so fall back to the default 30-year horizon. Returning the
+  // latest (past) EndDate here would make the horizon earlier than today and
+  // collapse the forecast chart to a single point. (#86)
+  if (!latestLoanEnd || !latestLoanEnd.isAfter(dayjs(today))) {
     return thirtyYearsOut.toDate();
   }
 
