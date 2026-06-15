@@ -328,6 +328,33 @@ describe('exportToJson and importFromJson', () => {
     expect(() => importFromJson(invalidJson)).toThrow('Invalid date');
   });
 
+  it('should reject a loan whose EndDate is before its StartDate (#85)', () => {
+    // The add/edit form blocks EndDate <= StartDate; import must agree so it
+    // can't accept a loan that yields a degenerate 1-term schedule and traps the
+    // entity as uneditable.
+    const reversedDates = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      loans: [{ ...testLoan, StartDate: '2050-01-01', EndDate: '2020-01-01' }],
+      investments: [],
+    });
+
+    expect(() => importFromJson(reversedDates)).toThrow(
+      'end date must be after the start date'
+    );
+  });
+
+  it('should reject a loan whose EndDate equals its StartDate (#85)', () => {
+    const equalDates = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      loans: [{ ...testLoan, StartDate: '2030-01-01', EndDate: '2030-01-01' }],
+      investments: [],
+    });
+
+    expect(() => importFromJson(equalDates)).toThrow(
+      'end date must be after the start date'
+    );
+  });
+
   it('should preserve all loan fields', () => {
     const json = exportToJson([testLoan], []);
     const { loans } = importFromJson(json);

@@ -53,7 +53,7 @@ export const PitPopout = (props: PitPopoutProps) => {
         >
           <Stack direction="row">
             <DatePicker
-              label="Start Date"
+              label="Projection Date"
               value={dayjs(selectedDate)}
               onChange={(date) => setSelectedDate(date?.toDate() ?? new Date())}
               minDate={dayjs(props.loan.StartDate)}

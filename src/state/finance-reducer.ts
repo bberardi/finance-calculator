@@ -147,16 +147,40 @@ export const financeReducer = (
       };
 
     case 'ImportMerge': {
+      // Scenarios merge by Id too (Phase 4.5); omitted means "leave unchanged".
+      const mergedScenarios = action.scenarios
+        ? mergeData(state.scenarios, action.scenarios).items
+        : state.scenarios;
+
+      // While sample data is loaded, the visible loans/investments are the
+      // samples and the user's real data is parked in the stash. Merge imports
+      // into the *stashed real data* (not the samples), so an import isn't
+      // silently discarded when ClearSampleData restores the stash. Samples stay
+      // visible and untouched until cleared, at which point the merged real data
+      // (including the import) is restored. (#83)
+      if (state.sampleDataLoaded) {
+        const { items: mergedLoans } = mergeData(
+          state.stashedLoans ?? [],
+          action.loans
+        );
+        const { items: mergedInvestments } = mergeData(
+          state.stashedInvestments ?? [],
+          action.investments
+        );
+        return {
+          ...state,
+          stashedLoans: mergedLoans,
+          stashedInvestments: mergedInvestments,
+          scenarios: mergedScenarios,
+        };
+      }
+
       // Preserve DataManager's merge-by-Id semantics exactly.
       const { items: mergedLoans } = mergeData(state.loans, action.loans);
       const { items: mergedInvestments } = mergeData(
         state.investments,
         action.investments
       );
-      // Scenarios merge by Id too (Phase 4.5); omitted means "leave unchanged".
-      const mergedScenarios = action.scenarios
-        ? mergeData(state.scenarios, action.scenarios).items
-        : state.scenarios;
       return {
         ...state,
         loans: mergedLoans,

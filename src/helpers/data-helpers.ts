@@ -469,6 +469,15 @@ export const importFromJson = (
       if (isNaN(loan.StartDate.getTime()) || isNaN(loan.EndDate.getTime())) {
         throw new Error(`Invalid date in loan at index ${index}`);
       }
+      // Mirror the form's validateLoan rule at the import boundary: a loan whose
+      // EndDate is on or before its StartDate is rejected by the UI, so accepting
+      // it on import produces a degenerate 1-term schedule and an entity the Edit
+      // dialog can't save. Keep import and validateLoan in agreement. (#85)
+      if (!(loan.StartDate < loan.EndDate)) {
+        throw new Error(
+          `Invalid dates in loan at index ${index}: end date must be after the start date.`
+        );
+      }
     });
 
     investments.forEach((investment, index) => {

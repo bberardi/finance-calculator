@@ -159,6 +159,49 @@ describe('Investment Helpers', () => {
       // After 4 quarters (1 year)
       expect(getInvestmentPeriods(investment, new Date(2026, 0, 1))).toBe(5);
     });
+
+    it('should anchor quarterly periods to StartDate, not calendar quarters (#75)', () => {
+      // StartDate is Feb 15 — NOT on a calendar-quarter boundary. Real
+      // compounding boundaries are Feb 15 -> May 15 -> Aug 15..., so the period
+      // count must follow those, not the calendar Q1/Q2 line at Apr 1. The count
+      // must match the periods generateInvestmentGrowth actually emits.
+      const investment: Investment = {
+        Id: 'test-id-q-offset',
+        Provider: 'Test',
+        Name: 'Test',
+        StartDate: new Date(2020, 1, 15), // Feb 15
+        StartingBalance: 10000,
+        AverageReturnRate: 5,
+        CompoundingPeriod: CompoundingFrequency.Quarterly,
+      };
+
+      const actualPeriods = (projectTo: Date): number =>
+        generateInvestmentGrowth(investment, projectTo).filter(
+          (entry) => entry.Period > 0
+        ).length;
+
+      // Crossed the calendar-quarter line (Apr 1) but still inside the first
+      // real period (next boundary is May 15): exactly 1 period, not 2.
+      const aprDate = new Date(2020, 3, 20);
+      expect(getInvestmentPeriods(investment, aprDate)).toBe(1);
+      expect(getInvestmentPeriods(investment, aprDate)).toBe(
+        actualPeriods(aprDate)
+      );
+
+      // Before the May 15 boundary: still 1.
+      const earlyMayDate = new Date(2020, 4, 10);
+      expect(getInvestmentPeriods(investment, earlyMayDate)).toBe(1);
+      expect(getInvestmentPeriods(investment, earlyMayDate)).toBe(
+        actualPeriods(earlyMayDate)
+      );
+
+      // Past the May 15 boundary: now 2.
+      const lateMayDate = new Date(2020, 4, 20);
+      expect(getInvestmentPeriods(investment, lateMayDate)).toBe(2);
+      expect(getInvestmentPeriods(investment, lateMayDate)).toBe(
+        actualPeriods(lateMayDate)
+      );
+    });
   });
 
   describe('getNextCompoundingDate', () => {

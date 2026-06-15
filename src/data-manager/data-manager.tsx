@@ -8,18 +8,34 @@ import { useFinanceData } from '../state/use-finance-data';
 
 export const DataManager = () => {
   const {
-    state: { loans, investments, scenarios },
+    state: {
+      loans,
+      investments,
+      scenarios,
+      sampleDataLoaded,
+      stashedLoans,
+      stashedInvestments,
+    },
     importMerge,
   } = useFinanceData();
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasData = loans.length > 0 || investments.length > 0;
+  // While sample data is displayed, the user's real data is parked in the
+  // stash. Import/Export must act on that real data, not the visible samples —
+  // otherwise an export dumps sample data and an import (which the reducer
+  // routes into the stash) would report stats against the wrong collection. (#83)
+  const realLoans = sampleDataLoaded ? (stashedLoans ?? []) : loans;
+  const realInvestments = sampleDataLoaded
+    ? (stashedInvestments ?? [])
+    : investments;
+
+  const hasData = realLoans.length > 0 || realInvestments.length > 0;
 
   const handleExport = () => {
     try {
-      downloadJsonExport(loans, investments, scenarios);
+      downloadJsonExport(realLoans, realInvestments, scenarios);
       setSuccessMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
@@ -64,9 +80,9 @@ export const DataManager = () => {
         // Compute merge statistics for the success message. The actual state
         // update is performed by the reducer's ImportMerge action (which runs
         // the same mergeData merge), keeping merge semantics in one place.
-        const { result: loansResult } = mergeData(loans, importedLoans);
+        const { result: loansResult } = mergeData(realLoans, importedLoans);
         const { result: investmentsResult } = mergeData(
-          investments,
+          realInvestments,
           importedInvestments
         );
 

@@ -72,6 +72,29 @@ describe('Forecast Helpers', () => {
       const horizon = getDefaultHorizon(loans, [makeInvestment()], today);
       expect(horizon.getTime()).toBe(new Date(2070, 0, 1).getTime());
     });
+
+    it('should extend to 30 years when a loans-only portfolio has all EndDates in the past but still owes a balance (#86)', () => {
+      const pastDueLoan = makeLoan({
+        StartDate: new Date(2018, 0, 1),
+        EndDate: new Date(2024, 0, 1), // already in the past relative to `today`
+        Principal: 30000,
+        CurrentAmount: 8000, // still owes money
+        MonthlyPayment: 500,
+        InterestRate: 6,
+      });
+
+      const horizon = getDefaultHorizon([pastDueLoan], [], today);
+
+      // Must not be earlier than today (which would collapse the chart); falls
+      // back to the 30-year default so the payoff can still be projected.
+      expect(horizon.getTime()).toBe(dayjs(today).add(30, 'year').valueOf());
+
+      // And the forecast actually projects the remaining payoff rather than
+      // degenerating to a single point at today.
+      const series = forecastLoan(pastDueLoan, horizon, 0, today);
+      expect(series.length).toBeGreaterThan(1);
+      expect(getPayoffDate(series)).toBeDefined();
+    });
   });
 
   describe('forecastLoan', () => {

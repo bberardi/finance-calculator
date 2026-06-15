@@ -77,9 +77,15 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
       skipNextPaymentRecompute.current = false;
       return;
     }
+    // Guard on "rate is a valid non-negative number" rather than truthiness:
+    // a 0% (interest-free) loan is a first-class, supported input, but `0` is
+    // falsy, so a truthiness check skipped the recompute entirely — leaving the
+    // payment at $0 (blocking Save) for a new 0% loan, and keeping a stale
+    // payment when an existing loan's rate was changed to 0%. getMonthlyPayment
+    // already returns principal / terms for a 0% rate. (#79)
     if (
-      newLoan.Principal &&
-      newLoan.InterestRate &&
+      newLoan.Principal > 0 &&
+      newLoan.InterestRate >= 0 &&
       newLoan.StartDate &&
       newLoan.EndDate
     ) {
