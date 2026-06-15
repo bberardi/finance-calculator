@@ -11,7 +11,7 @@
 **The destination** (in priority order):
 
 1. See all loans and investments in one place _(done)_
-2. Persist data so it survives a refresh _(issue #20)_
+2. Persist data so it survives a refresh _(issue #20 — done, Phase 1)_
 3. Visualize every position and overall net worth over time _(issue #18)_
 4. Overlay what-if scenarios on those projections _(issue #24)_
 5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — not yet an issue)_
@@ -167,9 +167,13 @@ Remaining math-quality follow-ups (step-up reconciliation, dayjs migration, muta
 
 ---
 
-### Phase 1 — Local Persistence — issue #20 (target v0.8.0)
+### Phase 1 — Local Persistence — issue #20 — ✅ COMPLETE (v0.8.0)
 
-_Highest value-to-effort ratio in the backlog; independent of charts._
+_Highest value-to-effort ratio in the backlog; independent of charts. All four
+items shipped: `storage-helpers` + the D8 migration ladder, the "Save on this
+device" toggle (hydrate / debounced auto-save / clear-on-disable / persisted
+preference), the first-visit privacy notice, and the global error boundary with
+an export-my-data escape hatch._
 
 | #   | Work item                                                                                                                                                     | Notes / acceptance                                                                                                                                    |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -349,8 +353,8 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
          (engine, context, CI, dep modernization,
           theme/dark mode, dialogs, validation, empty states,
           math verification suite + correctness sweep — gate for Phase 2)
-   ├── Phase 1  Persistence (#20)         ← next      v0.8.0   (independent of 2)
-   └── Phase 2  Charts (#18)                          v0.9.0
+   ├── Phase 1  Persistence (#20)         ✅ DONE     v0.8.0   (independent of 2)
+   └── Phase 2  Charts (#18)              ← next      v0.9.0
            └── Phase 3  Dashboard                     v0.10.0
                    └── Phase 4  Scenarios (#24)       v0.11.0
                            └── Phase 5  Optimizer     v1.0.0
