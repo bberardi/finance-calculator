@@ -13,7 +13,7 @@
 1. See all loans and investments in one place _(done)_
 2. Persist data so it survives a refresh _(issue #20 — done, Phase 1)_
 3. Visualize every position and overall net worth over time _(issue #18 — done, Phase 2)_
-4. Overlay what-if scenarios on those projections _(issue #24)_
+4. Overlay what-if scenarios on those projections _(issue #24 — done, Phase 4)_
 5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — not yet an issue)_
 
 ---
@@ -110,7 +110,7 @@ Same philosophy as D2: take the architectural discipline now, skip the speculati
 
 ### D8 — One versioned schema-migration ladder
 
-_Status: pending — lands with the first persistence work (Phase 1)._
+_Status: ✅ seeded in Phase 1 (single-version gate); first real migration step (v2 → v3, scenarios) landed in Phase 4.5, and JSON import now routes through the ladder._
 
 The persisted schema bumps at least four times across the plan (export v2 in D5, scenarios in 4.5, snapshots in H4, multi-profile in H5). Rather than each reader carrying its own pairwise "accept v_n" backward-compat branch, define a single `schemaVersion`-keyed `migrate(data): CurrentSchema` step ladder that **every** entry point runs through — JSON import (D5), `localStorage` hydration (D4), and every future bump. Each new version adds exactly one migration step, tested to the same standard as the import validator, so old exports and stale `localStorage` upgrade forward deterministically instead of becoming a combinatorial compatibility hazard. Lands with the first persistence work (Phase 1), where stored data first has to survive a version change.
 
@@ -212,9 +212,9 @@ _Makes the app's stated purpose — net worth — visible at a glance. Shipped: 
 
 ---
 
-### Phase 4 — Scenario Forecasting — issue #24 (target v0.11.0)
+### Phase 4 — Scenario Forecasting — issue #24 — ✅ COMPLETE (v0.11.0)
 
-_The what-if layer. Depends on Phases 0 (engine scenario API) and 2 (chart)._
+_The what-if layer. Shipped: a named-scenario model + reducer state, a scenario builder dialog and selector bar, dotted color-matched chart overlays (originals retained) with a scenario net-worth line, a scenario impact summary (net worth at horizon, interest saved, payoff moved up), and persistence of scenarios via export schema **v3** — the first real D8 migration (v2 → v3), through which JSON import now routes._
 
 | #   | Work item                                                                                                                                  | Notes / acceptance                                                                 |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
@@ -356,8 +356,8 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
    ├── Phase 1  Persistence (#20)         ✅ DONE     v0.8.0   (independent of 2)
    └── Phase 2  Charts (#18)              ✅ DONE     v0.9.0
            └── Phase 3  Dashboard         ✅ DONE     v0.10.0
-                   └── Phase 4  Scenarios (#24)  ← next   v0.11.0
-                           └── Phase 5  Optimizer     v1.0.0
+                   └── Phase 4  Scenarios (#24)  ✅ DONE  v0.11.0
+                           └── Phase 5  Optimizer  ← next   v1.0.0
 Phase 6  Quality items slot in anywhere
 Phase 7  Future horizons queue up post-1.0 (v1.1 → v2.0 sequencing in §Phase 7)
 ```
