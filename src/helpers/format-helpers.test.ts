@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrency, formatPercent } from './format-helpers';
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+  formatPercent,
+} from './format-helpers';
 
 describe('formatCurrency', () => {
   it('formats a whole-dollar amount with two fraction digits', () => {
@@ -41,6 +45,22 @@ describe('formatCurrency', () => {
       });
       expect(formatCurrency(value)).toBe(expected);
     }
+  });
+});
+
+describe('formatCurrencyCompact', () => {
+  it('abbreviates thousands and millions', () => {
+    expect(formatCurrencyCompact(6000)).toBe('$6K');
+    expect(formatCurrencyCompact(1234567)).toBe('$1.2M');
+  });
+
+  it('formats zero and negatives', () => {
+    expect(formatCurrencyCompact(0)).toBe('$0');
+    expect(formatCurrencyCompact(-6000)).toBe('-$6K');
+  });
+
+  it('leaves small values without an abbreviation suffix', () => {
+    expect(formatCurrencyCompact(500)).toBe('$500');
   });
 });
 

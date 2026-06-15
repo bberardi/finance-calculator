@@ -18,6 +18,7 @@ import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
+import { ForecastChart } from './chart/forecast-chart';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -264,6 +265,14 @@ export const Body = () => {
                 onAction={() => onInvestmentAddEdit()}
               />
             )}
+          </Paper>
+
+          {/* Forecast chart (roadmap 2.2): per-loan, per-investment, and overall
+              net-worth lines from the shared engine. Shown whenever there is at
+              least one position (the enclosing branch already guarantees it). */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Forecast</Divider>
+            <ForecastChart loans={loans} investments={investments} />
           </Paper>
         </>
       )}
