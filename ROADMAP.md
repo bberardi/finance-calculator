@@ -302,6 +302,8 @@ Declared explicitly so future feature debates have a reference point:
 | ★ **Property + mortgage pairing**          | Home value with an appreciation rate, linked to its mortgage → a **home equity** series on the chart. Makes the net worth line honest for homeowners (currently a mortgage counts as pure liability). | New asset type + entity linking |
 | **Pensions / Social Security / annuities** | Future income streams starting at a date — matters enormously for the retirement-horizon view.                                                                                                        | New income-stream type          |
 | **Custom asset/liability**                 | Catch-all with a simple growth/decline rate: car (depreciating), private loan to a friend, collectibles. Escape hatch so nobody's net worth is blocked on a missing type.                             | New generic type                |
+| **Asset appreciation & enhancement**       | Model scenarios where an existing asset appreciates or is enhanced: add a pool/deck to your house (estimated cost and property value increase), refinish a car, renovation ROI. Pairs with property pairing to answer "is this investment worth it?"                                            | Property model + scenario engine |
+| _(exploratory)_ **Investment context & research** | Optional linked research, news, or articles relevant to holdings — seeded from the investment type/sector but never real-time market data. Shows "Apple news relevant to your AAPL holdings" without requiring data feeds.                                                                       | Investment model               |
 
 #### H4 — From calculator to plan
 
@@ -312,6 +314,13 @@ Declared explicitly so future feature debates have a reference point:
 | **Life-event timeline**             | Dated one-time events that modify the forecast: buy a house (new loan + asset), tuition (withdrawal), windfall, sell a car. A generalization of the scenario system from "extra $/month" to "things that happen."                                                                                       | Scenario engine generalization               |
 | **Inflation toggle**                | Real vs. nominal view of every chart and milestone.                                                                                                                                                                                                                                                     | Engine post-processing                       |
 | **Retirement / FI mode**            | Annual-spending input → FI number, projected FI date, coast-FI date. Composes goals + decumulation into the question long-horizon users actually have.                                                                                                                                                  | H2 withdrawals + H4 goals                    |
+
+#### H4b — Multi-scenario forecasting templates
+
+| Feature                             | What & why                                                                                                                                                                                                                                                                                              | Builds on                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Allocation strategy presets**      | Pre-built scenario templates that embody different financial philosophies: **debt-focused** (aggressive loan payoff, minimal investing), **invest-focused** (minimum debt payments, maximal contributions), **balanced** (split optimally by rate), and **custom** (user-defined split). Each shows its long-term net worth impact vs. baseline. | Phase 4 scenarios + Phase 5 optimizer        |
+| **Strategy comparison view**         | Side-by-side dashboard comparing all strategies: projected net worth at +5y/+10y/+30y, debt-free date, final asset allocation. Helps users see which philosophy aligns with their values and goals.                                                                                                     | Forecast engine + dashboard                  |
 
 #### H5 — Beyond the calculator
 
@@ -330,13 +339,13 @@ Declared explicitly so future feature debates have a reference point:
 
 #### Suggested post-1.0 sequencing
 
-| Release | Theme                  | Contents                                                  |
-| ------- | ---------------------- | --------------------------------------------------------- |
-| v1.1    | **Come back monthly**  | Balance check-ins + goals (H4★)                           |
-| v1.2    | **Whole net worth**    | Cash accounts + property/home equity (H3★)                |
-| v1.3    | **Better answers**     | Employer match, lump sums, refinance comparison (H1★/H2★) |
-| v1.4    | **Honest uncertainty** | Monte Carlo fan charts (H2)                               |
-| v2.0    | **Beyond personal**    | Household profiles + shareable links (H5)                 |
+| Release | Theme                  | Contents                                                                      |
+| ------- | ---------------------- | ----------------------------------------------------------------------------- |
+| v1.1    | **Come back monthly**  | Balance check-ins + goals (H4★)                                              |
+| v1.2    | **Whole net worth**    | Cash accounts + property/home equity + appreciation scenarios (H3★)           |
+| v1.3    | **Better answers**     | Employer match, lump sums, refinance comparison + strategy presets (H1★/H4b) |
+| v1.4    | **Honest uncertainty** | Monte Carlo fan charts + investment context (H2 / H3)                        |
+| v2.0    | **Beyond personal**    | Household profiles + shareable links (H5)                                    |
 
 The rationale for this order: retention first (check-ins make the app a habit), then completeness (so the net worth line is true), then answer quality (so the optimizer is trustworthy), then statistical honesty, then audience expansion.
 
