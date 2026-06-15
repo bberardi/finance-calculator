@@ -5,6 +5,8 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  TableFooter,
+  TableSortLabel,
   Paper,
   Box,
   Card,
@@ -21,8 +23,15 @@ import {
 } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
-import { Calculate, Delete, Edit, TrendingUp } from '@mui/icons-material';
-import { useState } from 'react';
+import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
+import {
+  Calculate,
+  ContentCopy,
+  Delete,
+  Edit,
+  TrendingUp,
+} from '@mui/icons-material';
+import { useMemo, useState } from 'react';
 import { PitPopout } from './pit-popout';
 import { GrowthSchedulePopout } from './growth-schedule-popout';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
@@ -33,8 +42,14 @@ interface InvestmentRowHandlers {
   onGrowth: (investment: Investment) => void;
   onPit: (investment: Investment) => void;
   onEdit: (investment: Investment) => void;
+  onClone: (investment: Investment) => void;
   onDelete: (investment: Investment) => void;
 }
+
+// Best-known current value: the explicit CurrentValue when set, else the
+// starting balance as a stand-in for the table/totals.
+const currentValue = (investment: Investment): number =>
+  investment.CurrentValue ?? investment.StartingBalance;
 
 const investmentActions = (
   investment: Investment,
@@ -54,6 +69,11 @@ const investmentActions = (
     icon: <Edit />,
     title: 'Edit Investment',
     onClick: () => handlers.onEdit(investment),
+  },
+  {
+    icon: <ContentCopy />,
+    title: 'Duplicate Investment',
+    onClick: () => handlers.onClone(investment),
   },
   {
     icon: <Delete />,
@@ -91,6 +111,62 @@ const getCompoundingText = (period: CompoundingFrequency) => {
   }
 };
 
+type InvestmentColumnId =
+  | 'Name'
+  | 'Provider'
+  | 'StartingBalance'
+  | 'CurrentValue'
+  | 'AverageReturnRate'
+  | 'CompoundingPeriod'
+  | 'RecurringContribution';
+
+interface InvestmentColumn {
+  id: InvestmentColumnId;
+  label: string;
+  numeric: boolean;
+  value: (investment: Investment) => SortValue;
+}
+
+const INVESTMENT_COLUMNS: InvestmentColumn[] = [
+  { id: 'Name', label: 'Name', numeric: false, value: (i) => i.Name },
+  {
+    id: 'Provider',
+    label: 'Provider',
+    numeric: false,
+    value: (i) => i.Provider,
+  },
+  {
+    id: 'StartingBalance',
+    label: 'Starting Balance',
+    numeric: true,
+    value: (i) => i.StartingBalance,
+  },
+  {
+    id: 'CurrentValue',
+    label: 'Current Value',
+    numeric: true,
+    value: (i) => currentValue(i),
+  },
+  {
+    id: 'AverageReturnRate',
+    label: 'Return Rate',
+    numeric: true,
+    value: (i) => i.AverageReturnRate,
+  },
+  {
+    id: 'CompoundingPeriod',
+    label: 'Compounding',
+    numeric: false,
+    value: (i) => getCompoundingText(i.CompoundingPeriod),
+  },
+  {
+    id: 'RecurringContribution',
+    label: 'Recurring Contribution',
+    numeric: true,
+    value: (i) => i.RecurringContribution ?? 0,
+  },
+];
+
 const InvestmentCard = ({
   investment,
   handlers,
@@ -105,22 +181,12 @@ const InvestmentCard = ({
       <Typography variant="h6" component="div">
         {investment.Name}
       </Typography>
-      <Typography
-        sx={{
-          color: 'text.secondary',
-          mb: 1.5,
-        }}
-      >
+      <Typography sx={{ color: 'text.secondary', mb: 1.5 }}>
         {investment.Provider}
       </Typography>
       <Box sx={{ marginBottom: 1 }}>
         <Grid container spacing={2}>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6,
-            }}
-          >
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Typography variant="body2">
               <strong>Starting Balance:</strong>
             </Typography>
@@ -128,12 +194,15 @@ const InvestmentCard = ({
               {formatCurrency(investment.StartingBalance)}
             </Typography>
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6,
-            }}
-          >
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Typography variant="body2">
+              <strong>Current Value:</strong>
+            </Typography>
+            <Typography variant="body2">
+              {formatCurrency(currentValue(investment))}
+            </Typography>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Typography variant="body2">
               <strong>Return Rate:</strong>
             </Typography>
@@ -141,25 +210,7 @@ const InvestmentCard = ({
               {formatPercent(investment.AverageReturnRate, 3)}
             </Typography>
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6,
-            }}
-          >
-            <Typography variant="body2">
-              <strong>Compounding:</strong>
-            </Typography>
-            <Typography variant="body2">
-              {getCompoundingText(investment.CompoundingPeriod)}
-            </Typography>
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6,
-            }}
-          >
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Typography variant="body2">
               <strong>Recurring:</strong>
             </Typography>
@@ -198,12 +249,44 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+  // Default ordering: highest expected return first.
+  const [sortColumn, setSortColumn] =
+    useState<InvestmentColumnId>('AverageReturnRate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   const handlers: InvestmentRowHandlers = {
     onGrowth: setSelectedGrowth,
     onPit: setSelectedPit,
     onEdit: props.onInvestmentEdit,
+    onClone: props.onInvestmentClone,
     onDelete: props.onInvestmentDelete,
   };
+
+  const column =
+    INVESTMENT_COLUMNS.find((c) => c.id === sortColumn) ??
+    INVESTMENT_COLUMNS[0];
+  const sortedInvestments = useMemo(
+    () => sortBy(props.investments, column.value, sortDirection),
+    [props.investments, column, sortDirection]
+  );
+
+  const handleSort = (id: InvestmentColumnId) => {
+    if (sortColumn === id) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(id);
+      setSortDirection('asc');
+    }
+  };
+
+  const totalStarting = props.investments.reduce(
+    (sum, i) => sum + i.StartingBalance,
+    0
+  );
+  const totalCurrent = props.investments.reduce(
+    (sum, i) => sum + currentValue(i),
+    0
+  );
 
   return (
     <>
@@ -222,7 +305,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 
       {isMobile ? (
         <Box>
-          {props.investments.map((investment) => (
+          {sortedInvestments.map((investment) => (
             <InvestmentCard
               key={investment.Id}
               investment={investment}
@@ -236,28 +319,44 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Provider</TableCell>
-                <TableCell>Starting Balance</TableCell>
-                <TableCell>Return Rate</TableCell>
-                <TableCell>Compounding</TableCell>
-                <TableCell>Recurring Contribution</TableCell>
+                {INVESTMENT_COLUMNS.map((col) => (
+                  <TableCell
+                    key={col.id}
+                    align={col.numeric ? 'right' : 'left'}
+                    sortDirection={
+                      sortColumn === col.id ? sortDirection : false
+                    }
+                  >
+                    <TableSortLabel
+                      active={sortColumn === col.id}
+                      direction={sortColumn === col.id ? sortDirection : 'asc'}
+                      onClick={() => handleSort(col.id)}
+                    >
+                      {col.label}
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {props.investments.map((row) => (
+              {sortedInvestments.map((row) => (
                 <TableRow key={row.Id}>
                   <TableCell>{row.Name}</TableCell>
                   <TableCell>{row.Provider}</TableCell>
-                  <TableCell>{formatCurrency(row.StartingBalance)}</TableCell>
-                  <TableCell>
+                  <TableCell align="right">
+                    {formatCurrency(row.StartingBalance)}
+                  </TableCell>
+                  <TableCell align="right">
+                    {formatCurrency(currentValue(row))}
+                  </TableCell>
+                  <TableCell align="right">
                     {formatPercent(row.AverageReturnRate, 3)}
                   </TableCell>
                   <TableCell>
                     {getCompoundingText(row.CompoundingPeriod)}
                   </TableCell>
-                  <TableCell>{formatContribution(row)}</TableCell>
+                  <TableCell align="right">{formatContribution(row)}</TableCell>
                   <TableCell>
                     <EntityRowActions
                       actions={investmentActions(row, handlers)}
@@ -266,6 +365,24 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
                 </TableRow>
               ))}
             </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell>
+                  <strong>Totals</strong>
+                </TableCell>
+                <TableCell />
+                <TableCell align="right">
+                  <strong>{formatCurrency(totalStarting)}</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>{formatCurrency(totalCurrent)}</strong>
+                </TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+              </TableRow>
+            </TableFooter>
           </Table>
         </TableContainer>
       )}
@@ -277,4 +394,5 @@ export type InvestmentTableProps = {
   investments: Investment[];
   onInvestmentEdit: (investment: Investment) => void;
   onInvestmentDelete: (investment: Investment) => void;
+  onInvestmentClone: (investment: Investment) => void;
 };

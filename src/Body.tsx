@@ -108,6 +108,12 @@ export const Body = () => {
     setPendingDelete({ kind: 'loan', entity: loan });
   };
 
+  // Clone (roadmap 3.3): copy an entity with a fresh Id (addLoan/addInvestment
+  // assign one when Id is empty) so refinance/what-if candidates don't need
+  // re-typing. Marked "(copy)" so the duplicate is obvious.
+  const onLoanClone = (loan: Loan) =>
+    addLoan({ ...loan, Id: '', Name: `${loan.Name} (copy)` });
+
   const onInvestmentAddEdit = (investment?: Investment) => {
     setEditInvestment(investment);
     setIsAddInvestmentOpen(true);
@@ -133,6 +139,13 @@ export const Body = () => {
   const onInvestmentDelete = (investment: Investment) => {
     setPendingDelete({ kind: 'investment', entity: investment });
   };
+
+  const onInvestmentClone = (investment: Investment) =>
+    addInvestment({
+      ...investment,
+      Id: '',
+      Name: `${investment.Name} (copy)`,
+    });
 
   // Step 2: confirmation accepted — actually delete, remembering the original
   // index so the snackbar can offer an exact-position undo.
@@ -255,6 +268,7 @@ export const Body = () => {
                 loans={loans}
                 onLoanEdit={onLoanAddEdit}
                 onLoanDelete={onLoanDelete}
+                onLoanClone={onLoanClone}
               />
             ) : (
               <SectionEmptyState
@@ -272,6 +286,7 @@ export const Body = () => {
                 investments={investments}
                 onInvestmentEdit={onInvestmentAddEdit}
                 onInvestmentDelete={onInvestmentDelete}
+                onInvestmentClone={onInvestmentClone}
               />
             ) : (
               <SectionEmptyState
