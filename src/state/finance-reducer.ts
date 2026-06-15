@@ -1,5 +1,6 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
 import { mergeData } from '../helpers/data-helpers';
 
 // State shape for the finance data context (D2).
@@ -15,6 +16,10 @@ export interface FinanceState {
   // User data stashed while sample data is loaded; null otherwise.
   stashedLoans: Loan[] | null;
   stashedInvestments: Investment[] | null;
+  // Named what-if scenarios (Phase 4). Session-scoped until 4.5 persists them.
+  scenarios: Scenario[];
+  // Which scenario is currently overlaid on the chart, or null for none.
+  activeScenarioId: string | null;
 }
 
 export const initialFinanceState: FinanceState = {
@@ -23,6 +28,8 @@ export const initialFinanceState: FinanceState = {
   sampleDataLoaded: false,
   stashedLoans: null,
   stashedInvestments: null,
+  scenarios: [],
+  activeScenarioId: null,
 };
 
 // Reducer actions (D2). ID generation happens OUTSIDE the reducer (in the
@@ -44,7 +51,13 @@ export type FinanceAction =
   | { type: 'InsertInvestmentAt'; investment: Investment; index: number }
   | { type: 'ImportMerge'; loans: Loan[]; investments: Investment[] }
   | { type: 'LoadSampleData'; loans: Loan[]; investments: Investment[] }
-  | { type: 'ClearSampleData' };
+  | { type: 'ClearSampleData' }
+  // Scenario actions (Phase 4). Like entities, Id generation happens at the
+  // dispatch call site so the reducer stays pure.
+  | { type: 'AddScenario'; scenario: Scenario }
+  | { type: 'UpdateScenario'; scenario: Scenario }
+  | { type: 'DeleteScenario'; id: string }
+  | { type: 'SetActiveScenario'; id: string | null };
 
 // Insert `item` into `list` at `index`, clamping the index into [0, length].
 // Pure helper: returns a new array and never mutates the input.
@@ -174,6 +187,31 @@ export const financeReducer = (
         stashedInvestments: null,
       };
     }
+
+    case 'AddScenario':
+      return { ...state, scenarios: [...state.scenarios, action.scenario] };
+
+    case 'UpdateScenario':
+      return {
+        ...state,
+        scenarios: state.scenarios.map((scenario) =>
+          scenario.Id === action.scenario.Id ? action.scenario : scenario
+        ),
+      };
+
+    case 'DeleteScenario':
+      return {
+        ...state,
+        scenarios: state.scenarios.filter(
+          (scenario) => scenario.Id !== action.id
+        ),
+        // Drop the active selection if the deleted scenario was active.
+        activeScenarioId:
+          state.activeScenarioId === action.id ? null : state.activeScenarioId,
+      };
+
+    case 'SetActiveScenario':
+      return { ...state, activeScenarioId: action.id };
 
     default:
       return state;

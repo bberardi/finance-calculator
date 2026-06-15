@@ -6,6 +6,7 @@ import {
 } from './finance-reducer';
 import { Loan } from '../models/loan-model';
 import { Investment, CompoundingFrequency } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
 
 const makeLoan = (id: string, overrides: Partial<Loan> = {}): Loan => ({
   Id: id,
@@ -463,6 +464,70 @@ describe('financeReducer', () => {
       const start = stateWith({ loans: [makeLoan('a')] });
       const next = financeReducer(start, { type: 'ClearSampleData' });
       expect(next).toBe(start);
+    });
+  });
+
+  describe('scenarios', () => {
+    const makeScenario = (id: string, name = `Scenario ${id}`): Scenario => ({
+      Id: id,
+      Name: name,
+      ExtraLoanPayments: {},
+      ExtraContributions: {},
+    });
+
+    it('AddScenario appends a scenario', () => {
+      const next = financeReducer(initialFinanceState, {
+        type: 'AddScenario',
+        scenario: makeScenario('s1'),
+      });
+      expect(next.scenarios.map((s) => s.Id)).toEqual(['s1']);
+    });
+
+    it('UpdateScenario replaces in place by Id', () => {
+      const start = stateWith({
+        scenarios: [makeScenario('s1'), makeScenario('s2')],
+      });
+      const next = financeReducer(start, {
+        type: 'UpdateScenario',
+        scenario: makeScenario('s1', 'Renamed'),
+      });
+      expect(next.scenarios.map((s) => s.Name)).toEqual([
+        'Renamed',
+        'Scenario s2',
+      ]);
+    });
+
+    it('DeleteScenario removes by Id and clears it if it was active', () => {
+      const start = stateWith({
+        scenarios: [makeScenario('s1'), makeScenario('s2')],
+        activeScenarioId: 's1',
+      });
+      const next = financeReducer(start, { type: 'DeleteScenario', id: 's1' });
+      expect(next.scenarios.map((s) => s.Id)).toEqual(['s2']);
+      expect(next.activeScenarioId).toBeNull();
+    });
+
+    it('DeleteScenario keeps the active selection when a different scenario is removed', () => {
+      const start = stateWith({
+        scenarios: [makeScenario('s1'), makeScenario('s2')],
+        activeScenarioId: 's2',
+      });
+      const next = financeReducer(start, { type: 'DeleteScenario', id: 's1' });
+      expect(next.activeScenarioId).toBe('s2');
+    });
+
+    it('SetActiveScenario sets and clears the active id', () => {
+      const start = stateWith({ scenarios: [makeScenario('s1')] });
+      expect(
+        financeReducer(start, { type: 'SetActiveScenario', id: 's1' })
+          .activeScenarioId
+      ).toBe('s1');
+      expect(
+        financeReducer(stateWith({ activeScenarioId: 's1' }), {
+          type: 'SetActiveScenario',
+          id: null,
+        }).activeScenarioId
+      ).toBeNull();
     });
   });
 

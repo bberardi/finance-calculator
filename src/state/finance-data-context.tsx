@@ -1,6 +1,7 @@
 import { createContext, Dispatch, ReactNode, useMemo, useReducer } from 'react';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
 import { generateId } from '../helpers/id-helpers';
 import {
   FinanceAction,
@@ -27,6 +28,12 @@ export interface FinanceDataContextValue {
   importMerge: (loans: Loan[], investments: Investment[]) => void;
   loadSampleData: (loans: Loan[], investments: Investment[]) => void;
   clearSampleData: () => void;
+  // Scenario actions (Phase 4). addScenario assigns an Id and returns it so the
+  // caller can immediately make the new scenario active.
+  addScenario: (scenario: Scenario) => string;
+  updateScenario: (scenario: Scenario) => void;
+  deleteScenario: (id: string) => void;
+  setActiveScenario: (id: string | null) => void;
 }
 
 export const FinanceDataContext = createContext<
@@ -67,6 +74,16 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
       loadSampleData: (loans: Loan[], investments: Investment[]) =>
         dispatch({ type: 'LoadSampleData', loans, investments }),
       clearSampleData: () => dispatch({ type: 'ClearSampleData' }),
+      addScenario: (scenario: Scenario) => {
+        const id = scenario.Id || generateId();
+        dispatch({ type: 'AddScenario', scenario: { ...scenario, Id: id } });
+        return id;
+      },
+      updateScenario: (scenario: Scenario) =>
+        dispatch({ type: 'UpdateScenario', scenario }),
+      deleteScenario: (id: string) => dispatch({ type: 'DeleteScenario', id }),
+      setActiveScenario: (id: string | null) =>
+        dispatch({ type: 'SetActiveScenario', id }),
     }),
     []
   );
