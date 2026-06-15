@@ -24,6 +24,7 @@ import { NetWorthSummary } from './dashboard/net-worth-summary';
 import { MilestoneCallouts } from './dashboard/milestone-callouts';
 import { AssumptionsPanel } from './dashboard/assumptions-panel';
 import { ScenarioBar } from './scenario/scenario-bar';
+import { ScenarioImpactSummary } from './scenario/scenario-impact-summary';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -194,6 +195,7 @@ export const Body = () => {
 
   const deletedName = undoableDelete?.entity.Name ?? '';
   const bothEmpty = loans.length === 0 && investments.length === 0;
+  const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
 
   return (
     <Container>
@@ -316,8 +318,17 @@ export const Body = () => {
             <ForecastChart
               loans={loans}
               investments={investments}
-              scenario={scenarios.find((s) => s.Id === activeScenarioId)}
+              scenario={activeScenario}
             />
+            {/* Scenario impact summary (roadmap 4.4): what the active scenario
+                buys vs. baseline — shown only when a scenario is active. */}
+            {activeScenario && (
+              <ScenarioImpactSummary
+                loans={loans}
+                investments={investments}
+                scenario={activeScenario}
+              />
+            )}
             {/* Stated-assumptions panel (roadmap 3.4): always-available note on
                 what the forecast assumes — honest framing for a deterministic
                 projection. */}
