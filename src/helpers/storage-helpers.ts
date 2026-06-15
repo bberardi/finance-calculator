@@ -23,6 +23,8 @@ import { migrate, VersionedData } from './migrate-helpers';
 export const STORAGE_DATA_KEY = 'pathwise:data';
 /** Where the "save on this device" preference lives (persisted per issue #20). */
 export const STORAGE_ENABLED_KEY = 'pathwise:persistence-enabled';
+/** Whether the first-visit on-device-data notice has been dismissed (1.3). */
+export const STORAGE_FIRST_VISIT_KEY = 'pathwise:first-visit-acknowledged';
 
 /** Outcome of a save attempt, so the UI can give honest feedback (1.2). */
 export type SaveStatus = 'saved' | 'quota-exceeded' | 'unavailable';
@@ -129,5 +131,27 @@ export const setPersistenceEnabled = (enabled: boolean): void => {
     }
   } catch {
     // Persisting the preference is best-effort; ignore storage failures.
+  }
+};
+
+/**
+ * Has the first-visit "your data stays on this device" notice been dismissed
+ * (1.3)? Unreadable storage is treated as "not yet seen" so the privacy story
+ * still surfaces; the trade-off is it may reappear when storage is unavailable.
+ */
+export const hasAcknowledgedFirstVisit = (): boolean => {
+  try {
+    return globalThis.localStorage.getItem(STORAGE_FIRST_VISIT_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+/** Record that the first-visit notice has been dismissed. Best-effort. */
+export const acknowledgeFirstVisit = (): void => {
+  try {
+    globalThis.localStorage.setItem(STORAGE_FIRST_VISIT_KEY, 'true');
+  } catch {
+    // Best-effort; if we can't record it the notice may reappear next visit.
   }
 };

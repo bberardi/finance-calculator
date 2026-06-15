@@ -17,6 +17,7 @@ import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
+import { FirstVisitNotice } from './persistence/first-visit-notice';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -199,6 +200,10 @@ export const Body = () => {
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
+
+      {/* First-visit privacy notice (roadmap 1.3): shown once, explains data
+          stays on-device and points at the "Save on this device" toggle. */}
+      <FirstVisitNotice />
 
       {/* Sample-data indicator (roadmap 0.9): while samples are loaded, keep a
           one-click "Clear sample data" right above the tables, where the user

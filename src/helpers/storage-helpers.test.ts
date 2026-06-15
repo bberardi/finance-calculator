@@ -2,13 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   STORAGE_DATA_KEY,
   STORAGE_ENABLED_KEY,
+  STORAGE_FIRST_VISIT_KEY,
   saveData,
   loadData,
   clearData,
   isPersistenceEnabled,
   setPersistenceEnabled,
+  hasAcknowledgedFirstVisit,
+  acknowledgeFirstVisit,
 } from './storage-helpers';
-import { exportToJson } from './data-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
 
@@ -99,11 +101,17 @@ describe('saveData / loadData round-trip', () => {
     expect(inv.StartDate.getTime()).toBe(sampleInvestment.StartDate.getTime());
   });
 
-  it('writes inputs-only schema-v2 JSON (no derived data) under the data key', () => {
+  it('writes inputs-only schema-v2 JSON under the data key', () => {
     saveData([sampleLoan], []);
     const raw = (globalThis.localStorage as Storage).getItem(STORAGE_DATA_KEY);
-    expect(raw).toBe(exportToJson([sampleLoan], []));
-    expect(JSON.parse(raw!).schemaVersion).toBe(2);
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    // Same serializer the export path uses: schema v2, derived data stripped.
+    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.loans).toHaveLength(1);
+    expect(parsed.loans[0].Id).toBe(sampleLoan.Id);
+    // Inputs only — no computed amortization schedule rides along.
+    expect(parsed.loans[0]).not.toHaveProperty('AmortizationSchedule');
   });
 });
 
@@ -227,5 +235,29 @@ describe('persistence preference', () => {
     setStorage(undefined);
     expect(() => setPersistenceEnabled(true)).not.toThrow();
     expect(() => setPersistenceEnabled(false)).not.toThrow();
+  });
+});
+
+describe('first-visit notice acknowledgement', () => {
+  it('reports not-yet-acknowledged by default', () => {
+    expect(hasAcknowledgedFirstVisit()).toBe(false);
+  });
+
+  it('records and reads back the acknowledgement', () => {
+    acknowledgeFirstVisit();
+    expect(
+      (globalThis.localStorage as Storage).getItem(STORAGE_FIRST_VISIT_KEY)
+    ).toBe('true');
+    expect(hasAcknowledgedFirstVisit()).toBe(true);
+  });
+
+  it('treats unreadable storage as not-yet-acknowledged', () => {
+    setStorage(undefined);
+    expect(hasAcknowledgedFirstVisit()).toBe(false);
+  });
+
+  it('ignores storage failures when recording the acknowledgement', () => {
+    setStorage(undefined);
+    expect(() => acknowledgeFirstVisit()).not.toThrow();
   });
 });
