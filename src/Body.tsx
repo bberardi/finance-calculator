@@ -1,6 +1,7 @@
 import {
   Alert,
   AppBar,
+  Box,
   Button,
   Container,
   Divider,
@@ -19,6 +20,7 @@ import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
 import { ForecastChart } from './chart/forecast-chart';
+import { NetWorthSummary } from './dashboard/net-worth-summary';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -233,6 +235,13 @@ export const Body = () => {
         </Paper>
       ) : (
         <>
+          {/* Net-worth dashboard summary cards (roadmap 3.1): lead the content
+              with today's totals — the same anchor the forecast chart starts
+              from. */}
+          <Box sx={{ marginBottom: SECTION_GAP }}>
+            <NetWorthSummary loans={loans} investments={investments} />
+          </Box>
+
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Loans</Divider>
             {loans.length > 0 ? (
