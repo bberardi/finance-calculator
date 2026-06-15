@@ -146,6 +146,8 @@ export const ForecastChart = ({
   const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
 
   // Per-series line styling: thicken any net-worth line, dash scenario overlays.
+  // x-charts v9 tags each line path with `data-series-id` (there is no per-series
+  // class), so target that attribute under the shared line class.
   const lineStyles = useMemo(() => {
     const styles: Record<string, Record<string, number | string>> = {};
     series.forEach((s) => {
@@ -157,7 +159,7 @@ export const ForecastChart = ({
         rules.strokeDasharray = '5 4';
       }
       if (Object.keys(rules).length > 0) {
-        styles[`& .MuiLineElement-series-${s.id}`] = rules;
+        styles[`& .MuiLineChart-line[data-series-id="${s.id}"]`] = rules;
       }
     });
     return styles;

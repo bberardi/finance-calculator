@@ -10,8 +10,8 @@ import { NET_WORTH_SERIES_ID } from '../helpers/forecast-series';
 
 export const NET_WORTH_COLOR = '#2e7d32';
 
-// Suffix marking a scenario-overlay series (Phase 4.3). Underscores keep the id
-// valid inside the `MuiLineElement-series-<id>` CSS class the chart targets.
+// Suffix marking a scenario-overlay series (Phase 4.3). Kept distinct from any
+// entity Id so the chart can style overlays via their `data-series-id`.
 export const SCENARIO_SERIES_SUFFIX = '__scenario';
 
 // The underlying entity (or net-worth) id behind a series id, with any scenario
