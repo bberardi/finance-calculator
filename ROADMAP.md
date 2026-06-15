@@ -306,6 +306,8 @@ Declared explicitly so future feature debates have a reference point:
 | ★ **Property + mortgage pairing**          | Home value with an appreciation rate, linked to its mortgage → a **home equity** series on the chart. Makes the net worth line honest for homeowners (currently a mortgage counts as pure liability). | New asset type + entity linking |
 | **Pensions / Social Security / annuities** | Future income streams starting at a date — matters enormously for the retirement-horizon view.                                                                                                        | New income-stream type          |
 | **Custom asset/liability**                 | Catch-all with a simple growth/decline rate: car (depreciating), private loan to a friend, collectibles. Escape hatch so nobody's net worth is blocked on a missing type.                             | New generic type                |
+| **Asset appreciation & enhancement**       | Model scenarios where an existing asset appreciates or is enhanced: add a pool/deck to your house (estimated cost and property value increase), refinish a car, renovation ROI. Pairs with property pairing to answer "is this investment worth it?"                                            | Property model + scenario engine |
+| _(exploratory)_ **Investment context & research** | Optional linked research, news, or articles relevant to holdings — seeded from the investment type/sector but never real-time market data. Shows "Apple news relevant to your AAPL holdings" without requiring data feeds.                                                                       | Investment model               |
 
 #### H4 — From calculator to plan
 
@@ -316,6 +318,13 @@ Declared explicitly so future feature debates have a reference point:
 | **Life-event timeline**             | Dated one-time events that modify the forecast: buy a house (new loan + asset), tuition (withdrawal), windfall, sell a car. A generalization of the scenario system from "extra $/month" to "things that happen."                                                                                       | Scenario engine generalization               |
 | **Inflation toggle**                | Real vs. nominal view of every chart and milestone.                                                                                                                                                                                                                                                     | Engine post-processing                       |
 | **Retirement / FI mode**            | Annual-spending input → FI number, projected FI date, coast-FI date. Composes goals + decumulation into the question long-horizon users actually have.                                                                                                                                                  | H2 withdrawals + H4 goals                    |
+
+#### H4b — Multi-scenario forecasting templates
+
+| Feature                             | What & why                                                                                                                                                                                                                                                                                              | Builds on                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Allocation strategy presets**      | Pre-built scenario templates that embody different financial philosophies: **debt-focused** (aggressive loan payoff, minimal investing), **invest-focused** (minimum debt payments, maximal contributions), **balanced** (split optimally by rate), and **custom** (user-defined split). Each shows its long-term net worth impact vs. baseline. | Phase 4 scenarios + Phase 5 optimizer        |
+| **Strategy comparison view**         | Side-by-side dashboard comparing all strategies: projected net worth at +5y/+10y/+30y, debt-free date, final asset allocation. Helps users see which philosophy aligns with their values and goals.                                                                                                     | Forecast engine + dashboard                  |
 
 #### H5 — Beyond the calculator
 
@@ -334,13 +343,13 @@ Declared explicitly so future feature debates have a reference point:
 
 #### Suggested post-1.0 sequencing
 
-| Release | Theme                  | Contents                                                  |
-| ------- | ---------------------- | --------------------------------------------------------- |
-| v1.1    | **Come back monthly**  | Balance check-ins + goals (H4★)                           |
-| v1.2    | **Whole net worth**    | Cash accounts + property/home equity (H3★)                |
-| v1.3    | **Better answers**     | Employer match, lump sums, refinance comparison (H1★/H2★) |
-| v1.4    | **Honest uncertainty** | Monte Carlo fan charts (H2)                               |
-| v2.0    | **Beyond personal**    | Household profiles + shareable links (H5)                 |
+| Release | Theme                  | Contents                                                                      |
+| ------- | ---------------------- | ----------------------------------------------------------------------------- |
+| v1.1    | **Come back monthly**  | Balance check-ins + goals (H4★)                                              |
+| v1.2    | **Whole net worth**    | Cash accounts + property/home equity + appreciation scenarios (H3★)           |
+| v1.3    | **Better answers**     | Employer match, lump sums, refinance comparison + strategy presets (H1★/H4b) |
+| v1.4    | **Honest uncertainty** | Monte Carlo fan charts + investment context (H2 / H3)                        |
+| v2.0    | **Beyond personal**    | Household profiles + shareable links (H5)                                    |
 
 The rationale for this order: retention first (check-ins make the app a habit), then completeness (so the net worth line is true), then answer quality (so the optimizer is trustworthy), then statistical honesty, then audience expansion.
 
@@ -419,3 +428,32 @@ waived with a comment," which a non-blocking weekly run won't drive on its own.
 - **Baseline (first full run, 2026-06-13)**: overall **85.33%** (844 killed / 147 survived / 11 timeout). Lowest files: `format-helpers.ts` 73.3%, `validation-helpers.ts` 82.7%, `forecast-helpers.ts` 85.1%, `investment-helpers.ts` 85.2%.
 - **Progress (2026-06-14)**: after strengthening the validation warning tests to assert message **content** (not just presence), `validation-helpers.ts` rose 82.7 → **83.7%** and overall held at **85.04%** despite the new #70/#72 warning + guard code adding mutants. `thresholds.break` ratcheted **80 → 83** (just below baseline, with headroom for run-to-run timeout variance). `format-helpers.ts` (73.3%) remains the lowest; its 4 survivors are the `Intl.NumberFormat` caching layer — equivalent mutants that change performance, not output, so they are a documented waiver rather than a test gap.
 - **Done when**: surviving mutants are triaged (each killed by a strengthened test or explicitly waived as equivalent), and `break` is ratcheted up toward zero survivors as the score improves. Next targets: `investment-helpers.ts` (83.9%) and `forecast-helpers.ts` (84.9%).
+
+---
+
+## 9. Proposed Additions (2026-06-15 review)
+
+A triage list, in the same spirit as the cross-cutting proposals that became §6/§8
+(PRs #60, #67): small, concrete additions surfaced by reading the current code and
+the open issue tracker against the roadmap. Each is filed under a category with a
+one-line rationale; none is a commitment until folded into a phase. Where an item
+belongs to an existing phase, the target phase is noted so it can be merged in
+rather than living here long-term.
+
+### 9.1 — Roadmap hygiene / tracking
+
+- **Reconcile §8 with the live issue tracker.** Nine bug issues are currently open (#68–#83), but §8 (which exists precisely for cross-cutting correctness items) reflects none of them. Several are even cited in the Phase 0.12 row as already handled — #70/#72/#73 as "follow-ups" and #68 as the sample-data date fix "shipped in #66, #74, #76" — yet all four remain **open**; #69 (dependency audit), #71 (PIT label), #75 (quarterly period count), #79 (0% loan auto-payment), and #83 (import/export on sample data) are untracked entirely. _Rationale: the roadmap currently overstates correctness status; a backlog pass that either closes the cited issues or moves the open ones into §8 keeps "what's done" trustworthy, which is the same standard §4 holds the math to._
+
+### 9.2 — Performance
+
+- **Virtualize the long schedule tables** (Phase 6, alongside the existing code-split/bundle items). `amortization-popout.tsx` and `growth-schedule-popout.tsx` both `.map()` every row straight into the DOM — a 50-year monthly loan is 600+ `TableRow`s, and the growth schedule projects 30 years (up to ~360 rows) eagerly. _Rationale: the existing perf items target bundle size and first paint, not list render volume; windowing these popouts (e.g. `@mui/x-data-grid` virtualization or a lightweight virtualizer) keeps opening/scrolling smooth on mobile without touching the verified math._
+
+### 9.3 — UX
+
+- **Unsaved-data guard until Phase 1 lands** (bridge to Phase 1, issue #20). A refresh currently wipes everything (gap G6), and there is no warning. A `beforeunload` prompt shown only while there is unpersisted user data — removed once the persistence toggle ships — is a cheap safety net for the window before Phase 1. _Rationale: silent, irreversible data loss on an accidental refresh is the same footgun class as #47/#83; a guard costs little and disappears once real persistence exists._
+- **Surface entity-level sanity warnings on the tables/cards, not only in the edit form.** `validateLoan`/`validateInvestment` already produce "wrong premise" warnings (rate > 30%, `CurrentAmount > Principal`, the proposed under-amortizing-payment warning in #70), but they appear only while a dialog is open — an imported or returning-user entity never shows them. A small warning badge + tooltip on the row would flag questionable inputs at a glance. _Rationale: extends the Charter's "a plausible-looking number on a wrong premise is worse than none" philosophy from the form into the always-visible tables, and gives imported #72-class entities a visible cue._
+
+### 9.4 — New features (small)
+
+- **Lifetime-totals footer in the schedule popouts.** The amortization popout shows per-row figures but no **total interest paid over the life of the loan**; the growth popout shows no **total contributed / total interest earned**. A single summary row is a cheap, high-value derivation from series the popout already computes. _Rationale: "what does this loan actually cost me?" is a headline question users open the schedule to answer, and the totals feed naturally into the Phase 3 dashboard and Phase 5 optimizer framing._
+- **Copy/download a single schedule as CSV** from the amortization/growth popouts. Distinct from the JSON backup (whole-dataset, inputs-only) and the H5 CSV _import_: this is exporting one computed schedule for a spreadsheet or a financial conversation. _Rationale: small UI affordance over data already on screen; pairs with the H5 "printable report" artifact without needing the full report._
