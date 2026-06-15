@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Box } from '@mui/material';
+import { Box, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
@@ -9,6 +9,7 @@ import { getDefaultHorizon } from '../helpers/forecast-helpers';
 import {
   NET_WORTH_SERIES_ID,
   buildForecastChartData,
+  sliceForecastChartData,
 } from '../helpers/forecast-series';
 import {
   formatCurrency,
@@ -23,6 +24,24 @@ interface ForecastChartProps {
   scenario?: ScenarioInput;
   height?: number;
 }
+
+type TimeRange = '5y' | '10y' | '30y' | 'full';
+
+// Months shown per range; 'full' means the whole horizon (Infinity clamps in
+// sliceForecastChartData to the available length).
+const RANGE_MONTHS: Record<TimeRange, number> = {
+  '5y': 60,
+  '10y': 120,
+  '30y': 360,
+  full: Infinity,
+};
+
+const RANGE_LABELS: { value: TimeRange; label: string }[] = [
+  { value: '5y', label: '5Y' },
+  { value: '10y', label: '10Y' },
+  { value: '30y', label: '30Y' },
+  { value: 'full', label: 'Full' },
+];
 
 // The forecast line chart (Phase 2). One line per loan (declining balance), one
 // per investment (growth), plus the aggregate net-worth line — all from the
@@ -39,10 +58,18 @@ export const ForecastChart = ({
   // the memo key isn't invalidated by every render's new Date().
   const today = useMemo(() => new Date(), []);
 
-  const { dates, series } = useMemo(() => {
+  const fullData = useMemo(() => {
     const horizon = getDefaultHorizon(loans, investments, today);
     return buildForecastChartData(loans, investments, horizon, scenario, today);
   }, [loans, investments, scenario, today]);
+
+  const [range, setRange] = useState<TimeRange>('full');
+
+  // Window the full series to the selected range (no recompute — pure slice).
+  const { dates, series } = useMemo(
+    () => sliceForecastChartData(fullData, RANGE_MONTHS[range]),
+    [fullData, range]
+  );
 
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
@@ -74,6 +101,24 @@ export const ForecastChart = ({
 
   return (
     <Box>
+      <Stack
+        direction="row"
+        sx={{ marginBottom: 1, justifyContent: 'flex-end' }}
+      >
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={range}
+          onChange={(_, next: TimeRange | null) => next && setRange(next)}
+          aria-label="Forecast time range"
+        >
+          {RANGE_LABELS.map(({ value, label }) => (
+            <ToggleButton key={value} value={value} aria-label={label}>
+              {label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
       <LineChart
         height={height}
         hideLegend

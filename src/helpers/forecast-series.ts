@@ -107,3 +107,23 @@ export const buildForecastChartData = (
 
   return { dates, series };
 };
+
+/**
+ * Window a forecast to the first `months` month-steps (the time-range control,
+ * 2.4). Index 0 is today, so `months` steps means `months + 1` points; the
+ * window is clamped to what exists, so asking for more than the horizon returns
+ * the full series. Pure slice — every series stays aligned to the trimmed axis.
+ */
+export const sliceForecastChartData = (
+  data: ForecastChartData,
+  months: number
+): ForecastChartData => {
+  const count = Math.min(months + 1, data.dates.length);
+  return {
+    dates: data.dates.slice(0, count),
+    series: data.series.map((s) => ({
+      ...s,
+      values: s.values.slice(0, count),
+    })),
+  };
+};

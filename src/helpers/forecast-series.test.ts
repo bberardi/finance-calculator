@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { NET_WORTH_SERIES_ID, buildForecastChartData } from './forecast-series';
+import {
+  NET_WORTH_SERIES_ID,
+  buildForecastChartData,
+  sliceForecastChartData,
+} from './forecast-series';
 import { forecastNetWorth } from './forecast-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
@@ -130,5 +134,35 @@ describe('buildForecastChartData', () => {
     const extraLoan = withExtra.series.find((s) => s.id === 'loan-1')!;
     // More toward principal ⇒ a lower balance next month.
     expect(extraLoan.values[1]).toBeLessThan(baseLoan.values[1]);
+  });
+});
+
+describe('sliceForecastChartData', () => {
+  const full = buildForecastChartData(
+    [loan],
+    [investment],
+    HORIZON,
+    undefined,
+    TODAY
+  );
+
+  it('keeps the first N month-steps (N+1 points) across every series', () => {
+    const sliced = sliceForecastChartData(full, 2);
+    expect(sliced.dates).toHaveLength(3);
+    sliced.series.forEach((s) => expect(s.values).toHaveLength(3));
+    // Windowed values match the head of the full series (today-anchored).
+    expect(sliced.series[0].values).toEqual(full.series[0].values.slice(0, 3));
+  });
+
+  it('clamps to the full series when asked for more than the horizon', () => {
+    const sliced = sliceForecastChartData(full, 999);
+    expect(sliced.dates).toHaveLength(full.dates.length);
+    expect(sliced.series[0].values).toEqual(full.series[0].values);
+  });
+
+  it('does not mutate the source data', () => {
+    const beforeLength = full.dates.length;
+    sliceForecastChartData(full, 1);
+    expect(full.dates).toHaveLength(beforeLength);
   });
 });
