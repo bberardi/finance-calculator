@@ -4,10 +4,14 @@ import {
   CompoundingFrequency,
   StepUpType,
 } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
+import { CURRENT_SCHEMA_VERSION, RawData, migrate } from './migrate-helpers';
 import packageJson from '../../package.json';
 
-// Schema v2: inputs only. v1 files are rejected — only schema v2 is accepted.
-export const EXPORT_SCHEMA_VERSION = 2;
+// Schema v3 (Phase 4.5): inputs only — loans, investments, and named scenarios.
+// v2 files (no scenarios) import forward via the D8 migration ladder; v1 and
+// newer-than-current versions are rejected there.
+export const EXPORT_SCHEMA_VERSION = CURRENT_SCHEMA_VERSION;
 
 // Serialized versions with Date fields converted to strings
 export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
@@ -23,6 +27,7 @@ export interface ExportData {
   schemaVersion: number;
   loans: SerializedLoan[];
   investments: SerializedInvestment[];
+  scenarios: Scenario[];
   exportDate: string;
   version: string;
 }
@@ -99,13 +104,83 @@ const VALID_COMPOUNDING_FREQUENCIES: string[] =
 /** Valid StepUpType values derived from the enum */
 const VALID_STEP_UP_TYPES: string[] = Object.values(StepUpType);
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /**
- * Serialize loans and investments to JSON string (schema v2, inputs only)
- * Converts Date objects to ISO strings for JSON compatibility
+ * Validate a scenario's extra-amounts map: every value must be a finite number.
+ * A missing map is treated as empty, so partial scenarios import cleanly.
+ */
+const parseNumberRecord = (
+  value: unknown,
+  field: string,
+  scenarioIndex: number
+): Record<string, number> => {
+  if (value === undefined || value === null) return {};
+  if (!isPlainObject(value)) {
+    throw new Error(
+      `Invalid '${field}' in scenario at index ${scenarioIndex}: expected an object of amounts.`
+    );
+  }
+  const result: Record<string, number> = {};
+  for (const [key, amount] of Object.entries(value)) {
+    if (!isFiniteNumber(amount)) {
+      throw new Error(
+        `Invalid amount for '${key}' in '${field}' of scenario at index ${scenarioIndex}: expected a finite number, got ${JSON.stringify(amount)}.`
+      );
+    }
+    result[key] = amount;
+  }
+  return result;
+};
+
+/**
+ * Validate and normalize the scenarios array (schema v3). A missing array
+ * imports as no scenarios; malformed entries throw, matching the strictness of
+ * loan/investment validation.
+ */
+const parseScenarios = (value: unknown): Scenario[] => {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error('Invalid data format: scenarios must be an array.');
+  }
+  return value.map((raw, index) => {
+    if (!isPlainObject(raw)) {
+      throw new Error(
+        `Invalid scenario at index ${index}: expected an object.`
+      );
+    }
+    if (!isValidId(raw.Id as string | undefined)) {
+      throw new Error(`Invalid or missing Id in scenario at index ${index}.`);
+    }
+    if (typeof raw.Name !== 'string' || raw.Name.trim() === '') {
+      throw new Error(`Invalid or missing Name in scenario at index ${index}.`);
+    }
+    return {
+      Id: raw.Id as string,
+      Name: raw.Name,
+      ExtraLoanPayments: parseNumberRecord(
+        raw.ExtraLoanPayments,
+        'ExtraLoanPayments',
+        index
+      ),
+      ExtraContributions: parseNumberRecord(
+        raw.ExtraContributions,
+        'ExtraContributions',
+        index
+      ),
+    };
+  });
+};
+
+/**
+ * Serialize loans, investments, and scenarios to a JSON string (schema v3,
+ * inputs only). Converts Date objects to ISO strings for JSON compatibility.
  */
 export const exportToJson = (
   loans: Loan[],
-  investments: Investment[]
+  investments: Investment[],
+  scenarios: Scenario[] = []
 ): string => {
   const serializedLoans: SerializedLoan[] = loans.map((loan) => ({
     ...loan,
@@ -124,6 +199,7 @@ export const exportToJson = (
     schemaVersion: EXPORT_SCHEMA_VERSION,
     loans: serializedLoans,
     investments: serializedInvestments,
+    scenarios,
     exportDate: new Date().toISOString(),
     version: packageJson.version,
   };
@@ -132,49 +208,34 @@ export const exportToJson = (
 };
 
 /**
- * Parse JSON string and convert ISO date strings back to Date objects
- * Accepts schema v2 only. Legacy v1 files (no schemaVersion or schemaVersion < 2)
- * are rejected. Throws error if JSON is invalid, missing required fields,
- * or the schema version is not exactly EXPORT_SCHEMA_VERSION.
+ * Parse a JSON string into validated inputs (loans, investments, scenarios) with
+ * Date fields restored. Routes the parsed payload through the D8 migration
+ * ladder (D8/migrate), so v2 files upgrade forward and v1 / newer-than-current
+ * versions are rejected with stable messages. Throws on invalid JSON, an
+ * unmigratable version, or any malformed field.
  */
 export const importFromJson = (
   jsonString: string
-): { loans: Loan[]; investments: Investment[] } => {
+): { loans: Loan[]; investments: Investment[]; scenarios: Scenario[] } => {
   try {
-    const data = JSON.parse(jsonString) as ExportData;
+    const raw = JSON.parse(jsonString) as ExportData;
 
     // Validate the structure
-    if (!data.loans || !data.investments) {
+    if (!raw.loans || !raw.investments) {
       throw new Error(
         'Invalid data format: Expected an object with "loans" and "investments" arrays.'
       );
     }
 
-    if (!Array.isArray(data.loans) || !Array.isArray(data.investments)) {
+    if (!Array.isArray(raw.loans) || !Array.isArray(raw.investments)) {
       throw new Error(
         'Invalid data format: loans and investments must be arrays'
       );
     }
 
-    // Only schema v2 is accepted; v1 files (missing schemaVersion or < 2) are rejected
-    if (data.schemaVersion === undefined) {
-      throw new Error(
-        'Invalid data format: missing schemaVersion. Legacy (v1) files are not supported.'
-      );
-    }
-    if (typeof data.schemaVersion !== 'number') {
-      throw new Error('Invalid data format: schemaVersion must be a number.');
-    }
-    if (data.schemaVersion > EXPORT_SCHEMA_VERSION) {
-      throw new Error(
-        `Unsupported schema version ${data.schemaVersion}: this file was exported by a newer version of the app.`
-      );
-    }
-    if (data.schemaVersion < EXPORT_SCHEMA_VERSION) {
-      throw new Error(
-        `Unsupported schema version ${data.schemaVersion}: legacy files are not supported.`
-      );
-    }
+    // D8 ladder: gate the version and upgrade older schemas (v2 → v3) before
+    // validation. Throws with the stable legacy/unsupported messages.
+    const data = migrate(raw as unknown as RawData) as unknown as ExportData;
 
     // Convert ISO date strings back to Date objects
     const loans: Loan[] = data.loans.map((serializedLoan, index) => {
@@ -416,7 +477,9 @@ export const importFromJson = (
       }
     });
 
-    return { loans, investments };
+    const scenarios = parseScenarios(data.scenarios);
+
+    return { loans, investments, scenarios };
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error('Invalid JSON format: unable to parse file');

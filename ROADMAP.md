@@ -11,9 +11,9 @@
 **The destination** (in priority order):
 
 1. See all loans and investments in one place _(done)_
-2. Persist data so it survives a refresh _(issue #20)_
-3. Visualize every position and overall net worth over time _(issue #18)_
-4. Overlay what-if scenarios on those projections _(issue #24)_
+2. Persist data so it survives a refresh _(issue #20 — done, Phase 1)_
+3. Visualize every position and overall net worth over time _(issue #18 — done, Phase 2)_
+4. Overlay what-if scenarios on those projections _(issue #24 — done, Phase 4)_
 5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — not yet an issue)_
 
 ---
@@ -110,7 +110,7 @@ Same philosophy as D2: take the architectural discipline now, skip the speculati
 
 ### D8 — One versioned schema-migration ladder
 
-_Status: pending — lands with the first persistence work (Phase 1)._
+_Status: ✅ seeded in Phase 1 (single-version gate); first real migration step (v2 → v3, scenarios) landed in Phase 4.5, and JSON import now routes through the ladder._
 
 The persisted schema bumps at least four times across the plan (export v2 in D5, scenarios in 4.5, snapshots in H4, multi-profile in H5). Rather than each reader carrying its own pairwise "accept v_n" backward-compat branch, define a single `schemaVersion`-keyed `migrate(data): CurrentSchema` step ladder that **every** entry point runs through — JSON import (D5), `localStorage` hydration (D4), and every future bump. Each new version adds exactly one migration step, tested to the same standard as the import validator, so old exports and stale `localStorage` upgrade forward deterministically instead of becoming a combinatorial compatibility hazard. Lands with the first persistence work (Phase 1), where stored data first has to survive a version change.
 
@@ -167,9 +167,13 @@ Remaining math-quality follow-ups (step-up reconciliation, dayjs migration, muta
 
 ---
 
-### Phase 1 — Local Persistence — issue #20 (target v0.8.0)
+### Phase 1 — Local Persistence — issue #20 — ✅ COMPLETE (v0.8.0)
 
-_Highest value-to-effort ratio in the backlog; independent of charts._
+_Highest value-to-effort ratio in the backlog; independent of charts. All four
+items shipped: `storage-helpers` + the D8 migration ladder, the "Save on this
+device" toggle (hydrate / debounced auto-save / clear-on-disable / persisted
+preference), the first-visit privacy notice, and the global error boundary with
+an export-my-data escape hatch._
 
 | #   | Work item                                                                                                                                                     | Notes / acceptance                                                                                                                                    |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -180,9 +184,9 @@ _Highest value-to-effort ratio in the backlog; independent of charts._
 
 ---
 
-### Phase 2 — Visualizations — issue #18 (target v0.9.0)
+### Phase 2 — Visualizations — issue #18 — ✅ COMPLETE (v0.9.0)
 
-_The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.11, since these charts are the first place users will see the math._
+_The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.11, since these charts are the first place users will see the math. Shipped: D1 confirmed (`@mui/x-charts` v9), a `forecast-series` builder whose net-worth line equals `forecastNetWorth` (Charter consistency), the forecast chart section with per-entity + net-worth lines, stable Id-derived colors, an interactive show/hide legend, a 5Y/10Y/30Y/Full time-range control, responsive mobile height, and an accessible "view as table" fallback._
 
 | #   | Work item                                                                                                                                               | Notes / acceptance                                                                                                                                                                                                                                                                |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -195,9 +199,9 @@ _The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.1
 
 ---
 
-### Phase 3 — Net Worth Dashboard (target v0.10.0)
+### Phase 3 — Net Worth Dashboard — ✅ COMPLETE (v0.10.0)
 
-_Makes the app's stated purpose — net worth — visible at a glance. Small phase; could merge into Phase 2 if momentum allows._
+_Makes the app's stated purpose — net worth — visible at a glance. Shipped: summary cards (total assets / debt / net worth / monthly commitments at the engine's today-anchor), milestone callouts (debt-free date + net worth at +5y/+10y/+30y), table upgrades (sortable headers with meaningful defaults, totals rows, loan payoff/current-balance columns + principal-paid progress, per-entity clone), and the stated-assumptions panel._
 
 | #   | Work item                                                                                                                                                                                                                       | Notes / acceptance                                                                                                                                                                     |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -208,9 +212,9 @@ _Makes the app's stated purpose — net worth — visible at a glance. Small pha
 
 ---
 
-### Phase 4 — Scenario Forecasting — issue #24 (target v0.11.0)
+### Phase 4 — Scenario Forecasting — issue #24 — ✅ COMPLETE (v0.11.0)
 
-_The what-if layer. Depends on Phases 0 (engine scenario API) and 2 (chart)._
+_The what-if layer. Shipped: a named-scenario model + reducer state, a scenario builder dialog and selector bar, dotted color-matched chart overlays (originals retained) with a scenario net-worth line, a scenario impact summary (net worth at horizon, interest saved, payoff moved up), and persistence of scenarios via export schema **v3** — the first real D8 migration (v2 → v3), through which JSON import now routes._
 
 | #   | Work item                                                                                                                                  | Notes / acceptance                                                                 |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
@@ -296,14 +300,14 @@ Declared explicitly so future feature debates have a reference point:
 
 #### H3 — The full net worth picture
 
-| Feature                                    | What & why                                                                                                                                                                                            | Builds on                       |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| ★ **Cash accounts (HYSA/CD/checking)**     | Trivial model (balance + APY), big completeness win — most people's net worth includes cash the app currently can't hold.                                                                             | New simple asset type           |
-| ★ **Property + mortgage pairing**          | Home value with an appreciation rate, linked to its mortgage → a **home equity** series on the chart. Makes the net worth line honest for homeowners (currently a mortgage counts as pure liability). | New asset type + entity linking |
-| **Pensions / Social Security / annuities** | Future income streams starting at a date — matters enormously for the retirement-horizon view.                                                                                                        | New income-stream type          |
-| **Custom asset/liability**                 | Catch-all with a simple growth/decline rate: car (depreciating), private loan to a friend, collectibles. Escape hatch so nobody's net worth is blocked on a missing type.                             | New generic type                |
-| **Asset appreciation & enhancement**       | Model scenarios where an existing asset appreciates or is enhanced: add a pool/deck to your house (estimated cost and property value increase), refinish a car, renovation ROI. Pairs with property pairing to answer "is this investment worth it?"                                            | Property model + scenario engine |
-| _(exploratory)_ **Investment context & research** | Optional linked research, news, or articles relevant to holdings — seeded from the investment type/sector but never real-time market data. Shows "Apple news relevant to your AAPL holdings" without requiring data feeds.                                                                       | Investment model               |
+| Feature                                           | What & why                                                                                                                                                                                                                                           | Builds on                        |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| ★ **Cash accounts (HYSA/CD/checking)**            | Trivial model (balance + APY), big completeness win — most people's net worth includes cash the app currently can't hold.                                                                                                                            | New simple asset type            |
+| ★ **Property + mortgage pairing**                 | Home value with an appreciation rate, linked to its mortgage → a **home equity** series on the chart. Makes the net worth line honest for homeowners (currently a mortgage counts as pure liability).                                                | New asset type + entity linking  |
+| **Pensions / Social Security / annuities**        | Future income streams starting at a date — matters enormously for the retirement-horizon view.                                                                                                                                                       | New income-stream type           |
+| **Custom asset/liability**                        | Catch-all with a simple growth/decline rate: car (depreciating), private loan to a friend, collectibles. Escape hatch so nobody's net worth is blocked on a missing type.                                                                            | New generic type                 |
+| **Asset appreciation & enhancement**              | Model scenarios where an existing asset appreciates or is enhanced: add a pool/deck to your house (estimated cost and property value increase), refinish a car, renovation ROI. Pairs with property pairing to answer "is this investment worth it?" | Property model + scenario engine |
+| _(exploratory)_ **Investment context & research** | Optional linked research, news, or articles relevant to holdings — seeded from the investment type/sector but never real-time market data. Shows "Apple news relevant to your AAPL holdings" without requiring data feeds.                           | Investment model                 |
 
 #### H4 — From calculator to plan
 
@@ -317,10 +321,10 @@ Declared explicitly so future feature debates have a reference point:
 
 #### H4b — Multi-scenario forecasting templates
 
-| Feature                             | What & why                                                                                                                                                                                                                                                                                              | Builds on                                    |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| **Allocation strategy presets**      | Pre-built scenario templates that embody different financial philosophies: **debt-focused** (aggressive loan payoff, minimal investing), **invest-focused** (minimum debt payments, maximal contributions), **balanced** (split optimally by rate), and **custom** (user-defined split). Each shows its long-term net worth impact vs. baseline. | Phase 4 scenarios + Phase 5 optimizer        |
-| **Strategy comparison view**         | Side-by-side dashboard comparing all strategies: projected net worth at +5y/+10y/+30y, debt-free date, final asset allocation. Helps users see which philosophy aligns with their values and goals.                                                                                                     | Forecast engine + dashboard                  |
+| Feature                         | What & why                                                                                                                                                                                                                                                                                                                                       | Builds on                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| **Allocation strategy presets** | Pre-built scenario templates that embody different financial philosophies: **debt-focused** (aggressive loan payoff, minimal investing), **invest-focused** (minimum debt payments, maximal contributions), **balanced** (split optimally by rate), and **custom** (user-defined split). Each shows its long-term net worth impact vs. baseline. | Phase 4 scenarios + Phase 5 optimizer |
+| **Strategy comparison view**    | Side-by-side dashboard comparing all strategies: projected net worth at +5y/+10y/+30y, debt-free date, final asset allocation. Helps users see which philosophy aligns with their values and goals.                                                                                                                                              | Forecast engine + dashboard           |
 
 #### H5 — Beyond the calculator
 
@@ -339,10 +343,10 @@ Declared explicitly so future feature debates have a reference point:
 
 #### Suggested post-1.0 sequencing
 
-| Release | Theme                  | Contents                                                                      |
-| ------- | ---------------------- | ----------------------------------------------------------------------------- |
+| Release | Theme                  | Contents                                                                     |
+| ------- | ---------------------- | ---------------------------------------------------------------------------- |
 | v1.1    | **Come back monthly**  | Balance check-ins + goals (H4★)                                              |
-| v1.2    | **Whole net worth**    | Cash accounts + property/home equity + appreciation scenarios (H3★)           |
+| v1.2    | **Whole net worth**    | Cash accounts + property/home equity + appreciation scenarios (H3★)          |
 | v1.3    | **Better answers**     | Employer match, lump sums, refinance comparison + strategy presets (H1★/H4b) |
 | v1.4    | **Honest uncertainty** | Monte Carlo fan charts + investment context (H2 / H3)                        |
 | v2.0    | **Beyond personal**    | Household profiles + shareable links (H5)                                    |
@@ -358,11 +362,11 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
          (engine, context, CI, dep modernization,
           theme/dark mode, dialogs, validation, empty states,
           math verification suite + correctness sweep — gate for Phase 2)
-   ├── Phase 1  Persistence (#20)         ← next      v0.8.0   (independent of 2)
-   └── Phase 2  Charts (#18)                          v0.9.0
-           └── Phase 3  Dashboard                     v0.10.0
-                   └── Phase 4  Scenarios (#24)       v0.11.0
-                           └── Phase 5  Optimizer     v1.0.0
+   ├── Phase 1  Persistence (#20)         ✅ DONE     v0.8.0   (independent of 2)
+   └── Phase 2  Charts (#18)              ✅ DONE     v0.9.0
+           └── Phase 3  Dashboard         ✅ DONE     v0.10.0
+                   └── Phase 4  Scenarios (#24)  ✅ DONE  v0.11.0
+                           └── Phase 5  Optimizer  ← next   v1.0.0
 Phase 6  Quality items slot in anywhere
 Phase 7  Future horizons queue up post-1.0 (v1.1 → v2.0 sequencing in §Phase 7)
 ```

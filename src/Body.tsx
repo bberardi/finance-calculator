@@ -1,6 +1,7 @@
 import {
   Alert,
   AppBar,
+  Box,
   Button,
   Container,
   Divider,
@@ -16,6 +17,14 @@ import { AddEditInvestment } from './investment/add-edit-investment';
 import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
+import { PersistenceToggle } from './persistence/persistence-toggle';
+import { FirstVisitNotice } from './persistence/first-visit-notice';
+import { ForecastChart } from './chart/forecast-chart';
+import { NetWorthSummary } from './dashboard/net-worth-summary';
+import { MilestoneCallouts } from './dashboard/milestone-callouts';
+import { AssumptionsPanel } from './dashboard/assumptions-panel';
+import { ScenarioBar } from './scenario/scenario-bar';
+import { ScenarioImpactSummary } from './scenario/scenario-impact-summary';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -53,7 +62,13 @@ const addActionSx = {
 
 export const Body = () => {
   const {
-    state: { loans, investments, sampleDataLoaded },
+    state: {
+      loans,
+      investments,
+      sampleDataLoaded,
+      scenarios,
+      activeScenarioId,
+    },
     addLoan,
     updateLoan,
     deleteLoan,
@@ -102,6 +117,12 @@ export const Body = () => {
     setPendingDelete({ kind: 'loan', entity: loan });
   };
 
+  // Clone (roadmap 3.3): copy an entity with a fresh Id (addLoan/addInvestment
+  // assign one when Id is empty) so refinance/what-if candidates don't need
+  // re-typing. Marked "(copy)" so the duplicate is obvious.
+  const onLoanClone = (loan: Loan) =>
+    addLoan({ ...loan, Id: '', Name: `${loan.Name} (copy)` });
+
   const onInvestmentAddEdit = (investment?: Investment) => {
     setEditInvestment(investment);
     setIsAddInvestmentOpen(true);
@@ -127,6 +148,13 @@ export const Body = () => {
   const onInvestmentDelete = (investment: Investment) => {
     setPendingDelete({ kind: 'investment', entity: investment });
   };
+
+  const onInvestmentClone = (investment: Investment) =>
+    addInvestment({
+      ...investment,
+      Id: '',
+      Name: `${investment.Name} (copy)`,
+    });
 
   // Step 2: confirmation accepted — actually delete, remembering the original
   // index so the snackbar can offer an exact-position undo.
@@ -167,6 +195,7 @@ export const Body = () => {
 
   const deletedName = undoableDelete?.entity.Name ?? '';
   const bothEmpty = loans.length === 0 && investments.length === 0;
+  const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
 
   return (
     <Container>
@@ -194,9 +223,14 @@ export const Body = () => {
             Add Investment
           </Button>
           <DataManager />
+          <PersistenceToggle />
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
+
+      {/* First-visit privacy notice (roadmap 1.3): shown once, explains data
+          stays on-device and points at the "Save on this device" toggle. */}
+      <FirstVisitNotice />
 
       {/* Sample-data indicator (roadmap 0.9): while samples are loaded, keep a
           one-click "Clear sample data" right above the tables, where the user
@@ -225,6 +259,18 @@ export const Body = () => {
         </Paper>
       ) : (
         <>
+          {/* Net-worth dashboard summary cards (roadmap 3.1): lead the content
+              with today's totals — the same anchor the forecast chart starts
+              from. */}
+          <Box sx={{ marginBottom: SECTION_GAP }}>
+            <NetWorthSummary loans={loans} investments={investments} />
+            {/* Milestone callouts (roadmap 3.2): debt-free date + net worth at
+                +5y/+10y/+30y, cheap reads off the same engine series. */}
+            <Box sx={{ marginTop: 2 }}>
+              <MilestoneCallouts loans={loans} investments={investments} />
+            </Box>
+          </Box>
+
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Loans</Divider>
             {loans.length > 0 ? (
@@ -232,6 +278,7 @@ export const Body = () => {
                 loans={loans}
                 onLoanEdit={onLoanAddEdit}
                 onLoanDelete={onLoanDelete}
+                onLoanClone={onLoanClone}
               />
             ) : (
               <SectionEmptyState
@@ -249,6 +296,7 @@ export const Body = () => {
                 investments={investments}
                 onInvestmentEdit={onInvestmentAddEdit}
                 onInvestmentDelete={onInvestmentDelete}
+                onInvestmentClone={onInvestmentClone}
               />
             ) : (
               <SectionEmptyState
@@ -257,6 +305,34 @@ export const Body = () => {
                 onAction={() => onInvestmentAddEdit()}
               />
             )}
+          </Paper>
+
+          {/* Forecast chart (roadmap 2.2): per-loan, per-investment, and overall
+              net-worth lines from the shared engine. Shown whenever there is at
+              least one position (the enclosing branch already guarantees it). */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Forecast</Divider>
+            {/* Scenario controls (roadmap 4.2): create/select/delete what-if
+                scenarios; the active one overlays the chart (4.3). */}
+            <ScenarioBar />
+            <ForecastChart
+              loans={loans}
+              investments={investments}
+              scenario={activeScenario}
+            />
+            {/* Scenario impact summary (roadmap 4.4): what the active scenario
+                buys vs. baseline — shown only when a scenario is active. */}
+            {activeScenario && (
+              <ScenarioImpactSummary
+                loans={loans}
+                investments={investments}
+                scenario={activeScenario}
+              />
+            )}
+            {/* Stated-assumptions panel (roadmap 3.4): always-available note on
+                what the forecast assumes — honest framing for a deterministic
+                projection. */}
+            <AssumptionsPanel />
           </Paper>
         </>
       )}

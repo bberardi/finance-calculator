@@ -1,17 +1,14 @@
 import { Button, Alert, Snackbar, Tooltip } from '@mui/material';
 import { useState, useRef } from 'react';
-import {
-  exportToJson,
-  importFromJson,
-  mergeData,
-} from '../helpers/data-helpers';
+import { importFromJson, mergeData } from '../helpers/data-helpers';
+import { downloadJsonExport } from './export-download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useFinanceData } from '../state/use-finance-data';
 
 export const DataManager = () => {
   const {
-    state: { loans, investments },
+    state: { loans, investments, scenarios },
     importMerge,
   } = useFinanceData();
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -22,16 +19,7 @@ export const DataManager = () => {
 
   const handleExport = () => {
     try {
-      const jsonData = exportToJson(loans, investments);
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `pathwise-data-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadJsonExport(loans, investments, scenarios);
       setSuccessMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
@@ -67,8 +55,11 @@ export const DataManager = () => {
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
-        const { loans: importedLoans, investments: importedInvestments } =
-          importFromJson(content);
+        const {
+          loans: importedLoans,
+          investments: importedInvestments,
+          scenarios: importedScenarios,
+        } = importFromJson(content);
 
         // Compute merge statistics for the success message. The actual state
         // update is performed by the reducer's ImportMerge action (which runs
@@ -79,7 +70,7 @@ export const DataManager = () => {
           importedInvestments
         );
 
-        importMerge(importedLoans, importedInvestments);
+        importMerge(importedLoans, importedInvestments, importedScenarios);
 
         // Build detailed success message
         const totalLoansProcessed = loansResult.added + loansResult.updated;

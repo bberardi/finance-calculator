@@ -12,6 +12,7 @@ import {
   ThemeProvider,
 } from '@mui/material';
 import { FinanceDataProvider } from './state/finance-data-context';
+import { AppErrorBoundary } from './components/app-error-boundary';
 import { theme } from './theme';
 
 function App() {
@@ -24,19 +25,24 @@ function App() {
         <CssBaseline />
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <FinanceDataProvider>
-            <Stack sx={{ height: '100vh', flexDirection: 'column' }}>
-              <Header />
-              <Box
-                sx={{
-                  flexGrow: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <Body />
-              </Box>
-              <Footer />
-            </Stack>
+            {/* App-level error boundary (1.4): a render crash shows a recovery
+                screen with an export-my-data escape hatch + reload, never a
+                white screen. Inside the provider so the fallback can export. */}
+            <AppErrorBoundary>
+              <Stack sx={{ height: '100vh', flexDirection: 'column' }}>
+                <Header />
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <Body />
+                </Box>
+                <Footer />
+              </Stack>
+            </AppErrorBoundary>
           </FinanceDataProvider>
         </LocalizationProvider>
       </ThemeProvider>

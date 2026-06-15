@@ -1,0 +1,73 @@
+import dayjs from 'dayjs';
+import { Loan } from '../models/loan-model';
+import { Investment } from '../models/investment-model';
+import {
+  forecastLoan,
+  forecastNetWorth,
+  getDefaultHorizon,
+} from './forecast-helpers';
+
+// Dashboard milestone derivations (Phase 3.2): the projected debt-free date and
+// net worth at +5y / +10y / +30y. Cheap reads off the same engine series the
+// chart uses. Pure and framework-free (D7).
+
+export const MILESTONE_YEARS = [5, 10, 30] as const;
+
+export interface NetWorthMilestone {
+  years: number;
+  value: number;
+}
+
+export interface Milestones {
+  // First date Σ loan balances reach zero, or undefined if there are no loans
+  // or none pay off within the horizon.
+  debtFreeDate?: Date;
+  netWorthAt: NetWorthMilestone[];
+}
+
+export const computeMilestones = (
+  loans: Loan[],
+  investments: Investment[],
+  today: Date = new Date()
+): Milestones => {
+  // Extend the horizon to at least 30 years so the +30y milestone always exists,
+  // while still covering a longer loan schedule for the debt-free date.
+  const defaultHorizon = getDefaultHorizon(loans, investments, today);
+  const thirtyYears = dayjs(today).add(30, 'year').toDate();
+  const horizon = dayjs(defaultHorizon).isAfter(thirtyYears)
+    ? defaultHorizon
+    : thirtyYears;
+
+  const netWorth = forecastNetWorth(
+    loans,
+    investments,
+    horizon,
+    undefined,
+    today
+  );
+
+  const netWorthAt = MILESTONE_YEARS.map((years) => ({
+    years,
+    value: netWorth[Math.min(years * 12, netWorth.length - 1)].Value,
+  }));
+
+  // Debt-free: the first month the summed loan balances reach zero.
+  let debtFreeDate: Date | undefined;
+  if (loans.length > 0) {
+    const loanSeries = loans.map((loan) =>
+      forecastLoan(loan, horizon, 0, today)
+    );
+    for (let month = 0; month < netWorth.length; month++) {
+      const totalDebt = loanSeries.reduce(
+        (sum, series) => sum + series[month].Value,
+        0
+      );
+      if (totalDebt <= 0) {
+        debtFreeDate = netWorth[month].Date;
+        break;
+      }
+    }
+  }
+
+  return { debtFreeDate, netWorthAt };
+};
