@@ -16,6 +16,7 @@ import { AddEditInvestment } from './investment/add-edit-investment';
 import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
+import { PersistenceToggle } from './persistence/persistence-toggle';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -194,6 +195,7 @@ export const Body = () => {
             Add Investment
           </Button>
           <DataManager />
+          <PersistenceToggle />
           <ColorModeToggle />
         </Toolbar>
       </AppBar>

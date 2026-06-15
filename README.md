@@ -32,6 +32,7 @@ Everything runs in your browser. There's **no backend, no account, and no tracki
 - 🏦 **Loan modeling** — auto-calculated monthly payment, full amortization schedule, and a point-in-time view of any loan on any date.
 - 📈 **Investment modeling** — configurable compounding frequencies, recurring contributions, and yearly step-ups (flat or percentage), with a projected-growth schedule.
 - 💰 **Net worth forecasting** — a date-indexed engine projects loans, investments, and overall net worth onto a single shared timeline.
+- 💾 **On-device persistence** — opt in to "Save on this device" and your data survives a refresh, stored only in your browser's local storage; turning it off clears it.
 - 🔁 **Import / export** — back up and restore your data as JSON, with ID-based smart merge and validation on import.
 - 🌗 **Light & dark mode** — a full Material UI theme with a persisted color-mode toggle.
 - 📱 **Responsive** — data tables on desktop, cards on mobile.
