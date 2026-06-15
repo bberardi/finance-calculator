@@ -22,6 +22,7 @@ import { FirstVisitNotice } from './persistence/first-visit-notice';
 import { ForecastChart } from './chart/forecast-chart';
 import { NetWorthSummary } from './dashboard/net-worth-summary';
 import { MilestoneCallouts } from './dashboard/milestone-callouts';
+import { AssumptionsPanel } from './dashboard/assumptions-panel';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -303,6 +304,10 @@ export const Body = () => {
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Forecast</Divider>
             <ForecastChart loans={loans} investments={investments} />
+            {/* Stated-assumptions panel (roadmap 3.4): always-available note on
+                what the forecast assumes — honest framing for a deterministic
+                projection. */}
+            <AssumptionsPanel />
           </Paper>
         </>
       )}
