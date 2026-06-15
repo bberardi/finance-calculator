@@ -5,11 +5,15 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { ScenarioInput } from '../models/forecast-model';
 import { getDefaultHorizon } from '../helpers/forecast-helpers';
-import { buildForecastChartData } from '../helpers/forecast-series';
+import {
+  NET_WORTH_SERIES_ID,
+  buildForecastChartData,
+} from '../helpers/forecast-series';
 import {
   formatCurrency,
   formatCurrencyCompact,
 } from '../helpers/format-helpers';
+import { getSeriesColor } from './series-colors';
 
 interface ForecastChartProps {
   loans: Loan[];
@@ -54,11 +58,18 @@ export const ForecastChart = ({
         id: s.id,
         data: s.values,
         label: s.label,
+        color: getSeriesColor(s.id),
         showMark: false,
         valueFormatter: (value: number | null) =>
           value === null ? '' : formatCurrency(value),
       }))}
       margin={{ left: 64 }}
+      // Emphasize the headline net-worth line above the entity lines.
+      sx={{
+        [`& .MuiLineElement-series-${NET_WORTH_SERIES_ID}`]: {
+          strokeWidth: 3,
+        },
+      }}
     />
   );
 };
