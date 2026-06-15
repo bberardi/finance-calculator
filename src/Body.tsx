@@ -23,6 +23,7 @@ import { ForecastChart } from './chart/forecast-chart';
 import { NetWorthSummary } from './dashboard/net-worth-summary';
 import { MilestoneCallouts } from './dashboard/milestone-callouts';
 import { AssumptionsPanel } from './dashboard/assumptions-panel';
+import { ScenarioBar } from './scenario/scenario-bar';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -303,6 +304,9 @@ export const Body = () => {
               least one position (the enclosing branch already guarantees it). */}
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Forecast</Divider>
+            {/* Scenario controls (roadmap 4.2): create/select/delete what-if
+                scenarios; the active one overlays the chart (4.3). */}
+            <ScenarioBar />
             <ForecastChart loans={loans} investments={investments} />
             {/* Stated-assumptions panel (roadmap 3.4): always-available note on
                 what the forecast assumes — honest framing for a deterministic
