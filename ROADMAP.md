@@ -12,7 +12,7 @@
 
 1. See all loans and investments in one place _(done)_
 2. Persist data so it survives a refresh _(issue #20 — done, Phase 1)_
-3. Visualize every position and overall net worth over time _(issue #18)_
+3. Visualize every position and overall net worth over time _(issue #18 — done, Phase 2)_
 4. Overlay what-if scenarios on those projections _(issue #24)_
 5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — not yet an issue)_
 
@@ -184,9 +184,9 @@ an export-my-data escape hatch._
 
 ---
 
-### Phase 2 — Visualizations — issue #18 (target v0.9.0)
+### Phase 2 — Visualizations — issue #18 — ✅ COMPLETE (v0.9.0)
 
-_The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.11, since these charts are the first place users will see the math._
+_The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.11, since these charts are the first place users will see the math. Shipped: D1 confirmed (`@mui/x-charts` v9), a `forecast-series` builder whose net-worth line equals `forecastNetWorth` (Charter consistency), the forecast chart section with per-entity + net-worth lines, stable Id-derived colors, an interactive show/hide legend, a 5Y/10Y/30Y/Full time-range control, responsive mobile height, and an accessible "view as table" fallback._
 
 | #   | Work item                                                                                                                                               | Notes / acceptance                                                                                                                                                                                                                                                                |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -354,8 +354,8 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
           theme/dark mode, dialogs, validation, empty states,
           math verification suite + correctness sweep — gate for Phase 2)
    ├── Phase 1  Persistence (#20)         ✅ DONE     v0.8.0   (independent of 2)
-   └── Phase 2  Charts (#18)              ← next      v0.9.0
-           └── Phase 3  Dashboard                     v0.10.0
+   └── Phase 2  Charts (#18)              ✅ DONE     v0.9.0
+           └── Phase 3  Dashboard         ← next      v0.10.0
                    └── Phase 4  Scenarios (#24)       v0.11.0
                            └── Phase 5  Optimizer     v1.0.0
 Phase 6  Quality items slot in anywhere
