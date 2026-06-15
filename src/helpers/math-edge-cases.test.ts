@@ -134,14 +134,19 @@ describe('Edge: negative amortization (payment < interest)', () => {
       0,
       new Date(2020, 0, 1)
     );
-    // Strictly increasing while underwater.
+    // Strictly increasing while underwater — the forecast honestly shows the
+    // balance climbing under interest, never reaching payoff.
     for (let m = 1; m < series.length; m++) {
       expect(series[m].Value).toBeGreaterThan(series[m - 1].Value);
     }
     expect(series[1].Value).toBe(100500);
 
-    // The schedule records a negative principal payment in the same situation.
-    expect(generateAmortizationSchedule(loan)[0].PrincipalPayment).toBe(-500);
+    // #70: the amortization schedule declines to represent an unamortizable
+    // loan rather than emitting negative-principal, balance-growing rows that
+    // close with a catastrophic balloon. It returns an empty schedule (the same
+    // signal as a non-positive payment), and validateLoan surfaces a matching
+    // sanity warning on the input side.
+    expect(generateAmortizationSchedule(loan)).toEqual([]);
   });
 });
 

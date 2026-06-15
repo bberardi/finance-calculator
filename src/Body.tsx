@@ -39,6 +39,18 @@ type UndoableDelete =
 
 const DELETE_UNDO_DURATION_MS = 6000;
 
+// Command-bar primary actions ("Add Loan" / "Add Investment"): solid white
+// buttons with deep brand-green text. Styled explicitly rather than via
+// `color="inherit"` — a contained inherit button takes its TEXT color from the
+// AppBar (white) but its background from `grey[300]`, rendering white-on-light-
+// grey and unreadable in light mode. White surface + green text stays
+// high-contrast against the deep-green pill in both color schemes.
+const addActionSx = {
+  bgcolor: 'common.white',
+  color: 'primary.dark',
+  '&:hover': { bgcolor: 'grey.200' },
+} as const;
+
 export const Body = () => {
   const {
     state: { loans, investments, sampleDataLoaded },
@@ -160,23 +172,23 @@ export const Body = () => {
     <Container>
       <AppBar>
         {/* Command bar (roadmap 0.10): the two "Add" actions are the primary
-            actions — `contained color="inherit"` renders them as solid light
-            buttons that contrast against the brand-blue pill in both light and
-            dark mode. DataManager's import/export are secondary (text variant
-            with icons + tooltips). The dark-mode toggle is pushed to the right
-            with `marginLeft: 'auto'`; on narrow viewports the Toolbar wraps
-            cleanly (theme `MuiToolbar` flexWrap/gap). */}
+            actions — solid white buttons with deep brand-green text (see
+            `addActionSx`) so they stay readable against the deep-green pill in
+            both light and dark mode. DataManager's import/export are secondary
+            (text variant with icons + tooltips). The dark-mode toggle is pushed
+            to the right with `marginLeft: 'auto'`; on narrow viewports the
+            Toolbar wraps cleanly (theme `MuiToolbar` flexWrap/gap). */}
         <Toolbar>
           <Button
             variant="contained"
-            color="inherit"
+            sx={addActionSx}
             onClick={() => onLoanAddEdit()}
           >
             Add Loan
           </Button>
           <Button
             variant="contained"
-            color="inherit"
+            sx={addActionSx}
             onClick={() => onInvestmentAddEdit()}
           >
             Add Investment

@@ -18,40 +18,27 @@
 
 ---
 
-## 2. Current State Assessment (June 2026, v0.6.0)
+## 2. Current State Assessment (June 2026, v0.7.0 — Phase 0 complete)
 
 ### What exists and works
 
-- React 18 + TypeScript + Vite + MUI v6, deployed to GitHub Pages via Actions
+- React 19 + TypeScript + Vite 8 + MUI 9, deployed to GitHub Pages via Actions (stack modernized in Phase 0)
 - Loan CRUD with auto-calculated monthly payment, amortization schedule popout, point-in-time (PIT) calculator
 - Investment CRUD with compounding frequencies, recurring contributions, yearly step-ups (flat/%), growth schedule popout, PIT calculator
-- JSON export/import with ID-based smart merge and validation
-- Responsive tables (desktop table / mobile cards)
-- Unit test coverage for all helper math (Vitest) — but a cluster of confirmed correctness bugs in those helpers is now tracked (#51, #52, #53, #57, #59) and folded into the math-verification work (0.11 / 0.12) to be closed **before Phase 2** puts the numbers on charts (#44 and #46 were part of this cluster and have since been fixed)
+- JSON export/import with ID-based smart merge and numeric/enum validation
+- MUI theme with **dark mode** (persisted), `Dialog`-based add/edit forms with field-level validation and delete confirm + soft-undo, onboarding empty states / labelled sample data, and a **context + reducer** state layer (`Body.tsx` is layout-only)
+- **Date-indexed forecast engine** (`forecast-helpers.ts`): per-loan, per-investment, and aggregate net-worth monthly series anchored to today's balances, scenario-aware — ready for charts
+- **Math Correctness Charter (§4) in force**: reference / consistency / property / edge-case suites, documented precision policy, a **100% line+branch coverage gate** on `src/helpers/**` in CI, and scheduled Stryker mutation testing. The pre-Phase-2 correctness bug cluster (#44, #46, #51, #52, #53, #57, #59) is fixed; remaining math-quality follow-ups are tracked in §8.
 
-### Architectural gaps that block the vision
+### Architectural gaps — closed by Phase 0
 
-| #   | Gap                                                                                                                                                                                                   | Why it matters                                                                                                                                                                                     |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | **No shared time-series engine.** Loan schedules are term-indexed (`Term: 1..n`), investment growth is period-indexed, and the two can't be plotted on a common axis.                                 | Charts (#18), scenarios (#24), net-worth dashboard, and the optimizer all need date-indexed monthly series that can be summed across entities. This is the single most load-bearing piece of work. |
-| G2  | **Derived data stored on the models.** `AmortizationSchedule` / `ProjectedGrowth` are persisted on `Loan`/`Investment` and serialized into exports (bloating files; import regenerates them anyway).  | Scenarios require recomputing projections with modified inputs; derived data must be computed on demand, not stored.                                                                               |
-| G3  | **All state lives in `Body.tsx` via `useState` + prop drilling.**                                                                                                                                     | Charts, scenario panel, and dashboard each need the same data; prop drilling will sprawl.                                                                                                          |
-| G4  | **`CurrentAmount`/`CurrentValue` are captured but ignored by projections.** Loan forecasts replay the theoretical schedule from `StartDate`; real balances drift (past extra payments, rate changes). | Forecasts should anchor to _today's actual balance_ so charts start from reality, not theory.                                                                                                      |
-| G5  | **No extra-payment support on loans.** The README names what-ifs as the core purpose, but `generateAmortizationSchedule` has no concept of additional principal payments.                             | Prerequisite for scenarios (#24) and the optimizer.                                                                                                                                                |
-| G6  | **No persistence.** Refresh wipes everything.                                                                                                                                                         | Issue #20; also the cheapest large UX win.                                                                                                                                                         |
-| G7  | **CI only builds and deploys on `main` push.** Tests, lint, and format checks never run in CI.                                                                                                        | Quality gate needed before the codebase grows.                                                                                                                                                     |
+Phase 0 resolved the gaps that blocked the vision: the shared **date-indexed time-series engine** (G1), **derived data computed on demand** instead of stored (G2), a **context + reducer** replacing `Body.tsx` prop drilling (G3), forecasts **anchored to today's actual balance** (G4), **loan extra-payment math** in the engine API (G5), and a **PR CI gate** running tests/lint/format/build (G7).
 
-### UX debt (the worst of it is pulled into Phase 0's UX overhaul; the remainder lands in Phase 6)
+**The one remaining gap is G6 — no persistence (a refresh wipes everything)** — which is exactly Phase 1 (issue #20).
 
-- `Popover` used as modal dialogs — poor accessibility and awkward on mobile (should be `Dialog`, full-screen on small viewports)
-- No field-level validation messages; save button silently disabled
-- Delete is a trash icon inside the edit dialog with **no confirmation**
-- "Test Data" toggle is a dev tool living in the production command bar
-- No summary of overall position (total debt, total assets, net worth) anywhere — the app never actually shows "net worth" today
-- Tables: no sorting, no totals row, no payoff-date or progress columns
-- No dark mode; no theme persistence
-- Empty states are plain text with no call to action
-- Footer/header are minimal; no link to GitHub/docs; README glossary is a stub
+### UX debt — mostly cleared by Phase 0
+
+The Phase 0 UX overhaul (items 0.6–0.10) cleared the bulk of it: `Popover` forms became accessible `Dialog`s; field-level validation replaced the silently-disabled save button; delete gained a confirmation + soft-undo; the dev-only "Test Data" toggle was removed in favor of labelled sample data; dark mode and theme persistence landed; empty states got real CTAs; and the header/footer were polished with repo/version links. What remains is deferred by design: table sorting / totals / payoff columns and the net-worth summary surface (Phase 3), the README glossary (Phase 5), and the long tail in Phase 6.
 
 ---
 
@@ -61,13 +48,19 @@ Decisions made up front so phases don't relitigate them. Each is revisitable, bu
 
 ### D1 — Charting library: `@mui/x-charts` (community/MIT)
 
+_Status: pending — to be confirmed by the Phase 2 charting spike (item 2.1)._
+
 Matches the existing MUI stack (theming, typography, dark mode for free), MIT-licensed, supports line charts, legends, series highlight/hide, and tooltips. **Version coupling (verified June 2026)**: current x-charts (v9) peer-requires `@mui/material ^7.3 || ^9` — on MUI 6 we'd be pinned to the legacy v7.29 line. This is the main driver behind D6. **Alternative**: Recharts (more battle-tested, larger community) — fall back if x-charts hits a wall on dashed-line scenario overlays or legend toggling. Spike this in Phase 2, item 2.1.
 
 ### D2 — State: React Context + `useReducer` (no new dependency)
 
+_Status: ✅ implemented in Phase 0 (#50)._
+
 The app has exactly two collections plus UI state; a context with a reducer (`AddLoan`, `UpdateLoan`, `DeleteLoan`, `ImportMerge`, …) removes the prop drilling without adding a store library. Revisit (Zustand) only if scenario state makes the reducer unwieldy.
 
 ### D3 — Forecast engine: one pure module, date-indexed, scenario-aware
+
+_Status: ✅ implemented in Phase 0 (#38); scenario inputs are wired through and exercised further in Phase 4._
 
 New `src/helpers/forecast-helpers.ts` becomes the _only_ place projections are computed:
 
@@ -87,19 +80,25 @@ Default horizon: longest loan schedule, or 30 years from today for investments (
 
 ### D4 — Persistence: `localStorage`, opt-in, inputs only
 
+_Status: pending — Phase 1 (issue #20)._
+
 Per issue #20: explicit toggle, disabling clears stored data, the toggle state itself is stored. Persist a versioned schema (`{ schemaVersion, loans, investments }`) containing **only user inputs** (no derived schedules — depends on G2 fix). Reuse the existing import-validation logic for hydration so corrupt storage degrades gracefully instead of white-screening.
 
 ### D5 — Export schema v2
 
+_Status: ✅ implemented in Phase 0 (#41)._
+
 Once derived fields are stripped (G2), exports shrink dramatically. Bump the export `version`, and make import accept both v1 (ignore embedded schedules) and v2. No breaking change for existing user files. Import and `localStorage` hydration both run through the single migration ladder (D8) rather than ad-hoc per-version branches.
 
-### D6 — Keep MUI; modernize dependencies in Phase 0, not Phase 6
+### D6 — Keep MUI; dependencies modernized in Phase 0
 
-**No UI library change.** The UX problems are design/usage problems, not MUI problems — a switch (Tailwind/shadcn, Mantine, etc.) would be a rewrite with zero feature payoff, and MUI remains a fit for this app.
+_Status: ✅ done in Phase 0 (#54)._
 
-**Upgrades are not strictly required** (everything in Phases 1–5 _could_ ship on today's stack using x-charts v7), but they are recommended now rather than later. Verified against npm in June 2026, the stack is several majors behind: `@mui/material` 6.1 → 9.1, `@mui/x-date-pickers` 7.22 → 9.5, React 18.3 → 19.2, Vite 5.4 → 8.0 — and current `@mui/x-charts` (v9) refuses MUI 6 (see D1). Deferring means writing the Phase 0 theme/dark-mode system on MUI 6's API and migrating it later, and building the Phase 2 flagship chart on a frozen legacy line. With ~15 components, the migration will never be cheaper than it is now. **Decision**: one coordinated modernization (item 0.5), staged through the official 6→7→9 migration guides and codemods, landed _before_ the theme work.
+**No UI library change.** The UX problems were design/usage problems, not MUI problems — a switch (Tailwind/shadcn, Mantine, etc.) would have been a rewrite with zero feature payoff, and MUI remains a fit for this app. The stack was instead modernized in one coordinated pass (item 0.5): `@mui/material` 6 → 9, `@mui/x-date-pickers` 7 → 9, React 18 → 19, Vite 5 → 8, staged through the official migration guides/codemods and landed _before_ the theme work — which also unblocks `@mui/x-charts` v9 for the Phase 2 chart (see D1).
 
 ### D7 — Core math is a boundary-enforced layer, not a separate package (yet)
+
+_Status: ✅ boundary enforced in Phase 0 (#61); packaging still deferred until a graduation trigger._
 
 `src/helpers/` + `src/models/` already form a de facto pure library: TypeScript + dayjs only, zero React/MUI, fully unit-testable in Node. The question is whether to formalize that as a separate package (npm workspace or repo). **Decision: enforce the boundary, defer the packaging.**
 
@@ -110,6 +109,8 @@ Once derived fields are stripped (G2), exports shrink dramatically. Bump the exp
 Same philosophy as D2: take the architectural discipline now, skip the speculative tooling until something concrete demands it.
 
 ### D8 — One versioned schema-migration ladder
+
+_Status: pending — lands with the first persistence work (Phase 1)._
 
 The persisted schema bumps at least four times across the plan (export v2 in D5, scenarios in 4.5, snapshots in H4, multi-profile in H5). Rather than each reader carrying its own pairwise "accept v_n" backward-compat branch, define a single `schemaVersion`-keyed `migrate(data): CurrentSchema` step ladder that **every** entry point runs through — JSON import (D5), `localStorage` hydration (D4), and every future bump. Each new version adds exactly one migration step, tested to the same standard as the import validator, so old exports and stale `localStorage` upgrade forward deterministically instead of becoming a combinatorial compatibility hazard. Lands with the first persistence work (Phase 1), where stored data first has to survive a version change.
 
@@ -137,7 +138,7 @@ Each layer catches a class of error the others miss; all five are required for t
 - **Mutation testing**: Stryker over `src/helpers/**` on a scheduled/pre-release run, surviving mutants triaged to zero or explicitly waived with a comment. Coverage proves the lines ran; mutation testing proves the tests would actually catch a flipped sign or off-by-one.
 - **Process rules**: a formula change and its reference tests ship in the same PR; every math bug found — by review, by a user, by chance — gets a failing regression test committed before the fix; UI components never re-implement math (helpers are the single source of truth, enforced by the D7 boundary rules, and relied on by the "show the math" feature in Phase 7).
 
-Implemented as **work item 0.11**, then enforced continuously.
+Implemented as **work item 0.11** (✅ landed in #61) and enforced continuously since — every math PR runs against the coverage gate and the suites above.
 
 ---
 
@@ -147,24 +148,22 @@ Each item is intended to be a single reviewable PR. Phases are ordered by depend
 
 ---
 
-### Phase 0 — Foundations & UX Overhaul (target v0.7.0)
+### Phase 0 — Foundations & UX Overhaul — ✅ COMPLETE (v0.7.0 + patch releases)
 
-_Unblocks everything else — and fixes the baseline experience so every later phase builds on a shell worth looking at. Items 0.1–0.5 are architecture/platform; 0.6–0.10 are the UX overhaul; 0.11 implements the Math Correctness Charter (§4); 0.12 sweeps the known correctness bugs through that Charter's process before Phase 2._
+_Unblocked everything else and rebuilt the baseline experience. Shipped in full; kept here as a condensed record — the detailed acceptance criteria live in the merged PRs._
 
-| #    | Work item                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Notes / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1  | **PR CI workflow**: run `npm test`, `check:lint`, `check:format`, `build` on every PR and push to main (G7)                                                                                                                                                                                                                                                                                                                                                                                                         | Separate `ci.yml`; deploy workflow unchanged. Node 24 to match lock file.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 0.2  | **Forecast engine** (`forecast-helpers.ts`, D3/G1): date-indexed monthly series for loans, investments, and aggregate net worth; anchored to `CurrentAmount`/`CurrentValue` as of today (G4)                                                                                                                                                                                                                                                                                                                        | Pure functions + full unit tests. No UI changes yet. Includes the loan extra-payment math (G5) in the core API even though no UI uses it until Phase 4 — designing it in now avoids reworking the engine later.                                                                                                                                                                                                                                                                                                                                          |
-| 0.3  | **Strip derived data from models** (G2): `AmortizationSchedule`/`ProjectedGrowth` become computed-on-demand (memoized in components); export schema v2 (D5) with backward-compatible import                                                                                                                                                                                                                                                                                                                         | Existing exported files still import cleanly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 0.4  | **State context** (D2): `FinanceDataProvider` with reducer; `Body.tsx` becomes layout-only                                                                                                                                                                                                                                                                                                                                                                                                                          | No behavior change; component tests for reducer actions. Closes #48 (an edit replaces the item **in place** instead of appending it to the tail) and #49 (a dedicated `DeleteLoan`/`DeleteInvestment` action, retiring the reference-equality-to-`emptyLoan` delete trap).                                                                                                                                                                                                                                                                               |
-| 0.5  | **Dependency modernization** (D6): React 19, MUI 9 (+ `@mui/icons-material`, `@mui/x-date-pickers` 9), Vite 8 (with Vitest compatibility verified), staged as one PR per major using official migration guides/codemods                                                                                                                                                                                                                                                                                             | Each step lands green through the 0.1 CI gate. Legacy `Grid item xs` props in the tables are affected by the MUI migration. Must land _before_ 0.6–0.8 so the new theme and dialogs are written once, on current APIs.                                                                                                                                                                                                                                                                                                                                   |
-| 0.6  | **Theme system**: proper MUI theme (palette, typography, spacing, component defaults) replacing ad-hoc `sx` styling; **dark mode toggle** (persisted); centralized `formatCurrency`/`formatPercent` helpers (currently duplicated per table)                                                                                                                                                                                                                                                                        | Foundational because charts (Phase 2) and every new surface consume the theme. Verify gradients/contrast in both modes.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 0.7  | **Replace `Popover` forms with `Dialog`** (full-screen on mobile), focus trap and keyboard handling included; **delete confirmation** dialog, with delete moved out of the edit form; **snackbar soft-undo for delete** so confirmation isn't the only safety net                                                                                                                                                                                                                                                   | Every later phase adds dialogs and should copy a good pattern, not a bad one. Undo keeps delete low-friction while confirmation prevents accidents. Delete becomes an explicit action here (the #49 reference-equality trap is retired alongside the 0.4 reducer).                                                                                                                                                                                                                                                                                       |
-| 0.8  | **Form validation UX**: field-level error messages and helper text on both add/edit forms; user can always see _why_ save is disabled; **non-blocking cross-field sanity warnings** (`EndDate` ≤ `StartDate`, `CurrentAmount` > `Principal`, implausible rates, contribution cadence finer than compounding)                                                                                                                                                                                                        | Validation rules already exist in `isFormValid()` — this surfaces them per-field instead of silently disabling the button. Sanity warnings catch inputs that pass type validation but silently produce wrong forecasts — the Charter's "plausible chart on a wrong premise" failure, on the input side. Closes #56 (seed `MonthlyPayment` from the stored value on edit; recompute only on an explicit user edit or **Reset**, never on open) and #52 (the Terms field rejects empty/non-numeric input instead of producing an invalid `EndDate`/`NaN`). |
-| 0.9  | **Empty states & sample data**: onboarding empty state with a short explainer and "Add your first loan/investment" + "Load sample data" CTAs; remove the "Test Data" switch from the command bar                                                                                                                                                                                                                                                                                                                    | Sample data clearly labeled and one-click removable. First impression of the deployed site currently depends on a dev toggle. Closes #47 — removing the toggle eliminates the one-click data-wipe/overwrite footgun; sample-data load/clear must never silently destroy user-entered data.                                                                                                                                                                                                                                                               |
-| 0.10 | **Layout & command bar polish**: tighten the pill-AppBar-inside-a-page pattern, consistent button hierarchy (primary vs. outlined), responsive spacing, footer links (GitHub repo, version)                                                                                                                                                                                                                                                                                                                         | Small, but it's the frame every screenshot and future feature sits in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 0.11 | **Math verification suite** (Charter, §4): reference tests with cited external sources for every existing formula; engine-vs-schedule cross-implementation consistency tests; fast-check property/invariant tests; edge-case catalog; documented rounding policy; 100% line+branch coverage threshold on `src/helpers/**` wired into CI; scheduled Stryker mutation run; ESLint core-boundary rules (D7) so helpers/models can never import UI code                                                                 | Can start immediately — 0.1/0.2 are merged — and **must land before Phase 2 makes the numbers visible in charts**. Includes auditing the existing suites (122 tests as of June 2026) against the charter and closing gaps. Splittable into 2–3 PRs (references+consistency, properties+edges, tooling/gates+boundary).                                                                                                                                                                                                                                   |
-| 0.12 | **Correctness regression sweep** (Charter §4 process rule): for every confirmed calculation/validation bug, land a _failing_ regression test that reproduces it, then fix it — math first (#59 early-payoff garbage rows / negative interest, #51 a `$0` payment that never amortizes, #57 `ProjectedAnnualReturn` reported as a total-period return rather than annualized, #53 PIT "Paid Terms: 1" for dates before `StartDate`), then input/validation (#52 the Terms field yielding an invalid `EndDate`/`NaN`) | Each bug names the Charter layer that should have caught it (edge-case, invariant, reference, precision/validation). Builds on 0.11 and **must land before Phase 2** so charts never sit on known-wrong math; #52 pairs with the 0.8 field-validation work. (#44 0% → `$0` payment and #46 import type/range validation were also in this sweep and are already fixed — the latter hardened D4 hydration via #50.) `src/helpers/**` stays at 100% line+branch coverage. Ships as patch releases on top of v0.7.0.                                        |
+| #        | Work item                                                                                                                                                                                    | Shipped in    |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 0.1      | PR CI workflow: test / lint / format / build on every PR (G7)                                                                                                                                | #37           |
+| 0.2      | Date-indexed forecast engine, incl. loan extra-payment math (D3 / G1 / G4 / G5)                                                                                                              | #38           |
+| 0.3      | Strip derived data from models; export schema v2 (G2 / D5)                                                                                                                                   | #41           |
+| 0.4      | Context + reducer state layer; `Body.tsx` layout-only (D2) — closed #48, #49                                                                                                                 | #50           |
+| 0.5      | Dependency modernization: React 19, MUI 9, Vite 8 (D6)                                                                                                                                       | #54           |
+| 0.6–0.10 | UX overhaul: theme + dark mode, `Dialog` forms, field validation, sample data/empty states, layout polish — closed #47 (#52/#56 followed in the 0.12 sweep)                                  | #55           |
+| 0.11     | Math Verification Suite + D7 core/UI boundary (Charter §4)                                                                                                                                   | #61           |
+| 0.12     | Correctness regression sweep — closed the bug cluster #51, #52, #53, #56, #57, #59 (#44 / #46 were already-fixed precursors); plus follow-ups #70, #72, #73 and the #68 sample-data date fix | #66, #74, #76 |
+
+Remaining math-quality follow-ups (step-up reconciliation, dayjs migration, mutation-score ratchet) are tracked in **§8 Correctness Backlog**.
 
 ---
 
@@ -355,11 +354,11 @@ The rationale for this order: retention first (check-ins make the app a habit), 
 ## 6. Sequencing at a Glance
 
 ```
-Phase 0  Foundations + UX overhaul                    v0.7.0
+Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
          (engine, context, CI, dep modernization,
           theme/dark mode, dialogs, validation, empty states,
           math verification suite + correctness sweep — gate for Phase 2)
-   ├── Phase 1  Persistence (#20)                     v0.8.0   (independent of 2)
+   ├── Phase 1  Persistence (#20)         ← next      v0.8.0   (independent of 2)
    └── Phase 2  Charts (#18)                          v0.9.0
            └── Phase 3  Dashboard                     v0.10.0
                    └── Phase 4  Scenarios (#24)       v0.11.0
@@ -388,16 +387,23 @@ lives here rather than as standalone issues. These are prerequisites-of-trust,
 not features; schedule them alongside the phases as capacity allows (the dayjs
 migration is tagged for Phase 6).
 
-### 8.1 — Reconcile the step-up anniversary off-by-one between the two investment engines
+### 8.1 — Reconcile the step-up anniversary off-by-one between the two investment engines — ✅ RESOLVED (2026-06-14)
 
 `forecastInvestment` (monthly-grid) and `generateInvestmentGrowth` (period-indexed)
-agree to the cent **without** yearly step-ups but **diverge** once a step-up is
-configured: they attribute an on-anniversary contribution to different year
-numbers. It is purely a step-up **timing** question, not a compounding error.
+agreed to the cent **without** yearly step-ups but **diverged** once a step-up was
+configured: they attributed an on-anniversary contribution to different year
+numbers. It was purely a step-up **timing** question, not a compounding error.
 
-- **Pinned in code**: `src/helpers/forecast-consistency.test.ts` → _"forecastInvestment and generateInvestmentGrowth diverge with a yearly step-up"_, currently `it.fails` (asserts the engines agree; flips red the day it's fixed, forcing conversion to a normal `it`).
-- **Documented**: `src/helpers/PRECISION.md` §4 ("Known divergence").
-- **Done when**: the anniversary attribution is reconciled against a step-up reference oracle (decide which engine is canonical), a Charter §4 reference test is added, the `it.fails` tripwire becomes a passing `it`, and the PRECISION.md §4 "Known divergence" note is removed.
+**Resolution**: `generateInvestmentGrowth` (which backs the PIT view and Growth
+Schedule popout) is canonical. `forecastInvestment` now attributes each grid-month
+contribution to the period-opening contribution one contribution-interval earlier
+(`getInvestmentYear(monthDate − interval)`), matching the period engine. The two
+now agree to the cent at every compounding boundary with or without step-ups.
+
+- **Reconciled in**: `src/helpers/forecast-helpers.ts` (`forecastInvestment` year attribution).
+- **Tripwire flipped**: `src/helpers/forecast-consistency.test.ts` — the former `it.fails` is now a normal passing `it` asserting the engines agree with a yearly step-up.
+- **Reference oracle added** (Charter §4 layer 1): `src/helpers/math-reference.test.ts` — a hand-derived 0%-return step-up total pins the absolute value and that both engines match it.
+- **Documentation updated**: `src/helpers/PRECISION.md` §4 now records the reconciliation instead of a known divergence.
 
 ### 8.2 — Migrate forecast/investment date math to dayjs (Phase 6)
 
@@ -415,5 +421,6 @@ Mutation testing (Stryker) runs over `src/helpers/**` as a weekly + on-demand
 workflow. The Charter §4 rule is "surviving mutants triaged to zero or explicitly
 waived with a comment," which a non-blocking weekly run won't drive on its own.
 
-- **Baseline (first full run, 2026-06-13)**: overall **85.33%** (844 killed / 147 survived / 11 timeout). Lowest files: `format-helpers.ts` 73.3%, `validation-helpers.ts` 82.7%, `forecast-helpers.ts` 85.1%, `investment-helpers.ts` 85.2%. `stryker.config.json` `thresholds.break` is **80** (just below baseline, so the weekly run fails on regression without flaking).
-- **Done when**: surviving mutants are triaged (each killed by a strengthened test or explicitly waived as equivalent), and `break` is ratcheted up toward zero survivors as the score improves. `format-helpers.ts` is a good first target.
+- **Baseline (first full run, 2026-06-13)**: overall **85.33%** (844 killed / 147 survived / 11 timeout). Lowest files: `format-helpers.ts` 73.3%, `validation-helpers.ts` 82.7%, `forecast-helpers.ts` 85.1%, `investment-helpers.ts` 85.2%.
+- **Progress (2026-06-14)**: after strengthening the validation warning tests to assert message **content** (not just presence), `validation-helpers.ts` rose 82.7 → **83.7%** and overall held at **85.04%** despite the new #70/#72 warning + guard code adding mutants. `thresholds.break` ratcheted **80 → 83** (just below baseline, with headroom for run-to-run timeout variance). `format-helpers.ts` (73.3%) remains the lowest; its 4 survivors are the `Intl.NumberFormat` caching layer — equivalent mutants that change performance, not output, so they are a documented waiver rather than a test gap.
+- **Done when**: surviving mutants are triaged (each killed by a strengthened test or explicitly waived as equivalent), and `break` is ratcheted up toward zero survivors as the score improves. Next targets: `investment-helpers.ts` (83.9%) and `forecast-helpers.ts` (84.9%).

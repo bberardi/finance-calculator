@@ -369,13 +369,19 @@ describe('Forecast Helpers', () => {
       });
       const series = forecastInvestment(
         investment,
-        monthsFromToday(12),
+        monthsFromToday(13),
         0,
         today
       );
-      // Months 1-11 fall in year one (100 each); month 12 lands on the
-      // anniversary and steps up to 150.
-      expect(series[12].Value).toBe(1000 + 11 * 100 + 150);
+      // ROADMAP §8.1 reconciliation: the step-up applies to the contribution
+      // made ON the anniversary, matching the canonical generateInvestmentGrowth
+      // engine. The 12 contributions through month 12 are all year-one ($100
+      // each), so month 12 = 1000 + 12·100. The contribution at month 13 is the
+      // first year-two contribution, stepped up to $150. (Previously the grid
+      // engine stepped up one month early at month 12 — the off-by-one this
+      // fixes.)
+      expect(series[12].Value).toBe(1000 + 12 * 100);
+      expect(series[13].Value).toBe(1000 + 12 * 100 + 150);
     });
   });
 
