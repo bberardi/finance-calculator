@@ -1,10 +1,7 @@
 import { Button, Alert, Snackbar, Tooltip } from '@mui/material';
 import { useState, useRef } from 'react';
-import {
-  exportToJson,
-  importFromJson,
-  mergeData,
-} from '../helpers/data-helpers';
+import { importFromJson, mergeData } from '../helpers/data-helpers';
+import { downloadJsonExport } from './export-download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useFinanceData } from '../state/use-finance-data';
@@ -22,16 +19,7 @@ export const DataManager = () => {
 
   const handleExport = () => {
     try {
-      const jsonData = exportToJson(loans, investments);
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `pathwise-data-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadJsonExport(loans, investments);
       setSuccessMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
