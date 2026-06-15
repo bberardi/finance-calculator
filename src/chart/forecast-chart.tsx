@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { Box } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
@@ -14,6 +15,7 @@ import {
   formatCurrencyCompact,
 } from '../helpers/format-helpers';
 import { getSeriesColor } from './series-colors';
+import { ChartLegend } from './chart-legend';
 
 interface ForecastChartProps {
   loans: Loan[];
@@ -26,6 +28,7 @@ interface ForecastChartProps {
 // per investment (growth), plus the aggregate net-worth line — all from the
 // shared forecast engine via `buildForecastChartData`. Series are memoized by
 // (positions, horizon, scenario) so re-renders don't recompute identical data.
+// An interactive legend (2.3) toggles individual lines on and off.
 export const ForecastChart = ({
   loans,
   investments,
@@ -41,35 +44,72 @@ export const ForecastChart = ({
     return buildForecastChartData(loans, investments, horizon, scenario, today);
   }, [loans, investments, scenario, today]);
 
-  return (
-    <LineChart
-      height={height}
-      xAxis={[
-        {
-          data: dates,
-          scaleType: 'time',
-          valueFormatter: (value: Date) => dayjs(value).format('MMM YYYY'),
-        },
-      ]}
-      yAxis={[
-        { valueFormatter: (value: number) => formatCurrencyCompact(value) },
-      ]}
-      series={series.map((s) => ({
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+
+  const toggleSeries = useCallback((id: string) => {
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const showAll = useCallback(() => setHiddenIds(new Set()), []);
+
+  const legendItems = useMemo(
+    () =>
+      series.map((s) => ({
         id: s.id,
-        data: s.values,
         label: s.label,
         color: getSeriesColor(s.id),
-        showMark: false,
-        valueFormatter: (value: number | null) =>
-          value === null ? '' : formatCurrency(value),
-      }))}
-      margin={{ left: 64 }}
-      // Emphasize the headline net-worth line above the entity lines.
-      sx={{
-        [`& .MuiLineElement-series-${NET_WORTH_SERIES_ID}`]: {
-          strokeWidth: 3,
-        },
-      }}
-    />
+      })),
+    [series]
+  );
+
+  const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
+
+  return (
+    <Box>
+      <LineChart
+        height={height}
+        hideLegend
+        xAxis={[
+          {
+            data: dates,
+            scaleType: 'time',
+            valueFormatter: (value: Date) => dayjs(value).format('MMM YYYY'),
+          },
+        ]}
+        yAxis={[
+          { valueFormatter: (value: number) => formatCurrencyCompact(value) },
+        ]}
+        series={visibleSeries.map((s) => ({
+          id: s.id,
+          data: s.values,
+          label: s.label,
+          color: getSeriesColor(s.id),
+          showMark: false,
+          valueFormatter: (value: number | null) =>
+            value === null ? '' : formatCurrency(value),
+        }))}
+        margin={{ left: 64 }}
+        // Emphasize the headline net-worth line above the entity lines.
+        sx={{
+          [`& .MuiLineElement-series-${NET_WORTH_SERIES_ID}`]: {
+            strokeWidth: 3,
+          },
+        }}
+      />
+      <ChartLegend
+        items={legendItems}
+        hiddenIds={hiddenIds}
+        onToggle={toggleSeries}
+        onShowAll={showAll}
+      />
+    </Box>
   );
 };
