@@ -61,7 +61,13 @@ const addActionSx = {
 
 export const Body = () => {
   const {
-    state: { loans, investments, sampleDataLoaded },
+    state: {
+      loans,
+      investments,
+      sampleDataLoaded,
+      scenarios,
+      activeScenarioId,
+    },
     addLoan,
     updateLoan,
     deleteLoan,
@@ -307,7 +313,11 @@ export const Body = () => {
             {/* Scenario controls (roadmap 4.2): create/select/delete what-if
                 scenarios; the active one overlays the chart (4.3). */}
             <ScenarioBar />
-            <ForecastChart loans={loans} investments={investments} />
+            <ForecastChart
+              loans={loans}
+              investments={investments}
+              scenario={scenarios.find((s) => s.Id === activeScenarioId)}
+            />
             {/* Stated-assumptions panel (roadmap 3.4): always-available note on
                 what the forecast assumes — honest framing for a deterministic
                 projection. */}

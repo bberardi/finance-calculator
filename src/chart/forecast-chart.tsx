@@ -14,6 +14,7 @@ import { Investment } from '../models/investment-model';
 import { ScenarioInput } from '../models/forecast-model';
 import { getDefaultHorizon } from '../helpers/forecast-helpers';
 import {
+  ForecastChartData,
   NET_WORTH_SERIES_ID,
   buildForecastChartData,
   sliceForecastChartData,
@@ -22,7 +23,11 @@ import {
   formatCurrency,
   formatCurrencyCompact,
 } from '../helpers/format-helpers';
-import { getSeriesColor } from './series-colors';
+import {
+  SCENARIO_SERIES_SUFFIX,
+  baseSeriesId,
+  getSeriesColor,
+} from './series-colors';
 import { ChartLegend } from './chart-legend';
 import { ForecastDataTable } from './forecast-data-table';
 
@@ -72,9 +77,36 @@ export const ForecastChart = ({
   // the memo key isn't invalidated by every render's new Date().
   const today = useMemo(() => new Date(), []);
 
-  const fullData = useMemo(() => {
+  // Baseline (solid) lines always; when a scenario is active, add color-matched
+  // dotted overlay lines (suffix-tagged ids) on top — originals remain (4.3).
+  const fullData = useMemo<ForecastChartData>(() => {
     const horizon = getDefaultHorizon(loans, investments, today);
-    return buildForecastChartData(loans, investments, horizon, scenario, today);
+    const baseline = buildForecastChartData(
+      loans,
+      investments,
+      horizon,
+      undefined,
+      today
+    );
+    if (!scenario) {
+      return baseline;
+    }
+    const overlay = buildForecastChartData(
+      loans,
+      investments,
+      horizon,
+      scenario,
+      today
+    );
+    const scenarioSeries = overlay.series.map((s) => ({
+      ...s,
+      id: s.id + SCENARIO_SERIES_SUFFIX,
+      label: `${s.label} (scenario)`,
+    }));
+    return {
+      dates: baseline.dates,
+      series: [...baseline.series, ...scenarioSeries],
+    };
   }, [loans, investments, scenario, today]);
 
   const [range, setRange] = useState<TimeRange>('full');
@@ -112,6 +144,24 @@ export const ForecastChart = ({
   );
 
   const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
+
+  // Per-series line styling: thicken any net-worth line, dash scenario overlays.
+  const lineStyles = useMemo(() => {
+    const styles: Record<string, Record<string, number | string>> = {};
+    series.forEach((s) => {
+      const rules: Record<string, number | string> = {};
+      if (baseSeriesId(s.id) === NET_WORTH_SERIES_ID) {
+        rules.strokeWidth = 3;
+      }
+      if (s.id.endsWith(SCENARIO_SERIES_SUFFIX)) {
+        rules.strokeDasharray = '5 4';
+      }
+      if (Object.keys(rules).length > 0) {
+        styles[`& .MuiLineElement-series-${s.id}`] = rules;
+      }
+    });
+    return styles;
+  }, [series]);
 
   const [view, setView] = useState<'chart' | 'table'>('chart');
 
@@ -182,12 +232,7 @@ export const ForecastChart = ({
               value === null ? '' : formatCurrency(value),
           }))}
           margin={{ left: 64 }}
-          // Emphasize the headline net-worth line above the entity lines.
-          sx={{
-            [`& .MuiLineElement-series-${NET_WORTH_SERIES_ID}`]: {
-              strokeWidth: 3,
-            },
-          }}
+          sx={lineStyles}
         />
       )}
       <ChartLegend

@@ -10,6 +10,17 @@ import { NET_WORTH_SERIES_ID } from '../helpers/forecast-series';
 
 export const NET_WORTH_COLOR = '#2e7d32';
 
+// Suffix marking a scenario-overlay series (Phase 4.3). Underscores keep the id
+// valid inside the `MuiLineElement-series-<id>` CSS class the chart targets.
+export const SCENARIO_SERIES_SUFFIX = '__scenario';
+
+// The underlying entity (or net-worth) id behind a series id, with any scenario
+// suffix stripped — so a scenario overlay color-matches the solid line it shadows.
+export const baseSeriesId = (id: string): string =>
+  id.endsWith(SCENARIO_SERIES_SUFFIX)
+    ? id.slice(0, -SCENARIO_SERIES_SUFFIX.length)
+    : id;
+
 // A categorical palette chosen for separation and readable contrast in both
 // light and dark mode. Entities cycle through it by a hash of their Id.
 const ENTITY_PALETTE = [
@@ -34,7 +45,9 @@ const hashId = (id: string): number => {
   return Math.abs(hash);
 };
 
-export const getSeriesColor = (id: string): string =>
-  id === NET_WORTH_SERIES_ID
+export const getSeriesColor = (id: string): string => {
+  const base = baseSeriesId(id);
+  return base === NET_WORTH_SERIES_ID
     ? NET_WORTH_COLOR
-    : ENTITY_PALETTE[hashId(id) % ENTITY_PALETTE.length];
+    : ENTITY_PALETTE[hashId(base) % ENTITY_PALETTE.length];
+};
