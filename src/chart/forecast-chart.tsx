@@ -1,6 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Box, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import {
+  Box,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
@@ -52,8 +59,14 @@ export const ForecastChart = ({
   loans,
   investments,
   scenario,
-  height = 400,
+  height,
 }: ForecastChartProps) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // Responsive height (2.5): a shorter chart on phones so it fits above the fold
+  // with the legend below; callers can still override explicitly.
+  const chartHeight = height ?? (isMobile ? 280 : 400);
+
   // Stable "today" per mount so the horizon and the series share one anchor and
   // the memo key isn't invalidated by every render's new Date().
   const today = useMemo(() => new Date(), []);
@@ -120,7 +133,7 @@ export const ForecastChart = ({
         </ToggleButtonGroup>
       </Stack>
       <LineChart
-        height={height}
+        height={chartHeight}
         hideLegend
         xAxis={[
           {
