@@ -21,6 +21,7 @@ import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
 import { ForecastChart } from './chart/forecast-chart';
 import { NetWorthSummary } from './dashboard/net-worth-summary';
+import { MilestoneCallouts } from './dashboard/milestone-callouts';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -240,6 +241,11 @@ export const Body = () => {
               from. */}
           <Box sx={{ marginBottom: SECTION_GAP }}>
             <NetWorthSummary loans={loans} investments={investments} />
+            {/* Milestone callouts (roadmap 3.2): debt-free date + net worth at
+                +5y/+10y/+30y, cheap reads off the same engine series. */}
+            <Box sx={{ marginTop: 2 }}>
+              <MilestoneCallouts loans={loans} investments={investments} />
+            </Box>
           </Box>
 
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
