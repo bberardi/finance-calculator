@@ -39,6 +39,7 @@ src/
 │   └── PRECISION.md              # Charter layer 5: rounding & consistency policy
 ├── hooks/               # Reusable React hooks (UI state, e.g. use-field-tracking)
 ├── chart/               # Forecast LineChart, legend, time-range, table fallback (Phase 2)
+├── dashboard/           # Net-worth summary cards, milestones, assumptions panel (Phase 3)
 ├── persistence/         # "Save on this device" toggle + usePersistence hook (Phase 1)
 ├── data-manager/        # JSON import/export command-bar actions
 ├── state/               # Finance-data context + reducer (D2)

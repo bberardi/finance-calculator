@@ -199,9 +199,9 @@ _The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.1
 
 ---
 
-### Phase 3 — Net Worth Dashboard (target v0.10.0)
+### Phase 3 — Net Worth Dashboard — ✅ COMPLETE (v0.10.0)
 
-_Makes the app's stated purpose — net worth — visible at a glance. Small phase; could merge into Phase 2 if momentum allows._
+_Makes the app's stated purpose — net worth — visible at a glance. Shipped: summary cards (total assets / debt / net worth / monthly commitments at the engine's today-anchor), milestone callouts (debt-free date + net worth at +5y/+10y/+30y), table upgrades (sortable headers with meaningful defaults, totals rows, loan payoff/current-balance columns + principal-paid progress, per-entity clone), and the stated-assumptions panel._
 
 | #   | Work item                                                                                                                                                                                                                       | Notes / acceptance                                                                                                                                                                     |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -355,8 +355,8 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
           math verification suite + correctness sweep — gate for Phase 2)
    ├── Phase 1  Persistence (#20)         ✅ DONE     v0.8.0   (independent of 2)
    └── Phase 2  Charts (#18)              ✅ DONE     v0.9.0
-           └── Phase 3  Dashboard         ← next      v0.10.0
-                   └── Phase 4  Scenarios (#24)       v0.11.0
+           └── Phase 3  Dashboard         ✅ DONE     v0.10.0
+                   └── Phase 4  Scenarios (#24)  ← next   v0.11.0
                            └── Phase 5  Optimizer     v1.0.0
 Phase 6  Quality items slot in anywhere
 Phase 7  Future horizons queue up post-1.0 (v1.1 → v2.0 sequencing in §Phase 7)

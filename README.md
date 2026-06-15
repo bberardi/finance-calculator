@@ -33,6 +33,7 @@ Everything runs in your browser. There's **no backend, no account, and no tracki
 - 📈 **Investment modeling** — configurable compounding frequencies, recurring contributions, and yearly step-ups (flat or percentage), with a projected-growth schedule.
 - 💰 **Net worth forecasting** — a date-indexed engine projects loans, investments, and overall net worth onto a single shared timeline.
 - 📉 **Interactive forecast chart** — a line per position plus an overall net-worth line, with a show/hide legend, 5Y/10Y/30Y/Full range control, and an accessible "view as table" fallback.
+- 🧮 **Net worth dashboard** — at-a-glance total assets, debt, net worth, and monthly commitments, plus milestone callouts (debt-free date, net worth at +5/+10/+30 years).
 - 💾 **On-device persistence** — opt in to "Save on this device" and your data survives a refresh, stored only in your browser's local storage; turning it off clears it.
 - 🔁 **Import / export** — back up and restore your data as JSON, with ID-based smart merge and validation on import.
 - 🌗 **Light & dark mode** — a full Material UI theme with a persisted color-mode toggle.
