@@ -35,6 +35,7 @@ export const usePersistence = (): PersistenceController => {
   const {
     loans,
     investments,
+    scenarios,
     sampleDataLoaded,
     stashedLoans,
     stashedInvestments,
@@ -68,7 +69,7 @@ export const usePersistence = (): PersistenceController => {
     if (isPersistenceEnabled()) {
       const loaded = loadData();
       if (loaded) {
-        importMerge(loaded.loans, loaded.investments);
+        importMerge(loaded.loans, loaded.investments, loaded.scenarios);
       }
     }
   }, [importMerge]);
@@ -98,10 +99,10 @@ export const usePersistence = (): PersistenceController => {
       return;
     }
     const handle = setTimeout(() => {
-      reportSaveProblem(saveData(realLoans, realInvestments));
+      reportSaveProblem(saveData(realLoans, realInvestments, scenarios));
     }, AUTO_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [enabled, realLoans, realInvestments, reportSaveProblem]);
+  }, [enabled, realLoans, realInvestments, scenarios, reportSaveProblem]);
 
   const toggle = useCallback(() => {
     const next = !enabled;
@@ -109,7 +110,7 @@ export const usePersistence = (): PersistenceController => {
     setPersistenceEnabled(next);
     if (next) {
       // Save immediately on enable so a reload right away still restores data.
-      const status = saveData(realLoans, realInvestments);
+      const status = saveData(realLoans, realInvestments, scenarios);
       if (status === 'saved') {
         setFeedback({
           severity: 'success',
@@ -126,7 +127,7 @@ export const usePersistence = (): PersistenceController => {
         message: 'Saved data cleared from this device.',
       });
     }
-  }, [enabled, realLoans, realInvestments, reportSaveProblem]);
+  }, [enabled, realLoans, realInvestments, scenarios, reportSaveProblem]);
 
   const clearFeedback = useCallback(() => setFeedback(null), []);
 

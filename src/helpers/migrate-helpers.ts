@@ -1,51 +1,67 @@
-import { EXPORT_SCHEMA_VERSION } from './data-helpers';
-
 // D8 — the single, versioned schema-migration ladder.
 //
-// Every persisted-data entry point runs raw parsed data through `migrate` so
-// older stored schemas upgrade forward deterministically *before* validation.
-// Today that entry point is localStorage hydration (D4 / Phase 1); JSON import
-// (D5) keeps its own inline version gate for now and unifies here at the first
-// real schema bump (scenarios, 4.5), where stored data first has to survive a
-// version change.
-//
-// The ladder currently has a single rung: the only supported version is the
-// current one. Each future `schemaVersion` bump adds exactly one step that
-// upgrades data from the previous version to the next — individually tested to
-// the Charter (§4) standard — at which point this gate becomes a stepwise
-// upgrade loop. Until then, any version below the current one is unsupported,
-// mirroring `importFromJson`'s rejection of legacy v1 files.
+// Every persisted-data entry point — JSON import (D5) and localStorage
+// hydration (D4) — runs raw parsed data through `migrate` so older stored
+// schemas upgrade forward deterministically before validation. As of Phase 4.5
+// the ladder has its first real rung (v2 → v3, adding `scenarios`); each future
+// `schemaVersion` bump adds exactly one more step, individually tested to the
+// Charter (§4) standard.
 
-export const CURRENT_SCHEMA_VERSION = EXPORT_SCHEMA_VERSION;
+// The current schema version. data-helpers re-exports this as
+// EXPORT_SCHEMA_VERSION; kept here so the ladder owns the "current" definition.
+export const CURRENT_SCHEMA_VERSION = 3;
 
-/** Minimal shape every persisted/serialized payload shares: a numeric version. */
-export interface VersionedData {
-  schemaVersion: number;
-}
+// A parsed payload: a numeric schemaVersion plus arbitrary other fields the
+// individual migration steps and the downstream validator interpret.
+export type RawData = { schemaVersion: number } & Record<string, unknown>;
+
+// A migration step upgrades data from one version to the next.
+type MigrationStep = (data: RawData) => RawData;
+
+// Keyed by the version each step upgrades FROM. v2 → v3 introduces the
+// `scenarios` array (Phase 4.5); a v2 file simply gains an empty list.
+const MIGRATIONS: Record<number, MigrationStep> = {
+  2: (data) => ({
+    ...data,
+    schemaVersion: 3,
+    scenarios: Array.isArray(data.scenarios) ? data.scenarios : [],
+  }),
+};
 
 /**
- * Bring a parsed payload up to {@link CURRENT_SCHEMA_VERSION}, or throw a
- * descriptive error if it cannot be migrated (missing/non-numeric version, a
- * version newer than this app understands, or a legacy version with no
- * migration path). Callers that hydrate untrusted storage should treat a throw
- * as "discard and start clean" rather than letting it propagate.
+ * Bring a parsed payload up to {@link CURRENT_SCHEMA_VERSION}, applying each
+ * migration step in turn, or throw a descriptive error if it cannot be
+ * migrated. Callers hydrating untrusted storage should treat a throw as
+ * "discard and start clean". Error messages are intentionally stable — the
+ * import boundary relies on them.
  */
-export const migrate = <T extends VersionedData>(data: T): T => {
-  const { schemaVersion } = data;
+export const migrate = (data: RawData): RawData => {
+  const version: unknown = data.schemaVersion;
 
-  if (typeof schemaVersion !== 'number') {
+  if (version === undefined) {
+    throw new Error(
+      'Invalid data format: missing schemaVersion. Legacy (v1) files are not supported.'
+    );
+  }
+  if (typeof version !== 'number') {
     throw new Error('Invalid data format: schemaVersion must be a number.');
   }
-  if (schemaVersion > CURRENT_SCHEMA_VERSION) {
+  if (version > CURRENT_SCHEMA_VERSION) {
     throw new Error(
-      `Unsupported schema version ${schemaVersion}: this data was written by a newer version of the app.`
-    );
-  }
-  if (schemaVersion < CURRENT_SCHEMA_VERSION) {
-    throw new Error(
-      `Unsupported schema version ${schemaVersion}: no migration path is available (legacy data is not supported).`
+      `Unsupported schema version ${version}: this data was written by a newer version of the app.`
     );
   }
 
-  return data;
+  let current = data;
+  while (current.schemaVersion < CURRENT_SCHEMA_VERSION) {
+    const step = MIGRATIONS[current.schemaVersion];
+    if (!step) {
+      throw new Error(
+        `Unsupported schema version ${current.schemaVersion}: legacy files are not supported.`
+      );
+    }
+    current = step(current);
+  }
+
+  return current;
 };

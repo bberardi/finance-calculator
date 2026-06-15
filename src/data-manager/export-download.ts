@@ -1,5 +1,6 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
 import { exportToJson } from '../helpers/data-helpers';
 
 // Side-effecting export: serialize inputs (pure, in data-helpers) and trigger a
@@ -8,9 +9,10 @@ import { exportToJson } from '../helpers/data-helpers';
 // drift between them. Throws on failure; callers surface their own feedback.
 export const downloadJsonExport = (
   loans: Loan[],
-  investments: Investment[]
+  investments: Investment[],
+  scenarios: Scenario[] = []
 ): void => {
-  const jsonData = exportToJson(loans, investments);
+  const jsonData = exportToJson(loans, investments, scenarios);
   const blob = new Blob([jsonData], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

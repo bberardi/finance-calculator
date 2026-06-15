@@ -16,8 +16,8 @@
 
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
 import { exportToJson, importFromJson } from './data-helpers';
-import { migrate, VersionedData } from './migrate-helpers';
 
 /** Where the user's data lives in `localStorage`. */
 export const STORAGE_DATA_KEY = 'pathwise:data';
@@ -47,12 +47,13 @@ const isQuotaExceededError = (error: unknown): boolean =>
  */
 export const saveData = (
   loans: Loan[],
-  investments: Investment[]
+  investments: Investment[],
+  scenarios: Scenario[] = []
 ): SaveStatus => {
   try {
     globalThis.localStorage.setItem(
       STORAGE_DATA_KEY,
-      exportToJson(loans, investments)
+      exportToJson(loans, investments, scenarios)
     );
     return 'saved';
   } catch (error) {
@@ -69,6 +70,7 @@ export const saveData = (
 export const loadData = (): {
   loans: Loan[];
   investments: Investment[];
+  scenarios: Scenario[];
 } | null => {
   let raw: string | null;
   try {
@@ -83,9 +85,9 @@ export const loadData = (): {
   }
 
   try {
-    const parsed = JSON.parse(raw) as VersionedData;
-    const migrated = migrate(parsed);
-    return importFromJson(JSON.stringify(migrated));
+    // importFromJson runs the payload through the D8 migration ladder and the
+    // shared validator, so older stored schemas upgrade forward here too.
+    return importFromJson(raw);
   } catch (error) {
     // Corrupt, partial, or unmigratable data must never white-screen the app
     // (D4): drop it and start clean.

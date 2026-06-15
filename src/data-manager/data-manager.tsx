@@ -8,7 +8,7 @@ import { useFinanceData } from '../state/use-finance-data';
 
 export const DataManager = () => {
   const {
-    state: { loans, investments },
+    state: { loans, investments, scenarios },
     importMerge,
   } = useFinanceData();
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -19,7 +19,7 @@ export const DataManager = () => {
 
   const handleExport = () => {
     try {
-      downloadJsonExport(loans, investments);
+      downloadJsonExport(loans, investments, scenarios);
       setSuccessMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
@@ -55,8 +55,11 @@ export const DataManager = () => {
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
-        const { loans: importedLoans, investments: importedInvestments } =
-          importFromJson(content);
+        const {
+          loans: importedLoans,
+          investments: importedInvestments,
+          scenarios: importedScenarios,
+        } = importFromJson(content);
 
         // Compute merge statistics for the success message. The actual state
         // update is performed by the reducer's ImportMerge action (which runs
@@ -67,7 +70,7 @@ export const DataManager = () => {
           importedInvestments
         );
 
-        importMerge(importedLoans, importedInvestments);
+        importMerge(importedLoans, importedInvestments, importedScenarios);
 
         // Build detailed success message
         const totalLoansProcessed = loansResult.added + loansResult.updated;

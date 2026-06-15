@@ -25,7 +25,11 @@ export interface FinanceDataContextValue {
   deleteInvestment: (id: string) => void;
   // Undo an investment delete by restoring it at its original index.
   insertInvestmentAt: (investment: Investment, index: number) => void;
-  importMerge: (loans: Loan[], investments: Investment[]) => void;
+  importMerge: (
+    loans: Loan[],
+    investments: Investment[],
+    scenarios?: Scenario[]
+  ) => void;
   loadSampleData: (loans: Loan[], investments: Investment[]) => void;
   clearSampleData: () => void;
   // Scenario actions (Phase 4). addScenario assigns an Id and returns it so the
@@ -69,8 +73,11 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'DeleteInvestment', id }),
       insertInvestmentAt: (investment: Investment, index: number) =>
         dispatch({ type: 'InsertInvestmentAt', investment, index }),
-      importMerge: (loans: Loan[], investments: Investment[]) =>
-        dispatch({ type: 'ImportMerge', loans, investments }),
+      importMerge: (
+        loans: Loan[],
+        investments: Investment[],
+        scenarios?: Scenario[]
+      ) => dispatch({ type: 'ImportMerge', loans, investments, scenarios }),
       loadSampleData: (loans: Loan[], investments: Investment[]) =>
         dispatch({ type: 'LoadSampleData', loans, investments }),
       clearSampleData: () => dispatch({ type: 'ClearSampleData' }),

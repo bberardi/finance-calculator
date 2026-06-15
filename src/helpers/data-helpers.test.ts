@@ -955,3 +955,103 @@ describe('mergeData', () => {
     expect(stats.updated).toBe(0);
   });
 });
+
+describe('scenario import/export (schema v3)', () => {
+  const baseObj = (scenarios: unknown) => ({
+    schemaVersion: EXPORT_SCHEMA_VERSION,
+    loans: [],
+    investments: [],
+    scenarios,
+    exportDate: new Date().toISOString(),
+    version: '0.11.0',
+  });
+
+  it('round-trips scenarios through export and import', () => {
+    const scenarios = [
+      {
+        Id: 's1',
+        Name: 'Aggressive payoff',
+        ExtraLoanPayments: { 'loan-1': 300 },
+        ExtraContributions: { 'inv-1': 100 },
+      },
+    ];
+    const json = exportToJson([], [], scenarios);
+    expect(JSON.parse(json).schemaVersion).toBe(3);
+    expect(importFromJson(json).scenarios).toEqual(scenarios);
+  });
+
+  it('imports a v2 file forward with no scenarios', () => {
+    const v2 = JSON.stringify({
+      schemaVersion: 2,
+      loans: [],
+      investments: [],
+      exportDate: new Date().toISOString(),
+      version: '0.7.0',
+    });
+    expect(importFromJson(v2).scenarios).toEqual([]);
+  });
+
+  it('treats a missing or null scenarios field as none', () => {
+    const omitted = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      loans: [],
+      investments: [],
+      exportDate: new Date().toISOString(),
+      version: '0.11.0',
+    });
+    expect(importFromJson(omitted).scenarios).toEqual([]);
+    expect(importFromJson(JSON.stringify(baseObj(null))).scenarios).toEqual([]);
+  });
+
+  it('defaults missing extra-amount maps to empty objects', () => {
+    const json = JSON.stringify(baseObj([{ Id: 's1', Name: 'Bare' }]));
+    expect(importFromJson(json).scenarios[0]).toEqual({
+      Id: 's1',
+      Name: 'Bare',
+      ExtraLoanPayments: {},
+      ExtraContributions: {},
+    });
+  });
+
+  it('rejects scenarios that are not an array', () => {
+    expect(() => importFromJson(JSON.stringify(baseObj({})))).toThrow(
+      'scenarios must be an array'
+    );
+  });
+
+  it('rejects a scenario element that is not a plain object', () => {
+    for (const bad of ['x', null, [1, 2]]) {
+      expect(() => importFromJson(JSON.stringify(baseObj([bad])))).toThrow(
+        'expected an object'
+      );
+    }
+  });
+
+  it('rejects a scenario with a missing Id or empty Name', () => {
+    expect(() =>
+      importFromJson(JSON.stringify(baseObj([{ Name: 'No id' }])))
+    ).toThrow('missing Id in scenario');
+    expect(() =>
+      importFromJson(JSON.stringify(baseObj([{ Id: 's1', Name: '  ' }])))
+    ).toThrow('missing Name in scenario');
+  });
+
+  it('rejects a non-object or non-numeric extra-amounts map', () => {
+    expect(() =>
+      importFromJson(
+        JSON.stringify(
+          baseObj([{ Id: 's1', Name: 'A', ExtraLoanPayments: [1] }])
+        )
+      )
+    ).toThrow('expected an object of amounts');
+    expect(() =>
+      importFromJson(
+        JSON.stringify(
+          baseObj([
+            { Id: 's1', Name: 'A', ExtraContributions: { 'inv-1': 'lots' } },
+          ])
+        )
+      )
+    ).toThrow('expected a finite number');
+  });
+});

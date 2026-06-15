@@ -101,13 +101,26 @@ describe('saveData / loadData round-trip', () => {
     expect(inv.StartDate.getTime()).toBe(sampleInvestment.StartDate.getTime());
   });
 
-  it('writes inputs-only schema-v2 JSON under the data key', () => {
+  it('persists and hydrates scenarios alongside the inputs', () => {
+    const scenarios = [
+      {
+        Id: 's1',
+        Name: 'Pay it down',
+        ExtraLoanPayments: { 'loan-1': 250 },
+        ExtraContributions: {},
+      },
+    ];
+    expect(saveData([sampleLoan], [], scenarios)).toBe('saved');
+    expect(loadData()!.scenarios).toEqual(scenarios);
+  });
+
+  it('writes inputs-only current-schema JSON under the data key', () => {
     saveData([sampleLoan], []);
     const raw = (globalThis.localStorage as Storage).getItem(STORAGE_DATA_KEY);
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
-    // Same serializer the export path uses: schema v2, derived data stripped.
-    expect(parsed.schemaVersion).toBe(2);
+    // Same serializer the export path uses: current schema, derived data stripped.
+    expect(parsed.schemaVersion).toBe(3);
     expect(parsed.loans).toHaveLength(1);
     expect(parsed.loans[0].Id).toBe(sampleLoan.Id);
     // Inputs only — no computed amortization schedule rides along.

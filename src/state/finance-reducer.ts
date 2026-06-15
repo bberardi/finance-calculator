@@ -49,7 +49,12 @@ export type FinanceAction =
   | { type: 'UpdateInvestment'; investment: Investment }
   | { type: 'DeleteInvestment'; id: string }
   | { type: 'InsertInvestmentAt'; investment: Investment; index: number }
-  | { type: 'ImportMerge'; loans: Loan[]; investments: Investment[] }
+  | {
+      type: 'ImportMerge';
+      loans: Loan[];
+      investments: Investment[];
+      scenarios?: Scenario[];
+    }
   | { type: 'LoadSampleData'; loans: Loan[]; investments: Investment[] }
   | { type: 'ClearSampleData' }
   // Scenario actions (Phase 4). Like entities, Id generation happens at the
@@ -148,10 +153,15 @@ export const financeReducer = (
         state.investments,
         action.investments
       );
+      // Scenarios merge by Id too (Phase 4.5); omitted means "leave unchanged".
+      const mergedScenarios = action.scenarios
+        ? mergeData(state.scenarios, action.scenarios).items
+        : state.scenarios;
       return {
         ...state,
         loans: mergedLoans,
         investments: mergedInvestments,
+        scenarios: mergedScenarios,
       };
     }
 
