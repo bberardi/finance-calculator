@@ -457,3 +457,34 @@ rather than living here long-term.
 
 - **Lifetime-totals footer in the schedule popouts.** The amortization popout shows per-row figures but no **total interest paid over the life of the loan**; the growth popout shows no **total contributed / total interest earned**. A single summary row is a cheap, high-value derivation from series the popout already computes. _Rationale: "what does this loan actually cost me?" is a headline question users open the schedule to answer, and the totals feed naturally into the Phase 3 dashboard and Phase 5 optimizer framing._
 - **Copy/download a single schedule as CSV** from the amortization/growth popouts. Distinct from the JSON backup (whole-dataset, inputs-only) and the H5 CSV _import_: this is exporting one computed schedule for a spreadsheet or a financial conversation. _Rationale: small UI affordance over data already on screen; pairs with the H5 "printable report" artifact without needing the full report._
+
+---
+
+## 10. Proposed Additions (2026-06-16 review)
+
+A second triage pass in the same spirit as §9 — small, concrete, code-grounded
+items surfaced by reading the current source against the roadmap, filed by
+category with a one-line rationale and a target phase. None is a commitment
+until folded into a phase; where an item differs from a similar roadmap item,
+the distinction is called out so this isn't a restatement.
+
+### 10.1 — Roadmap hygiene / tracking
+
+- **§9.1's premise is now resolved — fold it down.** §9.1 flagged that the bug cluster #68–#83 was open while the roadmap cited several of them as done. That cluster was subsequently closed by the consolidated fix PR (#87 — "Fix open bugs: forecast horizon, import validation, sample-data import/export, 0% loan payment, quarterly periods, PIT label"), and the tracker now has **zero open issues**. §9.1 should be marked resolved rather than left reading as a live discrepancy. _Rationale: keeps "what's done" trustworthy — the same standard §4 holds the math to._
+- **Phase 5 has started ahead of its UI; the sequencing view doesn't show it.** The optimizer **engine** landed (`evaluatePlan` / `AllocationPlan` / `PlanEvaluation` in `src/helpers/optimizer-helpers.ts`, via #82), so work item 5.1 is effectively in progress, while §6's "Phase 5 ← next" still reads as not-started and no optimizer UI exists yet (engine-only — confirmed: nothing in `src/**/*.tsx` imports it). _Rationale: a one-line status note ("5.1 engine in progress; 5.3/5.4 UI + 5.2 Web Worker pending") keeps the at-a-glance map honest._
+
+### 10.2 — Correctness / robustness
+
+- **Add a `CurrentValue` field to the investment add/edit form.** `CurrentValue` is fully plumbed — the forecast engine anchors to it (`forecast-helpers.ts:127`), the table surfaces it, import/export and validation accept it (`data-helpers.ts`), and sample data sets it — but there is **no UI to enter it**, whereas the loan form already exposes the symmetric `CurrentAmount` field (`add-edit-loan.tsx:165`). A returning user can correct a loan's balance but not an investment's value, so investment forecasts silently re-derive from `StartDate` instead of today's actual. _Rationale: directly serves the G4 "anchor to today's actual balance" principle the engine already implements, and closes a loan/investment asymmetry with a one-field, no-math form change. Target: Phase 6 (near-term)._
+- **Degrade popouts gracefully when their entity is deleted while open.** The PIT, amortization, and growth-schedule popouts hold a reference to a specific loan/investment; deleting that entity from under an open popout relies on the app error boundary (Phase 1, item 1.4) rather than a graceful close. _Rationale: a "this entry was removed" state is friendlier than a caught render exception; cheap robustness on top of the existing boundary. Target: Phase 6._
+
+### 10.3 — UX
+
+- **Format and structure the point-in-time popout output.** The loan/investment PIT popouts render bare `Typography` for their figures — no currency formatting via `format-helpers` and no paid-vs-remaining visual hierarchy — unlike the Phase 3 dashboard cards. _Rationale: the PIT view is a headline "what is this worth today" surface; reusing the dashboard's formatting raises trust and consistency at near-zero cost._
+- **Show load feedback during JSON import.** DataManager reads, parses, and validates the imported file synchronously with no spinner or disabled control, so a large file briefly freezes the dialog. _Rationale: complements the already-planned "what-changed preview" and merge soft-undo (Phase 6) by covering the load step itself, and is the natural precursor to moving heavy parse/validation off the main thread._
+- **Keyboard shortcuts for the core actions** (Add Loan / Add Investment; save within an open dialog). Today only Escape/backdrop-close exists. _Rationale: distinct from the Phase 6 a11y audit, which covers keyboard *navigation* rather than action accelerators; speeds repeated data entry for power users._
+
+### 10.4 — New features (small)
+
+- **"All series hidden" empty state for the forecast chart and its table fallback.** Toggling every legend series off leaves the Phase 2 chart and its accessible data-table blank with no "show all" affordance to recover. _Rationale: closes a dead-end interaction with a one-line guard plus a reset button; pairs with the existing legend work._
+- **Duplicate-scenario guard in the builder.** The Phase 4 scenario builder permits two scenarios with identical allocations, producing indistinguishable overlapping overlays on the chart. _Rationale: a cheap dedupe warning keeps the overlay chart and legend legible as users iterate on what-ifs._
