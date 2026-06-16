@@ -1,7 +1,13 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { ScenarioInput } from '../models/forecast-model';
-import { computeScenarioImpact } from './scenario-impact-helpers';
+import {
+  ScenarioBaseline,
+  ScenarioImpact,
+  computeScenarioBaseline,
+  computeScenarioImpact,
+  computeScenarioImpactWithBaseline,
+} from './scenario-impact-helpers';
 
 // The "Next Dollar" optimizer engine (Phase 5). An allocation plan splits $X/mo
 // across any number of loans/investments; evaluatePlan scores it against the
@@ -68,6 +74,20 @@ export const splitAllocations = (
   return { ExtraLoanPayments, ExtraContributions };
 };
 
+// Assemble a PlanEvaluation from a plan and its computed impact, applying the
+// ranking objective (see PlanEvaluation.score). Shared by the single-plan
+// evaluatePlan and the many-plan suggestPlans search.
+const toEvaluation = (
+  plan: AllocationPlan,
+  impact: ScenarioImpact
+): PlanEvaluation => ({
+  plan,
+  netWorthDelta: impact.netWorthDelta,
+  interestSaved: impact.interestSaved,
+  payoffMonthsEarlier: impact.payoffMonthsEarlier,
+  score: roundToCents(impact.netWorthDelta + impact.interestSaved),
+});
+
 export const evaluatePlan = (
   loans: Loan[],
   investments: Investment[],
@@ -83,13 +103,7 @@ export const evaluatePlan = (
     today,
     horizon
   );
-  return {
-    plan,
-    netWorthDelta: impact.netWorthDelta,
-    interestSaved: impact.interestSaved,
-    payoffMonthsEarlier: impact.payoffMonthsEarlier,
-    score: roundToCents(impact.netWorthDelta + impact.interestSaved),
-  };
+  return toEvaluation(plan, impact);
 };
 
 // Knobs for the suggested-split search (engine parameters, per roadmap 5.2).
@@ -181,8 +195,27 @@ export const suggestPlans = (
   ];
   if (targets.length === 0) return [];
 
-  const evaluate = (plan: AllocationPlan): PlanEvaluation =>
-    evaluatePlan(loans, investments, plan, today, horizon);
+  // The baseline is identical for every candidate (it has no extra payments),
+  // so compute it once and score each plan against it instead of re-forecasting
+  // the baseline ~70 times across the split grid.
+  const baseline: ScenarioBaseline = computeScenarioBaseline(
+    loans,
+    investments,
+    today,
+    horizon
+  );
+
+  const evaluate = (plan: AllocationPlan): PlanEvaluation => {
+    const scenario = splitAllocations(loans, plan.allocations);
+    const impact = computeScenarioImpactWithBaseline(
+      loans,
+      investments,
+      scenario,
+      baseline,
+      today
+    );
+    return toEvaluation(plan, impact);
+  };
 
   // 1. Single-target plans: all $X to one position.
   const singles = targets.map((target) =>
