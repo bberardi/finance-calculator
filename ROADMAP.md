@@ -14,105 +14,46 @@
 2. Persist data so it survives a refresh _(issue #20 — done, Phase 1)_
 3. Visualize every position and overall net worth over time _(issue #18 — done, Phase 2)_
 4. Overlay what-if scenarios on those projections _(issue #24 — done, Phase 4)_
-5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — not yet an issue)_
+5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(Phase 5, in progress — the original reason this app exists)_
 
 ---
 
-## 2. Current State Assessment (June 2026, v0.7.0 — Phase 0 complete)
+## 2. Current State Assessment (June 2026, v0.11.0 — Phases 0–4 complete)
+
+The destination's first four steps are shipped. PathWise now persists data,
+charts every position and net worth over time, surfaces a net-worth dashboard,
+and overlays named what-if scenarios. **Phase 5 — the "Next Dollar" optimizer,
+the reason the app exists — is the remaining gap before 1.0.**
 
 ### What exists and works
 
-- React 19 + TypeScript + Vite 8 + MUI 9, deployed to GitHub Pages via Actions (stack modernized in Phase 0)
-- Loan CRUD with auto-calculated monthly payment, amortization schedule popout, point-in-time (PIT) calculator
-- Investment CRUD with compounding frequencies, recurring contributions, yearly step-ups (flat/%), growth schedule popout, PIT calculator
-- JSON export/import with ID-based smart merge and numeric/enum validation
-- MUI theme with **dark mode** (persisted), `Dialog`-based add/edit forms with field-level validation and delete confirm + soft-undo, onboarding empty states / labelled sample data, and a **context + reducer** state layer (`Body.tsx` is layout-only)
-- **Date-indexed forecast engine** (`forecast-helpers.ts`): per-loan, per-investment, and aggregate net-worth monthly series anchored to today's balances, scenario-aware — ready for charts
-- **Math Correctness Charter (§4) in force**: reference / consistency / property / edge-case suites, documented precision policy, a **100% line+branch coverage gate** on `src/helpers/**` in CI, and scheduled Stryker mutation testing. The pre-Phase-2 correctness bug cluster (#44, #46, #51, #52, #53, #57, #59) is fixed; remaining math-quality follow-ups are tracked in §8.
+- **Stack**: React 19 + TypeScript + Vite 8 + MUI 9 (+ `@mui/x-charts` v9), deployed to GitHub Pages via Actions.
+- **Data**: Loan and Investment CRUD (auto-calculated payments, compounding frequencies, recurring contributions, yearly step-ups, amortization & growth popouts, PIT calculators); JSON export/import (schema v3) with ID-based smart merge and validation, routed through a single versioned migration ladder; opt-in `localStorage` persistence with a first-visit privacy notice and a global error boundary with an "export my data" escape hatch.
+- **Forecasting**: a pure, date-indexed engine (`forecast-helpers.ts`) producing per-loan, per-investment, and aggregate net-worth monthly series anchored to today's balances — scenario-aware, and the single source of every projection on screen.
+- **Visualization & dashboard**: forecast chart (per-entity + net-worth lines, stable colors, show/hide legend, 5Y/10Y/30Y/Full range control, responsive mobile height, accessible "view as table" fallback); summary cards (assets / debt / net worth / monthly commitments); milestone callouts (debt-free date, net worth at +5y/+10y/+30y); sortable, totaled tables with payoff/current-balance columns, principal-paid progress, and per-row clone; and a stated-assumptions panel.
+- **Scenarios**: named what-if scenarios (extra $/month against any entities) with dotted, color-matched chart overlays, an impact summary (interest saved, payoff moved up, net worth at horizon), and persistence via schema v3.
+- **Correctness**: the Math Correctness Charter (§4) is in force — reference / consistency / property / edge-case suites, a 100% line+branch coverage gate on `src/helpers/**` in CI, the D7 core/UI purity boundary, and scheduled Stryker mutation testing. All pre-Phase-2 correctness bugs and the open bug cluster (#68–#83, fixed in #87) are resolved; remaining math-quality follow-ups live in §8.
 
-### Architectural gaps — closed by Phase 0
-
-Phase 0 resolved the gaps that blocked the vision: the shared **date-indexed time-series engine** (G1), **derived data computed on demand** instead of stored (G2), a **context + reducer** replacing `Body.tsx` prop drilling (G3), forecasts **anchored to today's actual balance** (G4), **loan extra-payment math** in the engine API (G5), and a **PR CI gate** running tests/lint/format/build (G7).
-
-**The one remaining gap is G6 — no persistence (a refresh wipes everything)** — which is exactly Phase 1 (issue #20).
-
-### UX debt — mostly cleared by Phase 0
-
-The Phase 0 UX overhaul (items 0.6–0.10) cleared the bulk of it: `Popover` forms became accessible `Dialog`s; field-level validation replaced the silently-disabled save button; delete gained a confirmation + soft-undo; the dev-only "Test Data" toggle was removed in favor of labelled sample data; dark mode and theme persistence landed; empty states got real CTAs; and the header/footer were polished with repo/version links. What remains is deferred by design: table sorting / totals / payoff columns and the net-worth summary surface (Phase 3), the README glossary (Phase 5), and the long tail in Phase 6.
+The Phase 0 architectural gaps (G1–G7) and the bulk of the original UX debt are
+all closed. What remains is deferred by design: the optimizer (Phase 5), the
+quality / a11y long tail (Phase 6), and the post-1.0 horizons (Phase 7).
 
 ---
 
 ## 3. Key Technical Decisions
 
-Decisions made up front so phases don't relitigate them. Each is revisitable, but the default is chosen.
+Decisions made up front so phases don't relitigate them. Most are now
+implemented; each records the outcome and where it landed, with still-live
+guidance (revisit triggers) called out where it matters.
 
-### D1 — Charting library: `@mui/x-charts` (community/MIT)
-
-_Status: pending — to be confirmed by the Phase 2 charting spike (item 2.1)._
-
-Matches the existing MUI stack (theming, typography, dark mode for free), MIT-licensed, supports line charts, legends, series highlight/hide, and tooltips. **Version coupling (verified June 2026)**: current x-charts (v9) peer-requires `@mui/material ^7.3 || ^9` — on MUI 6 we'd be pinned to the legacy v7.29 line. This is the main driver behind D6. **Alternative**: Recharts (more battle-tested, larger community) — fall back if x-charts hits a wall on dashed-line scenario overlays or legend toggling. Spike this in Phase 2, item 2.1.
-
-### D2 — State: React Context + `useReducer` (no new dependency)
-
-_Status: ✅ implemented in Phase 0 (#50)._
-
-The app has exactly two collections plus UI state; a context with a reducer (`AddLoan`, `UpdateLoan`, `DeleteLoan`, `ImportMerge`, …) removes the prop drilling without adding a store library. Revisit (Zustand) only if scenario state makes the reducer unwieldy.
-
-### D3 — Forecast engine: one pure module, date-indexed, scenario-aware
-
-_Status: ✅ implemented in Phase 0 (#38); scenario inputs are wired through and exercised further in Phase 4._
-
-New `src/helpers/forecast-helpers.ts` becomes the _only_ place projections are computed:
-
-```ts
-// Conceptual API — refine during Phase 0
-type MonthlyPoint = { date: Date; value: number };           // loan balance (as liability) or investment value
-type ScenarioInput = {
-  extraLoanPayments?: Record<string /*loanId*/, number>;     // extra $/month toward principal
-  extraContributions?: Record<string /*investmentId*/, number>;
-};
-forecastLoan(loan, horizon, extra?): MonthlyPoint[]          // anchored to CurrentAmount as of today (G4)
-forecastInvestment(inv, horizon, extra?): MonthlyPoint[]
-forecastNetWorth(loans, investments, horizon, scenario?): MonthlyPoint[]  // Σ investments − Σ loan balances
-```
-
-Default horizon: longest loan schedule, or 30 years from today for investments (per issue #18). Existing `loan-helpers`/`investment-helpers` stay as the inner math; the engine wraps them onto a common monthly date axis.
-
-### D4 — Persistence: `localStorage`, opt-in, inputs only
-
-_Status: pending — Phase 1 (issue #20)._
-
-Per issue #20: explicit toggle, disabling clears stored data, the toggle state itself is stored. Persist a versioned schema (`{ schemaVersion, loans, investments }`) containing **only user inputs** (no derived schedules — depends on G2 fix). Reuse the existing import-validation logic for hydration so corrupt storage degrades gracefully instead of white-screening.
-
-### D5 — Export schema v2
-
-_Status: ✅ implemented in Phase 0 (#41)._
-
-Once derived fields are stripped (G2), exports shrink dramatically. Bump the export `version`, and make import accept both v1 (ignore embedded schedules) and v2. No breaking change for existing user files. Import and `localStorage` hydration both run through the single migration ladder (D8) rather than ad-hoc per-version branches.
-
-### D6 — Keep MUI; dependencies modernized in Phase 0
-
-_Status: ✅ done in Phase 0 (#54)._
-
-**No UI library change.** The UX problems were design/usage problems, not MUI problems — a switch (Tailwind/shadcn, Mantine, etc.) would have been a rewrite with zero feature payoff, and MUI remains a fit for this app. The stack was instead modernized in one coordinated pass (item 0.5): `@mui/material` 6 → 9, `@mui/x-date-pickers` 7 → 9, React 18 → 19, Vite 5 → 8, staged through the official migration guides/codemods and landed _before_ the theme work — which also unblocks `@mui/x-charts` v9 for the Phase 2 chart (see D1).
-
-### D7 — Core math is a boundary-enforced layer, not a separate package (yet)
-
-_Status: ✅ boundary enforced in Phase 0 (#61); packaging still deferred until a graduation trigger._
-
-`src/helpers/` + `src/models/` already form a de facto pure library: TypeScript + dayjs only, zero React/MUI, fully unit-testable in Node. The question is whether to formalize that as a separate package (npm workspace or repo). **Decision: enforce the boundary, defer the packaging.**
-
-- **Now (free, part of 0.11)**: ESLint boundary rules forbid `src/helpers/**` and `src/models/**` from importing `react`, `react-dom`, `@mui/*`, or anything in the UI folders — the purity stops being a convention and becomes a build failure. The Charter's coverage and mutation gates already scope to these folders. UI calls helpers, never the reverse.
-- **Not yet (real cost, speculative benefit)**: npm workspaces / TS project references / build orchestration add permanent friction for exactly one consumer. Even the Phase 7 Monte Carlo Web Worker doesn't need a package — a worker imports pure source modules directly under Vite.
-- **Graduation triggers** (revisit when any occurs): a genuine second consumer — a CLI, a second frontend, or publishing the engine as an open-source npm package (`@pathwise/engine`, see H5). The boundary rules make the eventual extraction mechanical: if nothing in the core imports UI, moving it to `packages/core` is a file move, not a refactor.
-
-Same philosophy as D2: take the architectural discipline now, skip the speculative tooling until something concrete demands it.
-
-### D8 — One versioned schema-migration ladder
-
-_Status: ✅ seeded in Phase 1 (single-version gate); first real migration step (v2 → v3, scenarios) landed in Phase 4.5, and JSON import now routes through the ladder._
-
-The persisted schema bumps at least four times across the plan (export v2 in D5, scenarios in 4.5, snapshots in H4, multi-profile in H5). Rather than each reader carrying its own pairwise "accept v_n" backward-compat branch, define a single `schemaVersion`-keyed `migrate(data): CurrentSchema` step ladder that **every** entry point runs through — JSON import (D5), `localStorage` hydration (D4), and every future bump. Each new version adds exactly one migration step, tested to the same standard as the import validator, so old exports and stale `localStorage` upgrade forward deterministically instead of becoming a combinatorial compatibility hazard. Lands with the first persistence work (Phase 1), where stored data first has to survive a version change.
+- **D1 — Charting: `@mui/x-charts` v9.** ✅ Confirmed by the Phase 2 spike. Matches the MUI stack (theming, dark mode, legend show/hide, tooltips, dashed scenario overlays) and is MIT-licensed. Recharts was the named fallback; not needed.
+- **D2 — State: React Context + `useReducer`.** ✅ Phase 0 (#50). Two collections + UI state in one reducer; no store library. Revisit (Zustand) only if state grows unwieldy.
+- **D3 — Forecast engine: one pure, date-indexed, scenario-aware module.** ✅ Phase 0 (#38); scenario inputs exercised in Phase 4. `src/helpers/forecast-helpers.ts` is the _only_ place projections are computed (`forecastLoan` / `forecastInvestment` / `forecastNetWorth`, anchored to today's balances per G4); `loan-helpers`/`investment-helpers` remain the inner math on a common monthly axis.
+- **D4 — Persistence: `localStorage`, opt-in, inputs-only, versioned.** ✅ Phase 1 (#20). Explicit toggle (state itself persisted), disabling clears storage, hydration reuses import validation and runs the D8 ladder so corrupt/stale data degrades gracefully.
+- **D5 — Versioned export schema.** ✅ v2 in Phase 0 (#41, derived fields stripped), bumped to v3 for scenarios in Phase 4. Import accepts older versions via the D8 ladder — no breaking change for existing files.
+- **D6 — Keep MUI; modernize deps.** ✅ Phase 0 (#54). No UI-library switch (the UX problems were design problems). Stack modernized in one pass: `@mui/material` 6→9, `@mui/x-date-pickers` 7→9, React 18→19, Vite 5→8 — which also unblocked x-charts v9 (D1).
+- **D7 — Core math is a boundary-enforced layer, not a separate package (yet).** ✅ Boundary enforced in Phase 0 (#61): ESLint forbids `src/helpers/**` and `src/models/**` from importing `react`/`react-dom`/`@mui/*` or any UI folder — purity is a build failure, not a convention. _Packaging deferred_ until a **graduation trigger**: a genuine second consumer (a CLI, a second frontend, or publishing `@pathwise/engine`, H5). The boundary makes the eventual `packages/core` extraction a file move, not a refactor — and keeps the engine worker-safe for the Phase 5 optimizer and Phase 7 Monte Carlo.
+- **D8 — One versioned schema-migration ladder.** ✅ Seeded in Phase 1; first real step (v2→v3, scenarios) in Phase 4; JSON import and `localStorage` hydration both route through a single `schemaVersion`-keyed `migrate(data)` ladder. Every future bump (snapshots H4, multi-profile H5) adds exactly one migration step, tested to the import-validator standard, so old data upgrades forward deterministically instead of becoming a combinatorial compatibility hazard.
 
 ---
 
@@ -161,7 +102,7 @@ _Unblocked everything else and rebuilt the baseline experience. Shipped in full;
 | 0.5      | Dependency modernization: React 19, MUI 9, Vite 8 (D6)                                                                                                                                       | #54           |
 | 0.6–0.10 | UX overhaul: theme + dark mode, `Dialog` forms, field validation, sample data/empty states, layout polish — closed #47 (#52/#56 followed in the 0.12 sweep)                                  | #55           |
 | 0.11     | Math Verification Suite + D7 core/UI boundary (Charter §4)                                                                                                                                   | #61           |
-| 0.12     | Correctness regression sweep — closed the bug cluster #51, #52, #53, #56, #57, #59 (#44 / #46 were already-fixed precursors); plus follow-ups #70, #72, #73 and the #68 sample-data date fix | #66, #74, #76 |
+| 0.12     | Correctness regression sweep — closed the bug cluster #51, #52, #53, #56, #57, #59 (#44 / #46 were already-fixed precursors). The later follow-up cluster (#68–#83: forecast horizon, import/sample-data, 0% loan payment, quarterly periods, PIT label) closed in #87. | #66, #74, #76, #87 |
 
 Remaining math-quality follow-ups (step-up reconciliation, dayjs migration, mutation-score ratchet) are tracked in **§8 Correctness Backlog**.
 
@@ -169,74 +110,63 @@ Remaining math-quality follow-ups (step-up reconciliation, dayjs migration, muta
 
 ### Phase 1 — Local Persistence — issue #20 — ✅ COMPLETE (v0.8.0)
 
-_Highest value-to-effort ratio in the backlog; independent of charts. All four
-items shipped: `storage-helpers` + the D8 migration ladder, the "Save on this
-device" toggle (hydrate / debounced auto-save / clear-on-disable / persisted
-preference), the first-visit privacy notice, and the global error boundary with
-an export-my-data escape hatch._
-
-| #   | Work item                                                                                                                                                     | Notes / acceptance                                                                                                                                    |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.1 | `storage-helpers.ts`: versioned save/load/clear of inputs-only schema; validation-on-load reusing import logic (D4)                                           | Unit tested, including corrupt-data and quota-exceeded paths. Hydration runs through the D8 migration ladder so older stored schemas upgrade forward. |
-| 1.2 | "Save data on this device" toggle in command bar; hydrate on app load; debounced auto-save on change; disabling clears storage; toggle state itself persisted | All four behaviors from issue #20. Snackbar feedback consistent with DataManager's.                                                                   |
-| 1.3 | First-visit notice explaining data stays on-device (ties into the toggle)                                                                                     | Doubles as the privacy story: no backend, no tracking.                                                                                                |
-| 1.4 | **Global error boundary with recovery**: app-level (and later chart-level) React error boundary with a reload affordance and an "export my data" escape hatch | A render-time exception must never white-screen the app or trap unsaved data — matters most once persistence and charts land.                         |
+Shipped: `storage-helpers` + the D8 migration ladder (versioned, inputs-only
+save/load/clear with validation-on-load and corrupt-data / quota-exceeded
+handling); the "Save data on this device" toggle (hydrate on load, debounced
+auto-save, clear-on-disable, persisted preference); the first-visit privacy
+notice; and a global error boundary with a reload affordance and an "export my
+data" escape hatch.
 
 ---
 
 ### Phase 2 — Visualizations — issue #18 — ✅ COMPLETE (v0.9.0)
 
-_The app's centerpiece view. Depends on Phase 0 (engine, context) — and on 0.11, since these charts are the first place users will see the math. Shipped: D1 confirmed (`@mui/x-charts` v9), a `forecast-series` builder whose net-worth line equals `forecastNetWorth` (Charter consistency), the forecast chart section with per-entity + net-worth lines, stable Id-derived colors, an interactive show/hide legend, a 5Y/10Y/30Y/Full time-range control, responsive mobile height, and an accessible "view as table" fallback._
-
-| #   | Work item                                                                                                                                               | Notes / acceptance                                                                                                                                                                                                                                                                |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2.1 | **Spike**: `@mui/x-charts` line chart fed by forecast engine — verify legend toggle, tooltip, dashed-line support, bundle size (D1)                     | Timeboxed; if it fails on dashed overlays, switch decision D1 to Recharts before building.                                                                                                                                                                                        |
-| 2.2 | **Forecast chart section** below the tables: one line per loan (declining balance), per investment (growth), plus a distinct **overall net worth** line | X-axis defaults to longest schedule / 30 years per issue #18. Stable color assignment per entity (reused by scenario overlays in Phase 4). **Memoize forecast series** by (entity inputs, horizon, scenario) so charts, dashboard, and overlays never recompute identical series. |
-| 2.3 | Legend with show/hide per series; sensible behavior at 10+ entities                                                                                     | Issue #18 acceptance criteria.                                                                                                                                                                                                                                                    |
-| 2.4 | Time-range control (5y / 10y / 30y / full) and hover tooltip showing every visible series' value at that month                                          |                                                                                                                                                                                                                                                                                   |
-| 2.5 | Mobile chart layout (responsive height, legend below, touch tooltip)                                                                                    |                                                                                                                                                                                                                                                                                   |
-| 2.6 | **Accessible chart fallback**: "view as table" toggle backed by a screen-reader-readable data table consuming the same series; keyboard-operable legend | A line chart is opaque to screen readers and keyboard-only users; the table doubles as a data-inspection feature for everyone. Feeds the Phase 6 a11y audit.                                                                                                                      |
+Shipped: D1 confirmed (`@mui/x-charts` v9); a `forecast-series` builder whose
+net-worth line equals `forecastNetWorth` (Charter consistency); the forecast
+chart with per-entity + net-worth lines, stable Id-derived colors (reused by
+scenario overlays), an interactive show/hide legend that scales past 10
+entities, a 5Y/10Y/30Y/Full time-range control with a hover tooltip, responsive
+mobile height, and an accessible, keyboard-operable "view as table" fallback.
+Series are memoized by (entity inputs, horizon, scenario) so charts, dashboard,
+and overlays never recompute identical series.
 
 ---
 
 ### Phase 3 — Net Worth Dashboard — ✅ COMPLETE (v0.10.0)
 
-_Makes the app's stated purpose — net worth — visible at a glance. Shipped: summary cards (total assets / debt / net worth / monthly commitments at the engine's today-anchor), milestone callouts (debt-free date + net worth at +5y/+10y/+30y), table upgrades (sortable headers with meaningful defaults, totals rows, loan payoff/current-balance columns + principal-paid progress, per-entity clone), and the stated-assumptions panel._
-
-| #   | Work item                                                                                                                                                                                                                       | Notes / acceptance                                                                                                                                                                     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.1 | Summary cards above the chart: **Total debt** (Σ current balances), **Total assets** (Σ current values), **Net worth**, **Monthly commitments** (Σ payments + contributions)                                                    | Computed from forecast engine's "today" anchor — same numbers the chart starts from.                                                                                                   |
-| 3.2 | Milestone callouts: projected debt-free date, projected net worth at +5y/+10y/+30y                                                                                                                                              | Cheap derivations from existing series; high perceived value.                                                                                                                          |
-| 3.3 | Table upgrades: payoff-date and current-balance columns, principal-paid progress bar, sortable columns with a **meaningful default ordering** (e.g., by rate or payoff date), totals row, **duplicate/clone action** per entity | Clears several UX-debt items in one pass. Default ordering mirrors how the optimizer reasons ("high-rate first"); clone seeds refinance candidates (H1) without re-typing every field. |
-| 3.4 | **Stated assumptions panel**: a small, always-available note on what forecasts assume — constant rates, no taxes/inflation (until H2/H4 toggles ship), average-return not guaranteed-return                                     | A deterministic 30-year projection implies false precision; stating assumptions is the honest framing Monte Carlo (H2) later makes statistically.                                      |
+Shipped: summary cards (total assets / debt / net worth / monthly commitments at
+the engine's today-anchor); milestone callouts (debt-free date, net worth at
++5y/+10y/+30y); table upgrades (sortable headers with a meaningful default
+ordering, totals rows, payoff/current-balance columns, principal-paid progress,
+per-entity clone); and the stated-assumptions panel.
 
 ---
 
 ### Phase 4 — Scenario Forecasting — issue #24 — ✅ COMPLETE (v0.11.0)
 
-_The what-if layer. Shipped: a named-scenario model + reducer state, a scenario builder dialog and selector bar, dotted color-matched chart overlays (originals retained) with a scenario net-worth line, a scenario impact summary (net worth at horizon, interest saved, payoff moved up), and persistence of scenarios via export schema **v3** — the first real D8 migration (v2 → v3), through which JSON import now routes._
-
-| #   | Work item                                                                                                                                  | Notes / acceptance                                                                 |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| 4.1 | Scenario model + reducer state: a named scenario = set of extra monthly amounts against any loans/investments (`ScenarioInput`, D3)        | Scenarios are session-scoped first; persistence of scenarios is a follow-up (4.5). |
-| 4.2 | "Scenarios" button in the chart section opening a builder dialog: pick entities, enter extra $/month each                                  | Issue #24 acceptance criteria.                                                     |
-| 4.3 | Chart overlays: scenario lines **dotted, color-matched** to their solid original; clearly labeled in legend/tooltip; original lines remain | Issue #24 acceptance criteria. Includes a scenario net-worth line.                 |
-| 4.4 | **Scenario impact summary** panel: payoff moved up N months, interest saved $X, net worth at horizon +$Y vs. baseline                      | Not in the issue, but this is what turns a chart into a decision.                  |
-| 4.5 | Persist scenarios alongside data when caching is enabled; include in export schema                                                         | Schema bump with backward-compatible import.                                       |
+Shipped: a named-scenario model + reducer state; a scenario builder dialog and
+selector bar; dotted, color-matched chart overlays (originals retained) with a
+scenario net-worth line; a scenario impact summary (net worth at horizon,
+interest saved, payoff moved up); and persistence via export schema v3 — the
+first real D8 migration (v2 → v3), through which JSON import now routes.
 
 ---
 
-### Phase 5 — "Next Dollar" Optimizer (target v1.0.0)
+### Phase 5 — "Next Dollar" Optimizer (target v1.0.0) — 🚧 IN PROGRESS
 
-_The reason the app exists, and the 1.0 headline: nothing public does this._
+_The reason the app exists, and the 1.0 headline: given $X extra per month, rank
+where it should go — single targets **and** splits across loans/investments — by
+long-term net-worth impact. Nothing public does this. Built engine-first on the
+Phase 0 forecast engine, to the Charter (§4) standard, with the heavy search off
+the main thread._
 
-| #   | Work item                                                                                                                                                                                                                                                                                                                         | Notes / acceptance                                                                                                                                                                                                                                                                                                                                                                                                        |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 5.1 | Optimizer engine over **allocation plans**: a plan is a split of $X/month across any number of loans/investments (single-target = the degenerate 100% case). `evaluatePlan(plan, horizon)` returns net worth delta, interest saved, payoff changes — a pure function over the Phase 0 engine, tested to the Charter (§4) standard | Note the subtlety: paying off a loan early frees its payment — v1 can ignore redirect-after-payoff, but the engine API should leave room for a "snowball" mode later.                                                                                                                                                                                                                                                     |
-| 5.2 | **Suggested-split search**: rank all single-target plans, then grid-search splits at coarse granularity (e.g., 10% steps across the top 2–3 candidates) and surface the best splits alongside the single-target options                                                                                                           | Keeps the search space tractable while catching the cases where a split genuinely beats all-in-one (e.g., kill a small high-rate loan first, rest to investments). Granularity/candidate count are engine parameters. **Run the search in a Web Worker** — each plan is a full multi-entity 30-year engine run, and the flagship interaction must not jank the main thread; the D7 boundary keeps the engine worker-safe. |
-| 5.3 | UI: "I have $\_\_\_ extra per month" input + horizon picker → ranked comparison table (single-target **and** suggested splits; net worth delta, interest saved, payoff changes) with one-click "view as scenario" on the chart                                                                                                    | The flagship interaction.                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 5.4 | **Custom split builder**: sliders/inputs to divide the $X across chosen targets (always summing to $X), live-evaluated and chartable like any other plan                                                                                                                                                                          | Lets users test their own intuition against the suggestions.                                                                                                                                                                                                                                                                                                                                                              |
-| 5.5 | README/site copy rewrite around the optimizer; fill in the glossary; add screenshots                                                                                                                                                                                                                                              | 1.0 release polish.                                                                                                                                                                                                                                                                                                                                                                                                       |
+| #   | Work item                                                                                                                                                                                                                                                                                       | Notes / acceptance                                                                                                                                                                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 5.1 | **Plan-evaluation engine.** A _plan_ is a split of $X/month across any number of loans/investments (single-target = the 100% degenerate case). `evaluatePlan(plan, horizon)` returns net-worth delta, interest saved, and payoff changes — a pure function over the Phase 0 engine, Charter-tested. | Leave room for a later "snowball" mode (redirect a loan's freed payment after payoff); v1 may ignore redirect-after-payoff.                                                                                                                                          |
+| 5.2 | **Suggested-split search.** Rank all single-target plans, then grid-search splits at coarse granularity (e.g. 10% steps across the top 2–3 candidates) and surface the best splits beside the single-target options. Granularity / candidate-count are engine parameters.                          | **Runs in a Web Worker** — each plan is a full multi-entity 30-year run and the flagship interaction must not jank; the D7 boundary keeps the engine worker-safe. Catches cases where a split beats all-in-one (kill a small high-rate loan, rest to investments). |
+| 5.3 | **Optimizer UI (flagship).** "I have $\_\_\_ extra per month" input + horizon picker → ranked comparison table (single-target **and** suggested splits; net-worth delta, interest saved, payoff changes) with one-click "view as scenario" on the chart.                                            | The headline interaction; reuses the Phase 4 scenario overlays for the preview.                                                                                                                                                                                     |
+| 5.4 | **Custom split builder.** Sliders/inputs dividing $X across chosen targets (always summing to $X), live-evaluated and chartable like any other plan.                                                                                                                                              | Lets users test their own intuition against the suggestions.                                                                                                                                                                                                        |
+| 5.5 | **1.0 release polish.** README/site copy rewrite around the optimizer; fill in the glossary; add screenshots.                                                                                                                                                                                    | Closes the original vision; cut the v1.0.0 release.                                                                                                                                                                                                                 |
 
 ---
 
@@ -366,12 +296,12 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
    └── Phase 2  Charts (#18)              ✅ DONE     v0.9.0
            └── Phase 3  Dashboard         ✅ DONE     v0.10.0
                    └── Phase 4  Scenarios (#24)  ✅ DONE  v0.11.0
-                           └── Phase 5  Optimizer  ← next   v1.0.0
+                           └── Phase 5  Optimizer  🚧 IN PROGRESS  v1.0.0
 Phase 6  Quality items slot in anywhere
 Phase 7  Future horizons queue up post-1.0 (v1.1 → v2.0 sequencing in §Phase 7)
 ```
 
-Issue mapping: **#20 → Phase 1**, **#18 → Phase 2**, **#24 → Phase 4**. Phases 3 and 5 deserve new GitHub issues when their turn approaches.
+Issue mapping: **#20 → Phase 1**, **#18 → Phase 2**, **#24 → Phase 4**. Phase 5 deserves a new GitHub issue for its tracking.
 
 ## 7. Working Agreements (from repo conventions)
 
@@ -391,23 +321,16 @@ lives here rather than as standalone issues. These are prerequisites-of-trust,
 not features; schedule them alongside the phases as capacity allows (the dayjs
 migration is tagged for Phase 6).
 
-### 8.1 — Reconcile the step-up anniversary off-by-one between the two investment engines — ✅ RESOLVED (2026-06-14)
+### 8.1 — Step-up anniversary off-by-one between the two investment engines — ✅ RESOLVED (2026-06-14)
 
-`forecastInvestment` (monthly-grid) and `generateInvestmentGrowth` (period-indexed)
-agreed to the cent **without** yearly step-ups but **diverged** once a step-up was
-configured: they attributed an on-anniversary contribution to different year
-numbers. It was purely a step-up **timing** question, not a compounding error.
-
-**Resolution**: `generateInvestmentGrowth` (which backs the PIT view and Growth
-Schedule popout) is canonical. `forecastInvestment` now attributes each grid-month
-contribution to the period-opening contribution one contribution-interval earlier
-(`getInvestmentYear(monthDate − interval)`), matching the period engine. The two
-now agree to the cent at every compounding boundary with or without step-ups.
-
-- **Reconciled in**: `src/helpers/forecast-helpers.ts` (`forecastInvestment` year attribution).
-- **Tripwire flipped**: `src/helpers/forecast-consistency.test.ts` — the former `it.fails` is now a normal passing `it` asserting the engines agree with a yearly step-up.
-- **Reference oracle added** (Charter §4 layer 1): `src/helpers/math-reference.test.ts` — a hand-derived 0%-return step-up total pins the absolute value and that both engines match it.
-- **Documentation updated**: `src/helpers/PRECISION.md` §4 now records the reconciliation instead of a known divergence.
+`forecastInvestment` and `generateInvestmentGrowth` diverged on which year a
+step-up contribution was attributed to (a timing question, not a compounding
+error). Resolved by making the period engine (`generateInvestmentGrowth`, behind
+the PIT view and Growth Schedule popout) canonical and having `forecastInvestment`
+attribute each grid-month contribution one contribution-interval earlier; the two
+now agree to the cent at every compounding boundary, with or without step-ups.
+Pinned by a former-`it.fails` tripwire (now passing) in `forecast-consistency.test.ts`,
+a hand-derived reference oracle in `math-reference.test.ts`, and `PRECISION.md` §4.
 
 ### 8.2 — Migrate forecast/investment date math to dayjs (Phase 6)
 
@@ -440,9 +363,9 @@ one-line rationale; none is a commitment until folded into a phase. Where an ite
 belongs to an existing phase, the target phase is noted so it can be merged in
 rather than living here long-term.
 
-### 9.1 — Roadmap hygiene / tracking
+### 9.1 — Roadmap hygiene / tracking — ✅ RECONCILED (2026-06-16)
 
-- **Reconcile §8 with the live issue tracker.** Nine bug issues are currently open (#68–#83), but §8 (which exists precisely for cross-cutting correctness items) reflects none of them. Several are even cited in the Phase 0.12 row as already handled — #70/#72/#73 as "follow-ups" and #68 as the sample-data date fix "shipped in #66, #74, #76" — yet all four remain **open**; #69 (dependency audit), #71 (PIT label), #75 (quarterly period count), #79 (0% loan auto-payment), and #83 (import/export on sample data) are untracked entirely. _Rationale: the roadmap currently overstates correctness status; a backlog pass that either closes the cited issues or moves the open ones into §8 keeps "what's done" trustworthy, which is the same standard §4 holds the math to._
+- **Issue tracker reconciled.** The bug cluster this item flagged as open (#68–#83) is now closed — the fixes shipped in #87 (forecast horizon, import validation, sample-data import/export, 0% loan auto-payment, quarterly period count, PIT label). The tracker currently shows **zero open issues**, so "what's done" in this roadmap and the live tracker now agree.
 
 ### 9.2 — Performance
 
