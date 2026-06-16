@@ -1,6 +1,10 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
-import { forecastInvestment, forecastLoan } from './forecast-helpers';
+import {
+  forecastInvestment,
+  forecastLoan,
+  getEffectiveMonthlyPayment,
+} from './forecast-helpers';
 import { getPeriodsPerYear } from './investment-helpers';
 
 // "Today" net-worth summary metrics for the dashboard (Phase 3.1). Debt and
@@ -42,8 +46,11 @@ export const summarizePositions = (
     )
   );
 
+  // Use the engine's effective payment (the same value forecastLoan applies),
+  // so a loan with an unset/0 MonthlyPayment that the forecast amortizes still
+  // contributes its derived payment to the commitment total. (#91)
   const loanCommitments = loans.reduce(
-    (sum, loan) => sum + Math.max(loan.MonthlyPayment ?? 0, 0),
+    (sum, loan) => sum + getEffectiveMonthlyPayment(loan, today),
     0
   );
   const investmentCommitments = investments.reduce((sum, investment) => {
