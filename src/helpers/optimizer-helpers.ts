@@ -12,7 +12,8 @@ import { computeScenarioImpact } from './scenario-impact-helpers';
 // a loan's freed payment after payoff (the "snowball" mode reserved for later) —
 // see the score note below for how the ranking still values debt payoff.
 
-const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+export const roundToCents = (value: number): number =>
+  Math.round(value * 100) / 100;
 
 export interface AllocationPlan {
   // Human-readable description, e.g. "All to Car Loan" or "50% Car Loan / 50% 401k".

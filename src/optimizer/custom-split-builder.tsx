@@ -6,6 +6,7 @@ import {
   AllocationPlan,
   evaluatePlan,
   rebalanceAllocation,
+  roundToCents,
 } from '../helpers/optimizer-helpers';
 import { formatCurrency } from '../helpers/format-helpers';
 import { formatPayoffSooner } from './optimizer-utils';
@@ -23,8 +24,6 @@ interface Target {
   id: string;
   name: string;
 }
-
-const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 
 // An even split of `total` across `ids`, with rounding drift parked on the first
 // target so the dollars always add up.

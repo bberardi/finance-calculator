@@ -45,6 +45,15 @@ const MAX_ROWS = 8;
 const signedCurrency = (value: number): string =>
   `${value >= 0 ? '+' : ''}${formatCurrency(value)}`;
 
+// A stable, collision-proof React key for a plan row. Two positions can share a
+// Name (so the human-readable label isn't unique), but a plan's id→amount
+// allocation map uniquely identifies it.
+const planKey = (plan: AllocationPlan): string =>
+  Object.entries(plan.allocations)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, amount]) => `${id}:${amount}`)
+    .join('|');
+
 // The "Next Dollar" optimizer panel (roadmap 5.3): the flagship interaction.
 // Enter an extra $/month and a horizon, and a Web Worker ranks single-target and
 // split allocation plans by long-term impact; one click turns any plan into a
@@ -73,6 +82,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
   });
 
   const topPlans = plans.slice(0, MAX_ROWS);
+  const hasPositions = loans.length + investments.length > 0;
 
   const onViewAsScenario = (plan: AllocationPlan) => {
     const scenario = planToScenario(loans, plan);
@@ -141,7 +151,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
             </TableHead>
             <TableBody>
               {topPlans.map((evaluation, index) => (
-                <TableRow key={evaluation.plan.label} hover>
+                <TableRow key={planKey(evaluation.plan)} hover>
                   <TableCell>
                     <Stack
                       direction="row"
@@ -185,14 +195,16 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
             </TableBody>
           </Table>
 
-          <CustomSplitBuilder
-            loans={loans}
-            investments={investments}
-            monthlyExtra={monthlyExtra}
-            today={today}
-            horizon={horizon}
-            onViewAsScenario={onViewAsScenario}
-          />
+          {hasPositions && (
+            <CustomSplitBuilder
+              loans={loans}
+              investments={investments}
+              monthlyExtra={monthlyExtra}
+              today={today}
+              horizon={horizon}
+              onViewAsScenario={onViewAsScenario}
+            />
+          )}
         </>
       )}
 
