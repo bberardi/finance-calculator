@@ -41,6 +41,7 @@ src/
 ├── chart/               # Forecast LineChart, legend, time-range, table fallback (Phase 2)
 ├── dashboard/           # Net-worth summary cards, milestones, assumptions panel (Phase 3)
 ├── scenario/            # Scenario builder dialog, bar, impact summary (Phase 4)
+├── optimizer/           # "Next dollar" optimizer panel, custom split builder, Web Worker (Phase 5)
 ├── persistence/         # "Save on this device" toggle + usePersistence hook (Phase 1)
 ├── data-manager/        # JSON import/export command-bar actions
 ├── state/               # Finance-data context + reducer (D2)

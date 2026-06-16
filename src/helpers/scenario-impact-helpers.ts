@@ -73,10 +73,15 @@ export const computeScenarioImpact = (
   loans: Loan[],
   investments: Investment[],
   scenario: ScenarioInput,
-  today: Date = new Date()
+  today: Date = new Date(),
+  // Optional override for the net-worth comparison horizon. Defaults to the
+  // chart's default horizon (Phase 4); the Phase 5 optimizer passes the user's
+  // chosen horizon so "net worth at horizon" reflects the picker. Interest and
+  // payoff are always measured over a full 50-year lifetime regardless.
+  horizon?: Date
 ): ScenarioImpact => {
-  // Net worth compared at the chart's default horizon.
-  const nwHorizon = getDefaultHorizon(loans, investments, today);
+  // Net worth compared at the requested (or chart default) horizon.
+  const nwHorizon = horizon ?? getDefaultHorizon(loans, investments, today);
   const baselineNet = forecastNetWorth(
     loans,
     investments,

@@ -14,7 +14,7 @@
 2. Persist data so it survives a refresh _(issue #20 — done, Phase 1)_
 3. Visualize every position and overall net worth over time _(issue #18 — done, Phase 2)_
 4. Overlay what-if scenarios on those projections _(issue #24 — done, Phase 4)_
-5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — not yet an issue)_
+5. **Answer the money question directly**: given $X extra per month, rank allocations — all-in-one _and_ splits across multiple loans/investments — by long-term net worth impact _(the original reason this app exists — done, Phase 5, v1.0.0)_
 
 ---
 
@@ -226,9 +226,18 @@ _The what-if layer. Shipped: a named-scenario model + reducer state, a scenario 
 
 ---
 
-### Phase 5 — "Next Dollar" Optimizer (target v1.0.0)
+### Phase 5 — "Next Dollar" Optimizer — ✅ COMPLETE (v1.0.0)
 
-_The reason the app exists, and the 1.0 headline: nothing public does this._
+_The reason the app exists, and the 1.0 headline: nothing public does this.
+Shipped in full: the pure `evaluatePlan`/`suggestPlans` engine (allocation plans
+scored against the Phase 0 forecast engine, Charter §4 tested) with a
+single-target ranking plus a coarse grid-search over splits of the top
+candidates; the search runs in a **Web Worker** off the main thread (D7 keeps the
+engine worker-safe); the flagship "I have $\_\_\_ extra per month" panel with a
+horizon picker and a ranked comparison table; one-click **"view as scenario"**
+that turns any plan into a Phase 4 chart overlay; and a **custom split builder**
+(`rebalanceAllocation`-backed sliders that always sum to $X, live-evaluated and
+chartable). README/glossary rewritten around the optimizer for the 1.0 release._
 
 | #   | Work item                                                                                                                                                                                                                                                                                                                         | Notes / acceptance                                                                                                                                                                                                                                                                                                                                                                                                        |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -366,7 +375,7 @@ Phase 0  Foundations + UX overhaul        ✅ DONE     v0.7.0
    └── Phase 2  Charts (#18)              ✅ DONE     v0.9.0
            └── Phase 3  Dashboard         ✅ DONE     v0.10.0
                    └── Phase 4  Scenarios (#24)  ✅ DONE  v0.11.0
-                           └── Phase 5  Optimizer  ← next   v1.0.0
+                           └── Phase 5  Optimizer  ✅ DONE  v1.0.0
 Phase 6  Quality items slot in anywhere
 Phase 7  Future horizons queue up post-1.0 (v1.1 → v2.0 sequencing in §Phase 7)
 ```

@@ -25,6 +25,7 @@ import { MilestoneCallouts } from './dashboard/milestone-callouts';
 import { AssumptionsPanel } from './dashboard/assumptions-panel';
 import { ScenarioBar } from './scenario/scenario-bar';
 import { ScenarioImpactSummary } from './scenario/scenario-impact-summary';
+import { OptimizerPanel } from './optimizer/optimizer-panel';
 import { useFinanceData } from './state/use-finance-data';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -333,6 +334,16 @@ export const Body = () => {
                 what the forecast assumes — honest framing for a deterministic
                 projection. */}
             <AssumptionsPanel />
+          </Paper>
+
+          {/* "Next Dollar" optimizer (roadmap 5.3/5.4): the flagship section —
+              given $X extra per month, rank where it does the most good and turn
+              any plan into a chart overlay above. */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Where should my next dollar go?</Divider>
+            <Box sx={{ marginTop: 2 }}>
+              <OptimizerPanel loans={loans} investments={investments} />
+            </Box>
           </Paper>
         </>
       )}

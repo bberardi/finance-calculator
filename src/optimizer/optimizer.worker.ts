@@ -1,0 +1,55 @@
+/// <reference lib="webworker" />
+import { Loan } from '../models/loan-model';
+import { Investment } from '../models/investment-model';
+import {
+  PlanEvaluation,
+  SuggestOptions,
+  suggestPlans,
+} from '../helpers/optimizer-helpers';
+
+// Web Worker for the "Next Dollar" optimizer (roadmap 5.2). The suggested-split
+// search runs a full multi-entity forecast for every candidate plan, so it must
+// stay off the main thread to keep the flagship interaction from janking. The
+// D7 purity boundary makes the engine worker-safe — it imports only the pure
+// helpers, no React/MUI. Loan/Investment Date fields survive the structured
+// clone across postMessage, so no manual revival is needed.
+
+export interface OptimizerRequest {
+  // Monotonic id so the hook can ignore results from superseded requests.
+  requestId: number;
+  loans: Loan[];
+  investments: Investment[];
+  monthlyExtra: number;
+  options?: SuggestOptions;
+  today: Date;
+  horizon?: Date;
+}
+
+export interface OptimizerResponse {
+  requestId: number;
+  plans: PlanEvaluation[];
+}
+
+const ctx = self as unknown as DedicatedWorkerGlobalScope;
+
+ctx.onmessage = (event: MessageEvent<OptimizerRequest>) => {
+  const {
+    requestId,
+    loans,
+    investments,
+    monthlyExtra,
+    options,
+    today,
+    horizon,
+  } = event.data;
+  const plans = suggestPlans(
+    loans,
+    investments,
+    monthlyExtra,
+    options,
+    today,
+    horizon
+  );
+  const response: OptimizerResponse = { requestId, plans };
+  ctx.postMessage(response);
+};
