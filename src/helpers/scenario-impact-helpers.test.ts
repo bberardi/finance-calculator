@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import dayjs from 'dayjs';
 import { computeScenarioImpact } from './scenario-impact-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
@@ -61,6 +62,24 @@ describe('computeScenarioImpact', () => {
     expect(impact.netWorthDelta).toBe(0);
     expect(impact.interestSaved).toBe(0);
     expect(impact.payoffMonthsEarlier).toBe(0);
+  });
+
+  it('measures net worth at an explicit horizon override', () => {
+    const near = computeScenarioImpact(
+      [loan],
+      [investment],
+      { ExtraContributions: { 'inv-1': 200 } },
+      TODAY,
+      dayjs(TODAY).add(2, 'year').toDate()
+    );
+    const far = computeScenarioImpact(
+      [loan],
+      [investment],
+      { ExtraContributions: { 'inv-1': 200 } },
+      TODAY,
+      dayjs(TODAY).add(20, 'year').toDate()
+    );
+    expect(far.netWorthDelta).toBeGreaterThan(near.netWorthDelta);
   });
 
   it('reports no payoff change when there are no loans', () => {
