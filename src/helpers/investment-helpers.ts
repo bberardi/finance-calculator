@@ -91,22 +91,19 @@ export const getInvestmentPeriods = (
       periods += 1;
     }
   } else if (periodsPerYear === 4) {
-    // Quarterly
-    const startQuarter = Math.floor(start.getMonth() / 3);
-    const endQuarter = Math.floor(end.getMonth() / 3);
-    periods =
-      (end.getFullYear() - start.getFullYear()) * 4 +
-      (endQuarter - startQuarter);
-    // Add partial quarter if we've passed the quarter start
-    const quarterStartMonth = endQuarter * 3;
-    const quarterStartDate = new Date(
-      end.getFullYear(),
-      quarterStartMonth,
-      start.getDate()
-    );
-    if (end >= quarterStartDate) {
-      periods += 1;
+    // Quarterly — anchored to StartDate, not the calendar (Jan/Apr/Jul/Oct)
+    // quarters. Bucketing into calendar quarters added a phantom period for any
+    // investment that didn't start on a quarter boundary, disagreeing with
+    // generateInvestmentGrowth (which steps 3 months at a time from StartDate).
+    // Count whole months elapsed since StartDate (same start-day comparison as
+    // the monthly branch) and divide into 3-month quarters. (#75)
+    let monthsElapsed =
+      (end.getFullYear() - start.getFullYear()) * 12 +
+      (end.getMonth() - start.getMonth());
+    if (end.getDate() < start.getDate()) {
+      monthsElapsed -= 1;
     }
+    periods = Math.floor(monthsElapsed / 3) + 1;
   } else {
     // Annually
     periods = end.getFullYear() - start.getFullYear();

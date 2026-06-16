@@ -153,25 +153,28 @@ describe('suggestPlans', () => {
   });
 
   it('ranks singles plus splits, best score first, each summing to the budget', () => {
-    const plans = suggestPlans([loan, loan2], [investment], 300, {}, TODAY);
-    // 3 single-target plans + grid-searched splits across the top candidates.
-    expect(plans.length).toBeGreaterThan(3);
+    // Two targets with default options: 2 singles + the 10%-grid of splits.
+    const plans = suggestPlans([loan, loan2], [], 300, {}, TODAY);
+    expect(plans.length).toBeGreaterThan(2);
     // Sorted by score, descending.
     for (let i = 1; i < plans.length; i++) {
       expect(plans[i - 1].score).toBeGreaterThanOrEqual(plans[i].score);
     }
-    // Every plan allocates exactly the budget, to the cent.
+    // Every plan allocates the budget, to the cent.
     for (const plan of plans) {
       expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(300, 2);
     }
-    // At least one genuine multi-target split is present.
-    const hasSplit = plans.some(
+    // At least one genuine multi-target split is present, labelled by percentage.
+    const splits = plans.filter(
       (p) => Object.keys(p.plan.allocations).length >= 2
     );
-    expect(hasSplit).toBe(true);
+    expect(splits.length).toBeGreaterThan(0);
+    expect(splits[0].plan.label).toMatch(/%/);
   });
 
-  it('preserves the budget to the cent when shares do not divide evenly', () => {
+  it('searches three-way splits and preserves an uneven budget to the cent', () => {
+    // Three targets with a coarse grid exercises three-way splits (including
+    // zero-share legs) and the rounding-drift correction on an uneven budget.
     const plans = suggestPlans(
       [loan, loan2],
       [investment],
@@ -182,18 +185,10 @@ describe('suggestPlans', () => {
     for (const plan of plans) {
       expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(100.05, 2);
     }
-  });
-
-  it('surfaces a split that can beat every all-in-one option', () => {
-    // With a high-rate loan and an investment, the best plan may be a split —
-    // the search must at least consider and rank them alongside the singles.
-    const plans = suggestPlans([loan, loan2], [investment], 300, {}, TODAY);
-    const splits = plans.filter(
-      (p) => Object.keys(p.plan.allocations).length >= 2
+    const threeWay = plans.some(
+      (p) => Object.keys(p.plan.allocations).length === 3
     );
-    expect(splits.length).toBeGreaterThan(0);
-    // Split labels read as percentage breakdowns.
-    expect(splits[0].plan.label).toMatch(/%/);
+    expect(threeWay).toBe(true);
   });
 });
 

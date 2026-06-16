@@ -340,6 +340,38 @@ describe('financeReducer', () => {
       expect(next.loans.map((l) => l.Id)).toEqual(['a']);
       expect(next.investments.map((i) => i.Id)).toEqual(['x']);
     });
+
+    it('merges into stashed real data while sample data is loaded, surviving a later clear (#83)', () => {
+      // Start with the user's real data, load samples (real data is stashed),
+      // then import. The import must land in the stash, not the visible samples,
+      // so it survives ClearSampleData rather than being silently dropped.
+      const withUserData = stateWith({ loans: [makeLoan('real')] });
+      const loaded = financeReducer(withUserData, {
+        type: 'LoadSampleData',
+        loans: [makeLoan('sample')],
+        investments: [],
+      });
+
+      const afterImport = financeReducer(loaded, {
+        type: 'ImportMerge',
+        loans: [makeLoan('imported')],
+        investments: [],
+      });
+
+      // Samples stay visible and untouched; the import goes to the stash.
+      expect(afterImport.loans.map((l) => l.Id)).toEqual(['sample']);
+      expect(afterImport.stashedLoans?.map((l) => l.Id).sort()).toEqual([
+        'imported',
+        'real',
+      ]);
+
+      // Clearing samples restores the real data WITH the import included.
+      const cleared = financeReducer(afterImport, { type: 'ClearSampleData' });
+      expect(cleared.loans.map((l) => l.Id).sort()).toEqual([
+        'imported',
+        'real',
+      ]);
+    });
   });
 
   describe('Sample data load/clear (roadmap 0.9)', () => {
