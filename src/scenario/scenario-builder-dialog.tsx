@@ -78,12 +78,16 @@ export const ScenarioBuilderDialog = ({
   };
 
   const extraInput = (
+    id: string,
     label: string,
     value: number | undefined,
     onChange: (value: number) => void
   ) => (
+    // Key by the stable entity Id, not the display Name: names are not unique, so
+    // two same-named positions keyed by Name produce duplicate React keys and the
+    // two fields bleed focus/caret/formatting into each other. (#101)
     <NumericFormat
-      key={label}
+      key={id}
       label={label}
       value={value ?? 0}
       thousandSeparator
@@ -118,11 +122,15 @@ export const ScenarioBuilderDialog = ({
             <>
               <Divider>Extra loan payments</Divider>
               {loans.map((loan) =>
-                extraInput(loan.Name, extraLoanPayments[loan.Id], (value) =>
-                  setExtraLoanPayments((prev) => ({
-                    ...prev,
-                    [loan.Id]: value,
-                  }))
+                extraInput(
+                  loan.Id,
+                  loan.Name,
+                  extraLoanPayments[loan.Id],
+                  (value) =>
+                    setExtraLoanPayments((prev) => ({
+                      ...prev,
+                      [loan.Id]: value,
+                    }))
                 )
               )}
             </>
@@ -133,6 +141,7 @@ export const ScenarioBuilderDialog = ({
               <Divider>Extra contributions</Divider>
               {investments.map((investment) =>
                 extraInput(
+                  investment.Id,
                   investment.Name,
                   extraContributions[investment.Id],
                   (value) =>
