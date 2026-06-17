@@ -188,24 +188,37 @@ export const forecastInvestment = (
 
   const investmentStartMonth = dayjs(investment.StartDate).startOf('month');
 
-  // Off-boundary anchor reconciliation (#88). When `today` falls inside a
-  // compounding period, the anchor (generateInvestmentGrowth up to today, or
-  // CurrentValue) already carries that period's *partial* interest (pro-rated
-  // r·f). Applying a full `periodRate` at the next boundary would count the
-  // elapsed slice twice. At that first boundary we instead grow the carried
-  // anchor by the complementary factor (1+r)/(1+r·f) — which upgrades the
-  // pro-rated slice to exactly one full period — while contributions made
-  // during the remainder of the period still earn the full period rate (they
-  // open the period in the canonical engine). When `today` is on a boundary
-  // f = 0, the factor is (1+r), and this reduces to the previous behavior, so
-  // boundary-anchored consistency is unchanged.
+  // Off-boundary anchor reconciliation (#88, #103). When `today` falls inside a
+  // compounding period (fraction f elapsed), contributions made during the
+  // remainder of the period still earn the full period rate (they open the
+  // period in the canonical engine), but the carried anchor grows by a
+  // first-boundary factor that depends on WHICH anchor we carried:
+  //
+  //  - generateInvestmentGrowth / StartingBalance anchor: it already bakes in
+  //    this period's pro-rated slice (base·(1 + r·f)), so applying a full
+  //    `periodRate` at the next boundary would count that slice twice. Complete
+  //    the period instead with (1 + r)/(1 + r·f), which divides the baked-in
+  //    slice back out and upgrades it to exactly one full period → base·(1 + r).
+  //
+  //  - user-supplied CurrentValue anchor: it is just today's actual value, with
+  //    NO pro-rated slice baked in. Applying (1 + r)/(1 + r·f) would divide out a
+  //    slice that was never added, systematically under-crediting the first
+  //    partial period and every value after it (#103). It must instead earn only
+  //    the *remaining* fraction of the period to the next boundary. Use the same
+  //    LINEAR day-fraction pro-rating generateInvestmentGrowth uses for a partial
+  //    period (PRECISION.md): 1 + r·(1 − f).
+  //
+  // Both reduce to (1 + r) when `today` is on a boundary (f = 0), so boundary-
+  // anchored consistency — and the #88 off-boundary tests — are unchanged.
   const partialFraction = getPartialPeriodFraction(
     investment.StartDate,
     today,
     investment.CompoundingPeriod
   );
-  const firstBoundaryFactor =
-    (1 + periodRate) / (1 + periodRate * partialFraction);
+  const usesCurrentValueAnchor = investment.CurrentValue != null;
+  const firstBoundaryFactor = usesCurrentValueAnchor
+    ? 1 + periodRate * (1 - partialFraction)
+    : (1 + periodRate) / (1 + periodRate * partialFraction);
   let firstBoundaryApplied = false;
   // Contributions added since today within the still-open first period; these
   // earn the full period rate, separate from the carried anchor's correction.

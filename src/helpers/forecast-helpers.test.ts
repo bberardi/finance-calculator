@@ -406,6 +406,49 @@ describe('Forecast Helpers', () => {
       expect(series[12].Value).toBe(1000 + 12 * 100);
       expect(series[13].Value).toBe(1000 + 12 * 100 + 150);
     });
+
+    it('grows a user-supplied CurrentValue by only the remaining partial period at the first boundary (#103)', () => {
+      // CurrentValue is today's actual value with NO pro-rated slice baked in
+      // (unlike the generateInvestmentGrowth anchor), so at the first boundary it
+      // must earn only the remaining (1 − f) of the period — not the
+      // (1+r)/(1+r·f) factor, which would divide out a slice that was never added
+      // and systematically under-credit it.
+      const investment = makeInvestment({
+        StartDate: new Date(2020, 0, 1),
+        CompoundingPeriod: CompoundingFrequency.Annually,
+        AverageReturnRate: 10,
+        StartingBalance: 100000,
+        CurrentValue: 100000,
+      });
+      const series = forecastInvestment(
+        investment,
+        new Date(2030, 0, 1),
+        0,
+        today
+      );
+
+      // today (Jun 1 2026) is f of the way through the 2026 annual period; the
+      // first compounding boundary is the grid month that reaches Jan 2027.
+      const boundary = new Date(2026, 0, 1);
+      const next = new Date(2027, 0, 1);
+      const f =
+        (today.getTime() - boundary.getTime()) /
+        (next.getTime() - boundary.getTime());
+      const firstBoundaryMonth = 7; // Jun 2026 + 7 months = Jan 2027
+      expect(dayjs(today).add(firstBoundaryMonth, 'month').month()).toBe(0);
+
+      // Linear remaining-fraction growth, matching the engine's partial-period
+      // pro-rating.
+      const expected =
+        Math.round(100000 * (1 + (10 / 100) * (1 - f)) * 100) / 100;
+      expect(Math.round(series[firstBoundaryMonth].Value * 100)).toBe(
+        Math.round(expected * 100)
+      );
+
+      // Strictly exceeds the old (buggy) (1+r)/(1+r·f) value it used to produce.
+      const buggy = 100000 * (1.1 / (1 + 0.1 * f));
+      expect(series[firstBoundaryMonth].Value).toBeGreaterThan(buggy);
+    });
   });
 
   describe('forecastNetWorth', () => {
