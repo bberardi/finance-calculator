@@ -151,7 +151,8 @@ export type InvestmentField =
   | 'CompoundingPeriod'
   | 'RecurringContribution'
   | 'ContributionFrequency'
-  | 'ContributionStepUpAmount';
+  | 'ContributionStepUpAmount'
+  | 'CurrentValue';
 
 export const validateInvestment = (
   investment: Investment
@@ -180,6 +181,30 @@ export const validateInvestment = (
   }
   if (!investment.StartDate) {
     errors.StartDate = 'Start date is required.';
+  }
+  // These optional numeric fields are rejected when negative by the JSON import
+  // boundary (data-helpers, >= 0), so the form must reject them too — otherwise a
+  // value the form happily saves (a negative RecurringContribution drains the
+  // investment in the forecast) cannot round-trip through export/import, and the
+  // form and import boundary disagree. Only block when present and negative;
+  // absent/0 stays valid. (#99, mirrors the #72 invariant)
+  if (
+    typeof investment.RecurringContribution === 'number' &&
+    investment.RecurringContribution < 0
+  ) {
+    errors.RecurringContribution = 'Recurring contribution cannot be negative.';
+  }
+  if (
+    typeof investment.ContributionStepUpAmount === 'number' &&
+    investment.ContributionStepUpAmount < 0
+  ) {
+    errors.ContributionStepUpAmount = 'Step-up amount cannot be negative.';
+  }
+  if (
+    typeof investment.CurrentValue === 'number' &&
+    investment.CurrentValue < 0
+  ) {
+    errors.CurrentValue = 'Current value cannot be negative.';
   }
 
   // --- Non-blocking sanity warnings ---
