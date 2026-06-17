@@ -190,6 +190,23 @@ describe('suggestPlans', () => {
     );
     expect(threeWay).toBe(true);
   });
+
+  it('normalizes a step that does not divide 100 so split ratios still total 100% (#95)', () => {
+    // stepPercent 7 does not divide 100 (a raw grid would top out at 98%); it is
+    // snapped to the nearest exact divisor (5) so labels/ratios sum to 100.
+    const plans = suggestPlans([loan, loan2], [], 300, { stepPercent: 7 }, TODAY);
+    for (const plan of plans) {
+      expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(300, 2);
+    }
+    const splits = plans.filter((p) => p.plan.label.includes('%'));
+    expect(splits.length).toBeGreaterThan(0);
+    for (const p of splits) {
+      const pcts = [...p.plan.label.matchAll(/(\d+)%/g)].map((m) =>
+        Number(m[1])
+      );
+      expect(pcts.reduce((sum, n) => sum + n, 0)).toBe(100);
+    }
+  });
 });
 
 describe('rebalanceAllocation', () => {
@@ -224,10 +241,23 @@ describe('rebalanceAllocation', () => {
   });
 
   it('absorbs rounding drift so the split still sums to the total', () => {
-    // 99.99 split evenly across two zero-weighted others rounds to 50.00 each,
-    // overshooting by a cent; the drift is pulled back off the last target.
+    // 99.99 split evenly across two equal others rounds to 50.00 each,
+    // overshooting by a cent; the drift is pulled back off the largest target.
     const result = rebalanceAllocation({ a: 0, b: 1, c: 1 }, 'a', 0.01, 100);
     expect(result.a + result.b + result.c).toBeCloseTo(100, 2);
-    expect(result.c).toBeCloseTo(49.99, 2);
+    expect(result.b).toBeCloseTo(49.99, 2);
+    expect(result.c).toBeCloseTo(50, 2);
+  });
+
+  it('never produces a negative target when drift lands on a near-zero share (#95)', () => {
+    // Old behavior parked the negative drift cent on the last other target;
+    // here that target's share rounds to 0, so it would have become -0.01.
+    // The drift now lands on the largest other target and is clamped at 0.
+    const result = rebalanceAllocation({ a: 0, b: 1, c: 1, d: 0 }, 'a', 99.99, 100);
+    Object.values(result).forEach((v) => expect(v).toBeGreaterThanOrEqual(0));
+    expect(Object.values(result).reduce((sum, v) => sum + v, 0)).toBeCloseTo(
+      100,
+      2
+    );
   });
 });

@@ -117,6 +117,19 @@ export interface SuggestOptions {
 const DEFAULT_STEP_PERCENT = 10;
 const DEFAULT_MAX_CANDIDATES = 3;
 
+// The split grid only sums to a true 100% when the step evenly divides 100;
+// otherwise `Math.round(100 / step) * step` lands short (e.g. step=7 → 98%),
+// drifting the displayed splitLabel percentages and share ratios away from a
+// real 100% split. Snap any requested step to the nearest exact divisor of 100
+// so the grid, the labels, and the ratios always represent a clean 100%. (#95)
+const STEP_DIVISORS = [1, 2, 4, 5, 10, 20, 25, 50, 100];
+const normalizeStepPercent = (requested: number): number => {
+  if (!(requested > 0)) return DEFAULT_STEP_PERCENT;
+  return STEP_DIVISORS.reduce((best, divisor) =>
+    Math.abs(divisor - requested) < Math.abs(best - requested) ? divisor : best
+  );
+};
+
 // Every ordered list of `parts` non-negative integers that sum to `total`
 // (integer compositions including zeros), e.g. total=10, parts=2 →
 // [10,0],[9,1],…,[0,10]. Used to enumerate the percentage grid over candidates.
@@ -186,7 +199,9 @@ export const suggestPlans = (
 ): PlanEvaluation[] => {
   if (!(monthlyExtra > 0)) return [];
 
-  const stepPercent = options.stepPercent ?? DEFAULT_STEP_PERCENT;
+  const stepPercent = normalizeStepPercent(
+    options.stepPercent ?? DEFAULT_STEP_PERCENT
+  );
   const maxCandidates = options.maxCandidates ?? DEFAULT_MAX_CANDIDATES;
 
   const targets: Target[] = [
@@ -286,13 +301,20 @@ export const rebalanceAllocation = (
     result[id] = roundToCents(share);
   });
 
-  // Absorb rounding drift on the last other target so Σ == total exactly.
+  // Absorb rounding drift so Σ == total exactly. Park it on the LARGEST other
+  // target (mirroring sharesToAllocations) and clamp at 0: dumping a negative
+  // cent on the last target unconditionally could push a target whose share
+  // rounded to ~0 down to a transient -0.01. The largest non-zero target can
+  // always absorb a sub-cent drift without going negative. (#95)
   const drift = roundToCents(
     total - Object.values(result).reduce((sum, amount) => sum + amount, 0)
   );
   if (drift !== 0) {
-    const last = otherIds[otherIds.length - 1];
-    result[last] = roundToCents(result[last] + drift);
+    const largest = otherIds.reduce(
+      (maxId, id) => (result[id] > result[maxId] ? id : maxId),
+      otherIds[0]
+    );
+    result[largest] = Math.max(0, roundToCents(result[largest] + drift));
   }
 
   return result;
