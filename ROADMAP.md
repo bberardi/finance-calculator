@@ -16,7 +16,7 @@
 4. Overlay what-if scenarios on those projections — _done (Phase 4, #24)_
 5. **Answer the money question directly**: given $X extra per month, rank allocations — single targets _and_ splits across loans/investments — by long-term net-worth impact — _done (Phase 5, v1.0.0 — the original reason this app exists)_
 
-Everything past this point (§5 Phase 7) is post-1.0 expansion, curated rather than committed.
+Everything past this point (Phases 6–11) is post-1.0 expansion, sequenced but revisitable.
 
 ---
 
@@ -28,9 +28,9 @@ PathWise is feature-complete against its founding vision. It persists data, char
 - **Data**: Loan & Investment CRUD (auto-calculated payments, compounding frequencies, recurring contributions, yearly step-ups, amortization/growth popouts, PIT calculators); JSON export/import (schema v3) with ID-based smart merge, validation, and a single versioned migration ladder; opt-in `localStorage` persistence with a first-visit privacy notice and a global error boundary with an "export my data" escape hatch.
 - **Forecasting**: a pure, date-indexed engine (`forecast-helpers.ts`) producing per-loan, per-investment, and aggregate net-worth monthly series anchored to today's balances — scenario-aware, and the single source of every projection on screen.
 - **Optimizer (1.0)**: a pure `evaluatePlan`/`suggestPlans` engine ranking single-target plans and coarse grid-searched splits, run in a **Web Worker**; the flagship "$X extra/month" panel with a ranked comparison table, one-click "view as scenario," and a custom split builder.
-- **Correctness**: the Math Correctness Charter (§3) is in force — reference / consistency / property / edge-case suites, a 100% line+branch coverage gate on `src/helpers/**` in CI, the core/UI purity boundary, and scheduled Stryker mutation testing.
+- **Correctness**: the Math Correctness Charter (§4) is in force — reference / consistency / property / edge-case suites, a 100% line+branch coverage gate on `src/helpers/**` in CI, the core/UI purity boundary, and scheduled Stryker mutation testing.
 
-What remains is deferred by design: the quality / a11y long tail (Phase 6) and the curated post-1.0 horizons (Phase 7).
+What remains is deferred by design: the quality / a11y / correctness long tail (Phase 6) and the post-1.0 feature phases (7–11).
 
 ---
 
@@ -44,7 +44,7 @@ Decisions made up front so phases didn't relitigate them. All are now implemente
 - **D4 — Persistence: `localStorage`, opt-in, inputs-only, versioned.** ✅ Phase 1 (#20). Explicit toggle, disabling clears storage, hydration reuses import validation and runs the D8 ladder.
 - **D5 — Versioned export schema.** ✅ v2 in Phase 0 (#41), v3 for scenarios in Phase 4. Import accepts older versions via the D8 ladder.
 - **D6 — Keep MUI; modernize deps.** ✅ Phase 0 (#54). No UI-library switch; stack modernized in one pass (MUI 6→9, x-date-pickers 7→9, React 18→19, Vite 5→8), which also unblocked x-charts v9.
-- **D7 — Core math is a boundary-enforced layer, not a separate package (yet).** ✅ ESLint forbids `src/helpers/**` and `src/models/**` from importing `react`/`react-dom`/`@mui/*` or any UI folder — purity is a build failure. Kept the engine worker-safe for the Phase 5 optimizer. _Packaging deferred_ until a **graduation trigger**: a genuine second consumer (CLI, second frontend, or publishing `@pathwise/engine`, H5). The boundary makes the eventual `packages/core` extraction a file move, not a refactor.
+- **D7 — Core math is a boundary-enforced layer, not a separate package (yet).** ✅ ESLint forbids `src/helpers/**` and `src/models/**` from importing `react`/`react-dom`/`@mui/*` or any UI folder — purity is a build failure. Kept the engine worker-safe for the Phase 5 optimizer. _Packaging deferred_ until a **graduation trigger**: a genuine second consumer (CLI, second frontend, or publishing `@pathwise/engine`, Phase 11). The boundary makes the eventual `packages/core` extraction a file move, not a refactor.
 - **D8 — One versioned schema-migration ladder.** ✅ Seeded in Phase 1; first real step (v2→v3, scenarios) in Phase 4. JSON import and `localStorage` hydration both route through a single `schemaVersion`-keyed `migrate(data)` ladder, so every future bump adds exactly one tested migration step.
 
 ---
@@ -57,13 +57,13 @@ PathWise's entire value proposition is that users trust its numbers enough to mo
 
 Each layer catches a class of error the others miss; all five are required for the math modules (`src/helpers/**`).
 
-| Layer                                   | What it proves                                            | How                                                                                                                                                                                                                                                                                                                                               |
-| --------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. Reference (oracle) tests**         | Formulas match the financial canon                        | Every formula is asserted against externally computed values: spreadsheet functions (`PMT`, `FV`, `IPMT`, `CUMIPMT`), published amortization tables, or closed-form hand derivations. Minimum **two independent reference points per formula**, source cited in a comment next to the test.                                                       |
-| **2. Cross-implementation consistency** | The forecast engine and the schedule helpers can't drift  | `forecastLoan` run from `today = StartDate` with `CurrentAmount = Principal` must reproduce `generateAmortizationSchedule` month-for-month within the rounding policy; `forecastInvestment` anchored at the start must match `generateInvestmentGrowth` at every compounding boundary.                                                            |
-| **3. Property / invariant tests**       | The math can't be wrong in ways nobody thought to example | Property-based tests (fast-check) over randomized inputs assert invariants: money conservation in cents; balances never negative; more extra payment ⇒ never-later payoff and never-more lifetime interest; net worth = Σ investments − Σ loans pointwise; contributions per year match the configured frequency; step-ups only at anniversaries. |
-| **4. Edge-case catalog**                | Boundaries behave                                         | Named tests for: leap-day starts; month-end dates (Jan 31 + 1 month); zero and extreme rates; one-month terms; payment < interest; horizon = today; horizon mid-month; 50-year horizons; float accumulation over 600+ months staying within the rounding policy.                                                                                  |
-| **5. Precision policy**                 | Rounding is a decision, not an accident                   | One documented policy (`PRECISION.md`) for where values round to cents and where unrounded intermediates are allowed. Tests assert exact values (`toBe`) wherever the policy defines them; every `toBeCloseTo` carries a comment justifying its tolerance.                                                                                        |
+| Layer                                   | What it proves                                            | How                                                                                                                                                                                                                                                                                         |
+| --------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Reference (oracle) tests**         | Formulas match the financial canon                        | Every formula is asserted against externally computed values: spreadsheet functions (`PMT`, `FV`, `IPMT`, `CUMIPMT`), published amortization tables, or closed-form hand derivations. Minimum **two independent reference points per formula**, source cited in a comment next to the test. |
+| **2. Cross-implementation consistency** | The forecast engine and the schedule helpers can't drift  | `forecastLoan` run from `today = StartDate` with `CurrentAmount = Principal` must reproduce `generateAmortizationSchedule` month-for-month within the rounding policy; `forecastInvestment` anchored at the start must match `generateInvestmentGrowth` at every compounding boundary.      |
+| **3. Property / invariant tests**       | The math can't be wrong in ways nobody thought to example | Property-based tests (fast-check) over randomized inputs assert invariants: money conservation in cents; balances never negative; more extra payment ⇒ never-later payoff and never-more lifetime interest; net worth = Σ investments − Σ loans pointwise; step-ups only at anniversaries.  |
+| **4. Edge-case catalog**                | Boundaries behave                                         | Named tests for: leap-day starts; month-end dates (Jan 31 + 1 month); zero and extreme rates; one-month terms; payment < interest; horizon = today; horizon mid-month; 50-year horizons; float accumulation over 600+ months staying within the rounding policy.                            |
+| **5. Precision policy**                 | Rounding is a decision, not an accident                   | One documented policy (`PRECISION.md`) for where values round to cents and where unrounded intermediates are allowed. Tests assert exact values (`toBe`) wherever the policy defines them; every `toBeCloseTo` carries a comment justifying its tolerance.                                  |
 
 ### Enforcement
 
@@ -88,104 +88,102 @@ The founding vision is fully shipped. Detailed acceptance criteria live in the m
 | **4** | Scenario forecasting (#24): named-scenario model + reducer, builder dialog, dotted color-matched overlays, impact summary, persistence via export schema v3 (first D8 migration)                                                                                                               | v0.11.0    | #82                    |
 | **5** | **"Next Dollar" optimizer**: pure `evaluatePlan`/`suggestPlans` engine, Web-Worker search, flagship "$X extra/month" panel + ranked comparison, "view as scenario," custom split builder                                                                                                       | **v1.0.0** | #90, #92, #96          |
 
-Open math-quality follow-ups surfaced by this work are tracked in **§7 Correctness Backlog**.
+Open math-quality follow-ups surfaced by this work are folded into **Phase 6** (items 6.9–6.10).
 
 ---
 
-### Phase 6 — Quality Pass (parallel / ongoing, patch releases)
+### Non-goals (identity guardrails for all phases below)
 
-_Engineering hygiene; good filler between feature work. The big UX items and dependency upgrades already landed in Phase 0._
+Declared once, up front, so future feature debates have a reference point. Every Phase 6–11 item passes three filters: it serves the core question (forecasting net worth and deciding where money goes), it works with no backend (client-side, data stays on device), and it doesn't turn PathWise into a budgeting app.
 
-- Full accessibility audit: aria labels on icon buttons, keyboard nav end-to-end, screen-reader pass, color-contrast check
-- Move `prettier` from `dependencies` to `devDependencies`
-- Component tests (React Testing Library + jsdom) for forms, tables, DataManager; Playwright smoke test (add positions → run optimizer → view as scenario); pragmatic coverage targets for UI code
-- Keep dependencies current (periodic minor/patch bumps via Dependabot or scheduled PRs)
-- Snackbar soft-undo for import-merge overwrites in DataManager (merge-by-Id clobbers are otherwise unrecoverable)
-- **Pre-merge "what changed" preview in DataManager**: before an ID-based import merge, show which entities will be _added_ vs. _overwritten_
-- **Table search / filter / grouping** on the loan/investment tables — keeps them usable as H3 fills them with cash, property, and custom-asset rows
-- **Bulk multi-select table actions**: delete or duplicate multiple entities at once, reusing the confirm + soft-undo pattern
-- Code-split the heaviest bundles (MUI X charts, date pickers, popout dialogs) to protect first paint on mobile/GitHub Pages
-- **Performance regression gate in CI**: a bundle-size budget (optionally Lighthouse-CI) wired into `ci.yml`, so the code-split win can't silently regress as Monte Carlo (H2) lands — mirroring §4's coverage gate
-- **Social/SEO + share metadata in `index.html`**: `<meta name="description">`, Open Graph / Twitter-card tags, and a static preview image (pairs with H5 shareable links)
-- **Production-correct favicon / app icons**: serve the icon from `public/` (the current `<link rel="icon">` bypasses Vite's `base` and mistypes the format), plus the sizes a future PWA install (H5) needs
-- **Repo health**: `CHANGELOG.md`, `CONTRIBUTING.md`, and issue/PR templates (LICENSE already added) so the README's contribution invitation is discoverable
-- **Virtualize the long schedule tables**: `amortization-popout.tsx` and `growth-schedule-popout.tsx` both `.map()` every row into the DOM (600+ for a 50-year monthly loan); window them to keep mobile scrolling smooth without touching the verified math
-- **Lifetime-totals footer in the schedule popouts**: total interest paid (amortization) and total contributed / interest earned (growth) — a cheap, high-value derivation from series already computed
+- **No transaction/expense tracking, categorization, or budgets** — the BLUF says not a budgeting app; this is the line.
+- **No bank account linking** (Plaid etc.) — requires a backend and credentials; would destroy the privacy story.
+- **No real-time market data** — PathWise models average rates, not tickers; keeps results deterministic and avoids API keys. (The exploratory holdings/property context item in Phase 9 stays within this line: any news feed is user-supplied and opt-in, stored on device, never hosted by PathWise.)
+- **No tax advice** — computing someone's tax return is out of scope.
 
 ---
 
-### Phase 7 — Future Horizons (post-1.0, curated)
+### Phase 6 — Quality & Hardening — _target v1.0.x (patch releases, parallelizable)_
 
-A curated catalog, not a commitment — pruned to the features actually wanted. Every item still passes three filters: **(1)** it serves the core question — forecasting net worth and deciding where money goes; **(2)** it works with no backend (client-side, GitHub Pages, data stays on device); **(3)** it doesn't turn PathWise into a budgeting app.
+Pay down the UI/test/perf/correctness debt deferred through 1.0. Items are independent and slot in anywhere alongside the feature phases, but are grouped here so the phase has a defined "done."
 
-#### Non-goals (identity guardrails)
+| #    | Work item                                                                                                                                                                                | Notes / acceptance                                                                                     |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 6.1  | **Accessibility audit**: aria labels on icon buttons, keyboard nav end-to-end, screen-reader pass, color-contrast check                                                                  | The chart "view as table" fallback (Phase 2) feeds this.                                               |
+| 6.2  | **UI test coverage**: component tests (React Testing Library + jsdom) for forms / tables / DataManager; a Playwright smoke test (add positions → run optimizer → view as scenario)       | Pragmatic UI coverage targets; the 100% bar in §4 stays scoped to math.                                |
+| 6.3  | **DataManager safety**: snackbar soft-undo for import-merge overwrites, plus a pre-merge "what changed" preview (which entities are _added_ vs. _overwritten_) before committing a merge | Merge-by-Id clobbers are otherwise unrecoverable.                                                      |
+| 6.4  | **Table scale**: search / filter / grouping and bulk multi-select (delete or duplicate many at once) on the loan/investment tables                                                       | Keeps the tables usable as Phase 7 fills them with cash, property, and custom-asset rows.              |
+| 6.5  | **Schedule popout polish**: virtualize the long amortization/growth tables (600+ rows for a 50-year loan) and add a lifetime-totals footer (interest paid / contributed / earned)        | Windowing keeps mobile scrolling smooth; totals are a cheap derivation from series already computed.   |
+| 6.6  | **Performance gate**: code-split the heaviest bundles (charts, date pickers, popouts), then add a bundle-size regression budget in `ci.yml` (optionally Lighthouse-CI)                   | Mirrors §4's coverage gate so first paint can't silently regress as Monte Carlo (Phase 9) lands.       |
+| 6.7  | **Discoverability**: social/SEO + Open Graph / Twitter-card metadata + preview image in `index.html`; production-correct favicon / app icons served from `public/`                       | Preview image pairs with Phase 11 shareable links; icon sizes prep the Phase 11 PWA install.           |
+| 6.8  | **Repo hygiene**: `CHANGELOG.md`, `CONTRIBUTING.md`, issue/PR templates; move `prettier` to `devDependencies`; keep deps current (Dependabot / scheduled bumps)                          | LICENSE already added; this makes the README's contribution invitation discoverable.                   |
+| 6.9  | **Date-math migration to dayjs** _(correctness backlog)_: replace raw `Date` stepping in `investment-helpers`; fix the Jan 31 + 1 month → Mar 3 rollover                                 | _Done when_: stepping uses dayjs (D7), the edge test asserts Jan 31 + 1 month → Feb, leap-day covered. |
+| 6.10 | **Mutation-score ratchet** _(correctness backlog)_: triage Stryker survivors toward zero and ratchet `thresholds.break` up                                                               | Baseline ~85%, `break` at 83. Next targets: `investment-helpers.ts`, `forecast-helpers.ts`.            |
 
-- **No transaction/expense tracking, categorization, or budgets** — the BLUF says not a budgeting app; this is the line
-- **No bank account linking** (Plaid etc.) — requires a backend and credentials; would destroy the privacy story
-- **No real-time market data** — PathWise models average rates, not tickers; keeps results deterministic and avoids API keys. (The exploratory holdings/property context item stays within this line: any news feed is user-supplied and opt-in, stored on device, never hosted by PathWise.)
-- **No tax advice** — computing someone's tax return is out of scope
+---
 
-#### H1 — Deeper debt tools
+### Phase 7 — Whole Net Worth — _target v1.1_
 
-| Feature                                    | What & why                                                                                                            | Builds on                 |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| **One-time lump-sum payments**             | "I got a $5k bonus — where does it go?" The one-time counterpart to the monthly optimizer.                            | Scenario engine extension |
-| **Payoff strategies (avalanche/snowball)** | Ordered-payoff modes with freed-payment redirection after each payoff — the "snowball mode" API slot reserved in 5.1. | Optimizer engine          |
-| **True monthly payment**                   | Escrow, taxes, insurance, PMI — including automatic PMI drop-off at 80% LTV. (TODO already noted in `loan-model.ts`.) | Loan model fields         |
+Make the net-worth line _true_ by holding everything a person owns. Depends only on 1.0; leans on Phase 6.4 (table scale) and bumps the schema via the D8 ladder.
 
-#### H2 — Smarter investment modeling
+| #   | Work item                            | Notes / acceptance                                                                                                                        |
+| --- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 7.1 | **Cash accounts (HYSA/CD/checking)** | Trivial model (balance + APY); big completeness win — most net worth includes cash the app can't currently hold. New simple asset type.   |
+| 7.2 | **Property + mortgage pairing**      | Home value + appreciation rate, linked to its mortgage → a **home-equity** series. Makes net worth honest for homeowners. Entity linking. |
+| 7.3 | **Custom asset / liability**         | Catch-all with a simple growth/decline rate (car, private loan, collectibles). Escape hatch so no net worth is blocked on a missing type. |
 
-| Feature              | What & why                                                                                                                                                                                                                               | Builds on                                   |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **Employer match**   | Match percentage and cap on a contribution. Free money changes optimizer rankings dramatically — without it, "pay the 6% loan vs. fund the 401(k) with 50% match" gives the wrong answer.                                                | Investment model + optimizer                |
-| **Monte Carlo mode** | Replace the single average-return line with volatility-driven percentile bands (fan chart). The biggest credibility upgrade for long horizons — deterministic projections overstate certainty. Run in a Web Worker; seeded/reproducible. | Engine + charts; sizable but self-contained |
+---
 
-#### H3 — The full net worth picture
+### Phase 8 — Better Answers — _target v1.2_
 
-| Feature                                                         | What & why                                                                                                                                                                                                                                                                                                                                                      | Builds on                        |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| **Cash accounts (HYSA/CD/checking)**                            | Trivial model (balance + APY), big completeness win — most people's net worth includes cash the app currently can't hold.                                                                                                                                                                                                                                       | New simple asset type            |
-| **Property + mortgage pairing**                                 | Home value with an appreciation rate, linked to its mortgage → a **home equity** series on the chart. Makes the net worth line honest for homeowners (currently a mortgage counts as pure liability).                                                                                                                                                           | New asset type + entity linking  |
-| **Custom asset / liability**                                    | Catch-all with a simple growth/decline rate: car (depreciating), private loan to a friend, collectibles. Escape hatch so nobody's net worth is blocked on a missing type.                                                                                                                                                                                       | New generic type                 |
-| **Asset appreciation & enhancement**                            | Model an existing asset appreciating or being enhanced: add a pool/deck (cost vs. property-value increase), renovation ROI. Pairs with property pairing to answer "is this investment worth it?"                                                                                                                                                                | Property model + scenario engine |
-| **Holdings & property context (news/research)** _(exploratory)_ | Optional linked research/news for both investment holdings (seeded from the type/sector) **and the user's property/area** (local real-estate news tied to the property + mortgage item). **Zero-backend: the user brings the feed** — paste an RSS/news URL or their own API key, stored on device; PathWise never hosts a feed or pulls real-time market data. | Investment + property models     |
+Sharpen the optimizer with the inputs that most change its rankings, and let users compare whole strategies.
 
-#### H4 — From calculator to plan
+| #   | Work item                       | Notes / acceptance                                                                                                                         |
+| --- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 8.1 | **Employer match**              | Match % + cap on a contribution, fed into the optimizer. Without it, "pay the 6% loan vs. fund the 401(k) with 50% match" ranks wrong.     |
+| 8.2 | **One-time lump-sum payments**  | "Where does a $5k bonus go?" — the one-time counterpart to the monthly optimizer. Scenario engine extension.                               |
+| 8.3 | **True monthly payment**        | Escrow, taxes, insurance, PMI with automatic drop-off at 80% LTV (TODO already noted in `loan-model.ts`). Pairs naturally with 7.2.        |
+| 8.4 | **Allocation strategy presets** | Pre-built scenario templates: debt-focused, invest-focused, balanced (split by rate), custom — each showing net-worth impact vs. baseline. |
+| 8.5 | **Strategy comparison view**    | Side-by-side dashboard: net worth at +5y/+10y/+30y, debt-free date, final asset allocation across the presets.                             |
 
-| Feature                  | What & why                                                                                                                                                                                              | Builds on                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| **Life-event timeline**  | Dated one-time events that modify the forecast: buy a house (new loan + asset), tuition (withdrawal), windfall, sell a car. A generalization of scenarios from "extra $/month" to "things that happen." | Scenario engine generalization |
-| **Inflation toggle**     | Real vs. nominal view of every chart and milestone.                                                                                                                                                     | Engine post-processing         |
-| **Retirement / FI mode** | Annual-spending input → FI number, projected FI date, coast-FI date.                                                                                                                                    | H4 + engine                    |
+---
 
-#### H4b — Multi-scenario forecasting templates
+### Phase 9 — Honest Uncertainty — _target v1.3_
 
-| Feature                         | What & why                                                                                                                                                                | Builds on                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| **Allocation strategy presets** | Pre-built scenario templates: **debt-focused**, **invest-focused**, **balanced** (split by rate), and **custom**. Each shows its long-term net worth impact vs. baseline. | Phase 4 scenarios + Phase 5 optimizer |
-| **Strategy comparison view**    | Side-by-side dashboard comparing all strategies: projected net worth at +5y/+10y/+30y, debt-free date, final asset allocation.                                            | Forecast engine + dashboard           |
+Stop overstating certainty on long horizons, and model the growth/decline of what Phase 7 added. Depends on Phase 7 (property) for 9.3–9.4.
 
-#### H5 — Beyond the calculator
+| #   | Work item                                                                  | Notes / acceptance                                                                                                                                                  |
+| --- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 9.1 | **Monte Carlo mode**                                                       | Replace the single average-return line with volatility-driven percentile bands (fan chart). Runs in a Web Worker; seeded/reproducible. Biggest credibility upgrade. |
+| 9.2 | **Inflation toggle**                                                       | Real vs. nominal view of every chart and milestone. Engine post-processing.                                                                                         |
+| 9.3 | **Asset appreciation & enhancement** _(needs 7.2)_                         | Model an existing asset appreciating or being enhanced (add a pool/deck, renovation ROI); answers "is this improvement worth it?"                                   |
+| 9.4 | **Holdings & property context (news/research)** _(needs 7.2, exploratory)_ | User-supplied feed for investment-holding research **and area real-estate news**. Zero-backend: user pastes an RSS/news URL or their own API key, stored on device. |
 
-| Feature                                     | What & why                                                                                                                                                                        | Builds on                     |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **Shareable links**                         | Compressed state in the URL fragment — share a scenario with a spouse, advisor, or forum thread with zero backend. Also doubles as a backup.                                      | Serialization (D5)            |
-| **PWA / offline install**                   | Installable app, works offline — a natural fit since there's no backend to lose.                                                                                                  | Build config + service worker |
-| **Printable / PDF report**                  | One-page position summary: holdings, net worth chart, milestones, active plan. The artifact people bring to a financial conversation.                                             | Dashboard                     |
-| **"Show the math" mode**                    | Step-by-step calculation breakdowns behind any number (popover) + a filled-in glossary. Serves the founding ethos — _no math done by the user_ — and becomes the education layer. | UI layer over helpers         |
-| **Publish the engine** (`@pathwise/engine`) | Release the charter-verified forecast/optimizer core as an open-source npm package — and the D7 graduation trigger: the moment the core moves into a workspace package.           | D7 boundary + charter (§4)    |
+---
 
-#### Suggested post-1.0 sequencing
+### Phase 10 — From Calculator to Plan — _target v1.4_
 
-| Release | Theme                       | Contents                                                                                            |
-| ------- | --------------------------- | --------------------------------------------------------------------------------------------------- |
-| v1.1    | **Whole net worth**         | Cash accounts + property/home equity + custom asset/liability (H3)                                  |
-| v1.2    | **Better answers**          | Employer match, lump-sum payments, true monthly payment + allocation presets/comparison (H1/H2/H4b) |
-| v1.3    | **Honest uncertainty**      | Monte Carlo fan charts + inflation toggle + asset appreciation + investment context (H2/H3/H4)      |
-| v1.4    | **From calculator to plan** | Life-event timeline + retirement/FI mode + avalanche/snowball + "show the math" (H1/H4/H5)          |
-| v2.0    | **Beyond personal**         | Shareable links + PWA + printable report + publish the engine (H5)                                  |
+Move from "what is" to "what happens," and make the math legible.
 
-Rationale: completeness first (so the net worth line is true), then answer quality, then statistical honesty, then planning, then distribution.
+| #    | Work item                                  | Notes / acceptance                                                                                                                                 |
+| ---- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 10.1 | **Life-event timeline**                    | Dated one-time events that modify the forecast (buy a house, tuition, windfall, sell a car). Generalizes scenarios from "extra $/month" to events. |
+| 10.2 | **Payoff strategies (avalanche/snowball)** | Ordered-payoff modes with freed-payment redirection after each payoff — the "snowball" API slot reserved in 5.1.                                   |
+| 10.3 | **Retirement / FI mode**                   | Annual-spending input → FI number, projected FI date, coast-FI date. Introduces a lightweight spending-drawdown model over the engine.             |
+| 10.4 | **"Show the math" mode**                   | Step-by-step calculation breakdowns behind any number (popover) + a filled-in glossary. Serves the founding "no math done by the user" ethos.      |
+
+---
+
+### Phase 11 — Beyond Personal — _target v2.0_
+
+Take PathWise off the single device without taking on a backend.
+
+| #    | Work item                                   | Notes / acceptance                                                                                                                             |
+| ---- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 11.1 | **Shareable links**                         | Compressed state in the URL fragment — share a scenario with zero backend; also doubles as a backup. Serialization (D5).                       |
+| 11.2 | **PWA / offline install**                   | Installable app, works offline — a natural fit since there's no backend to lose. Uses the Phase 6.7 icons.                                     |
+| 11.3 | **Printable / PDF report**                  | One-page position summary (holdings, net-worth chart, milestones, active plan) — the artifact for a financial conversation.                    |
+| 11.4 | **Publish the engine** (`@pathwise/engine`) | Release the charter-verified forecast/optimizer core as an open-source npm package — the D7 graduation trigger; core moves to `packages/core`. |
 
 ---
 
@@ -198,26 +196,23 @@ Phase 0  Foundations + UX overhaul        ✅ DONE   v0.7.0
            └── Phase 3  Dashboard         ✅ DONE   v0.10.0
                    └── Phase 4  Scenarios (#24)   ✅ DONE   v0.11.0
                            └── Phase 5  Optimizer ✅ DONE   v1.0.0
-Phase 6  Quality items slot in anywhere
-Phase 7  Curated future horizons (v1.1 → v2.0 sequencing in §5)
+─────────────────────────────────────────────────────────── 1.0 ───
+Phase 6  Quality & Hardening              v1.0.x   (parallel, anytime)
+Phase 7  Whole Net Worth                  v1.1
+Phase 8  Better Answers                   v1.2
+Phase 9  Honest Uncertainty               v1.3     (needs Phase 7)
+Phase 10 From Calculator to Plan          v1.4
+Phase 11 Beyond Personal                  v2.0
 ```
+
+Rationale for the order: completeness first (so the net-worth line is true), then answer quality, then statistical honesty, then planning, then distribution. Phase 6 runs in parallel as capacity allows.
 
 ---
 
-## 7. Working Agreements & Correctness Backlog
+## 7. Working Agreements (from repo conventions)
 
-### Working agreements (from repo conventions)
-
-- Every PR: `npm test`, `npm run build`, `npm run check:lint`, `npm run check:format` green
-- New business logic lands in `helpers/` with unit tests; UI stays thin
-- **Math Correctness Charter (§4) is non-negotiable**: math-touching PRs ship with cited reference tests, uphold the invariants, and keep `src/helpers/**` at 100% line+branch coverage; math bugs get a failing regression test before the fix
-- Semver bump in `package.json` for behavior changes; update `.github/copilot-instructions.md` and README when structure changes
-- Keep models input-only; derived data is computed, never stored
-
-### Open correctness items
-
-These are prerequisites-of-trust, not features; each is pinned in code/config, so the tracking lives here. Schedule alongside the phases as capacity allows.
-
-- **Migrate forecast/investment date math to dayjs** (Phase 6). `investment-helpers` date stepping still uses raw `Date` arithmetic, which has a silent month-end rollover quirk (**Jan 31 + 1 month → Mar 3**). Pinned by `math-edge-cases.test.ts`. _Done when_: `getNextCompoundingDate`/forecast date stepping use dayjs (consistent with D7), the edge test asserts correct calendar behavior (Jan 31 + 1 month → Feb), and regression tests cover month-end and leap-day stepping.
-- **Ratchet the Stryker mutation threshold toward zero survivors.** Baseline (2026-06-13) overall ~85%; `thresholds.break` at 83. _Done when_: surviving mutants are triaged (killed or explicitly waived as equivalent) and `break` is ratcheted up as the score improves. Next targets: `investment-helpers.ts`, `forecast-helpers.ts`. (The `format-helpers.ts` `Intl.NumberFormat`-cache survivors are a documented equivalent-mutant waiver.)
-- _(Resolved 2026-06-14)_ Step-up anniversary off-by-one between the two investment engines — `forecastInvestment` and `generateInvestmentGrowth` now agree to the cent with or without step-ups; pinned by a tripwire in `forecast-consistency.test.ts`, a reference oracle in `math-reference.test.ts`, and `PRECISION.md` §4.
+- Every PR: `npm test`, `npm run build`, `npm run check:lint`, `npm run check:format` green.
+- New business logic lands in `helpers/` with unit tests; UI stays thin.
+- **Math Correctness Charter (§4) is non-negotiable**: math-touching PRs ship with cited reference tests, uphold the invariants, and keep `src/helpers/**` at 100% line+branch coverage; math bugs get a failing regression test before the fix.
+- Semver bump in `package.json` for behavior changes; update `.github/copilot-instructions.md` and README when structure changes.
+- Keep models input-only; derived data is computed, never stored.
