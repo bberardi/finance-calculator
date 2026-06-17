@@ -59,17 +59,37 @@ describe('Edge: leap-day anniversaries', () => {
   });
 });
 
-describe('Edge: month-end date rollover', () => {
-  it('documents the JS Date rollover for Jan 31 + 1 month (lands in March)', () => {
-    // Jan 31 + 1 month overflows February and normalizes into March — a known
-    // Date quirk. Pinned so a future dayjs migration (Phase 6) is a deliberate
-    // behavior change, not a silent one.
+describe('Edge: month-end date clamping', () => {
+  it('clamps Jan 31 + 1 month to the last day of February (no rollover) (#93)', () => {
+    // Jan 31 + 1 month clamps to Feb 28 rather than overflowing into March. This
+    // stops generateInvestmentGrowth from skipping February for a month-end start
+    // and keeps it aligned with the calendar period counters. (Previously this
+    // overflowed to Mar 3 — pinned as a known quirk; #93 makes it deliberate.)
     const next = getNextCompoundingDate(
       new Date(2021, 0, 31),
       CompoundingFrequency.Monthly
     );
-    expect(next.getMonth()).toBe(2); // March
-    expect(next).toEqual(new Date(2021, 2, 3));
+    expect(next.getMonth()).toBe(1); // February
+    expect(next).toEqual(new Date(2021, 1, 28));
+  });
+
+  it('keeps stepping one month at a time after a month-end clamp', () => {
+    // Once clamped to Feb 28, subsequent steps follow day 28 — Mar 28, Apr 28 —
+    // one calendar month per step, so no month is ever skipped.
+    const feb = getNextCompoundingDate(
+      new Date(2021, 0, 31),
+      CompoundingFrequency.Monthly
+    );
+    const mar = getNextCompoundingDate(feb, CompoundingFrequency.Monthly);
+    expect(mar).toEqual(new Date(2021, 2, 28));
+  });
+
+  it('clamps a Feb-29 start to Feb 28 on an annual step into a non-leap year (#93)', () => {
+    const next = getNextCompoundingDate(
+      new Date(2020, 1, 29),
+      CompoundingFrequency.Annually
+    );
+    expect(next).toEqual(new Date(2021, 1, 28));
   });
 });
 

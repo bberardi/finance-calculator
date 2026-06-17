@@ -64,12 +64,23 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   // otherwise trigger the auto-recompute effect and clobber the loan's stored
   // MonthlyPayment. Suppress that one recompute so a saved/custom payment
   // survives opening the editor. (#56)
+  //
+  // Only suppress when the loaded loan actually carries a usable (positive)
+  // payment. An imported loan can arrive with MonthlyPayment absent or 0 — the
+  // JSON import boundary allows it and the forecast derives an effective payment
+  // — but validateLoan requires MonthlyPayment > 0, so suppressing the recompute
+  // there would leave Save permanently disabled and trap the loan as uneditable.
+  // Letting the recompute run fills in the derived payment so the round-trip
+  // (import → edit → save) works, matching the engine's "derive when unset"
+  // behavior. (#94)
   const skipNextPaymentRecompute = useRef(false);
 
   useEffect(() => {
     setNewLoan(props.loan ?? emptyLoan);
     resetTracking();
-    skipNextPaymentRecompute.current = Boolean(props.loan);
+    skipNextPaymentRecompute.current =
+      typeof props.loan?.MonthlyPayment === 'number' &&
+      props.loan.MonthlyPayment > 0;
   }, [props.loan, props.open, resetTracking]);
 
   useEffect(() => {
