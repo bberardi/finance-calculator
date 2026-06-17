@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { summarizePositions } from './summary-helpers';
 import { forecastNetWorth } from './forecast-helpers';
+import { getMonthlyPayment } from './loan-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
 
@@ -80,17 +81,12 @@ describe('summarizePositions', () => {
     );
   });
 
-  it('ignores contributions with no cadence and loans with no payment', () => {
+  it('ignores contributions with no cadence or no amount', () => {
     const noCadence: Investment = {
       ...investment,
       Id: 'inv-n',
       RecurringContribution: 500,
       ContributionFrequency: undefined,
-    };
-    const noPayment: Loan = {
-      ...loan,
-      Id: 'loan-n',
-      MonthlyPayment: undefined,
     };
     // A cadence set but no amount also contributes nothing.
     const cadenceNoAmount: Investment = {
@@ -99,12 +95,32 @@ describe('summarizePositions', () => {
       RecurringContribution: undefined,
       ContributionFrequency: CompoundingFrequency.Monthly,
     };
-    const summary = summarizePositions(
-      [noPayment],
-      [noCadence, cadenceNoAmount],
-      TODAY
-    );
+    const summary = summarizePositions([], [noCadence, cadenceNoAmount], TODAY);
     expect(summary.monthlyCommitments).toBe(0);
+  });
+
+  it('counts the forecast-derived payment for a loan with no stored payment (#91)', () => {
+    // A loan imported with MonthlyPayment unset (or 0) is amortized by the
+    // forecast over its remaining term, so it must contribute that same derived
+    // payment to "Monthly commitments" — the card and the chart use a single
+    // source of truth (getEffectiveMonthlyPayment).
+    const remainingTerms = 12; // 2025-01-01 → 2026-01-01
+    const derived = getMonthlyPayment(6000, 6, remainingTerms); // ≈ 516.40
+
+    const noPayment: Loan = {
+      ...loan,
+      Id: 'loan-n',
+      MonthlyPayment: undefined,
+    };
+    const zeroPayment: Loan = { ...loan, Id: 'loan-z', MonthlyPayment: 0 };
+
+    expect(
+      summarizePositions([noPayment], [], TODAY).monthlyCommitments
+    ).toBeCloseTo(derived, 2);
+    // A stored 0 is treated identically to "unset" (not a real $0/mo payment).
+    expect(
+      summarizePositions([zeroPayment], [], TODAY).monthlyCommitments
+    ).toBeCloseTo(derived, 2);
   });
 
   it('is all zeros with no positions', () => {

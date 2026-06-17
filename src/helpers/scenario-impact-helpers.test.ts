@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeScenarioImpact } from './scenario-impact-helpers';
+import dayjs from 'dayjs';
+import {
+  computeScenarioBaseline,
+  computeScenarioImpact,
+  computeScenarioImpactWithBaseline,
+} from './scenario-impact-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
 
@@ -63,6 +68,24 @@ describe('computeScenarioImpact', () => {
     expect(impact.payoffMonthsEarlier).toBe(0);
   });
 
+  it('measures net worth at an explicit horizon override', () => {
+    const near = computeScenarioImpact(
+      [loan],
+      [investment],
+      { ExtraContributions: { 'inv-1': 200 } },
+      TODAY,
+      dayjs(TODAY).add(2, 'year').toDate()
+    );
+    const far = computeScenarioImpact(
+      [loan],
+      [investment],
+      { ExtraContributions: { 'inv-1': 200 } },
+      TODAY,
+      dayjs(TODAY).add(20, 'year').toDate()
+    );
+    expect(far.netWorthDelta).toBeGreaterThan(near.netWorthDelta);
+  });
+
   it('reports no payoff change when there are no loans', () => {
     const impact = computeScenarioImpact(
       [],
@@ -72,5 +95,103 @@ describe('computeScenarioImpact', () => {
     );
     expect(impact.payoffMonthsEarlier).toBe(0);
     expect(impact.interestSaved).toBe(0);
+  });
+});
+
+describe('computeScenarioImpactWithBaseline', () => {
+  // The split baseline/scenario API must be a faithful decomposition of
+  // computeScenarioImpact: a baseline computed once and reused per scenario has
+  // to reproduce the all-in-one result exactly.
+  const cases: {
+    name: string;
+    scenario: Parameters<typeof computeScenarioImpact>[2];
+  }[] = [
+    {
+      name: 'an extra loan payment',
+      scenario: { ExtraLoanPayments: { 'loan-1': 300 } },
+    },
+    {
+      name: 'an extra contribution',
+      scenario: { ExtraContributions: { 'inv-1': 200 } },
+    },
+    { name: 'an empty scenario', scenario: {} },
+  ];
+
+  for (const { name, scenario } of cases) {
+    it(`reproduces computeScenarioImpact for ${name}`, () => {
+      const baseline = computeScenarioBaseline([loan], [investment], TODAY);
+      const viaBaseline = computeScenarioImpactWithBaseline(
+        [loan],
+        [investment],
+        scenario,
+        baseline,
+        TODAY
+      );
+      const direct = computeScenarioImpact(
+        [loan],
+        [investment],
+        scenario,
+        TODAY
+      );
+      expect(viaBaseline).toEqual(direct);
+    });
+  }
+
+  it('honours a horizon override carried on the baseline', () => {
+    const horizon = dayjs(TODAY).add(2, 'year').toDate();
+    const baseline = computeScenarioBaseline(
+      [loan],
+      [investment],
+      TODAY,
+      horizon
+    );
+    const viaBaseline = computeScenarioImpactWithBaseline(
+      [loan],
+      [investment],
+      { ExtraContributions: { 'inv-1': 200 } },
+      baseline,
+      TODAY
+    );
+    const direct = computeScenarioImpact(
+      [loan],
+      [investment],
+      { ExtraContributions: { 'inv-1': 200 } },
+      TODAY,
+      horizon
+    );
+    expect(viaBaseline).toEqual(direct);
+  });
+
+  it('reuses one baseline across multiple scenarios', () => {
+    const baseline = computeScenarioBaseline([loan], [], TODAY);
+    const small = computeScenarioImpactWithBaseline(
+      [loan],
+      [],
+      { ExtraLoanPayments: { 'loan-1': 100 } },
+      baseline,
+      TODAY
+    );
+    const big = computeScenarioImpactWithBaseline(
+      [loan],
+      [],
+      { ExtraLoanPayments: { 'loan-1': 400 } },
+      baseline,
+      TODAY
+    );
+    // A bigger extra payment saves strictly more interest off the same baseline.
+    expect(big.interestSaved).toBeGreaterThan(small.interestSaved);
+  });
+
+  it('reports no payoff change when the baseline has no loans', () => {
+    const baseline = computeScenarioBaseline([], [investment], TODAY);
+    expect(baseline.payoffMonth).toBeUndefined();
+    const impact = computeScenarioImpactWithBaseline(
+      [],
+      [investment],
+      { ExtraContributions: { 'inv-1': 100 } },
+      baseline,
+      TODAY
+    );
+    expect(impact.payoffMonthsEarlier).toBe(0);
   });
 });

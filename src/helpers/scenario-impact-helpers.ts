@@ -69,31 +69,41 @@ const debtFreeMonth = (
   return undefined;
 };
 
-export const computeScenarioImpact = (
+// The plan-independent half of a scenario impact: everything derived from the
+// baseline (no extra payments/contributions). Computing this once lets a search
+// that scores many scenarios against the same starting point — the Phase 5
+// optimizer — reuse it instead of re-forecasting the baseline per candidate.
+export interface ScenarioBaseline {
+  // Resolved net-worth comparison horizon (honours the optional override).
+  nwHorizon: Date;
+  // Long horizon over which interest and payoff are measured (full lifetimes).
+  longHorizon: Date;
+  // Shared month-count of any series over `longHorizon`.
+  length: number;
+  // Baseline net worth at `nwHorizon`.
+  netWorthAtHorizon: number;
+  // Baseline lifetime loan interest.
+  interest: number;
+  // Baseline debt-free month, or undefined if debt isn't cleared in the horizon.
+  payoffMonth: number | undefined;
+}
+
+// Compute the baseline (no-scenario) figures a scenario is measured against.
+// Pure (D7); the horizon override matches computeScenarioImpact's semantics.
+export const computeScenarioBaseline = (
   loans: Loan[],
   investments: Investment[],
-  scenario: ScenarioInput,
-  today: Date = new Date()
-): ScenarioImpact => {
-  // Net worth compared at the chart's default horizon.
-  const nwHorizon = getDefaultHorizon(loans, investments, today);
+  today: Date = new Date(),
+  horizon?: Date
+): ScenarioBaseline => {
+  // Net worth compared at the requested (or chart default) horizon.
+  const nwHorizon = horizon ?? getDefaultHorizon(loans, investments, today);
   const baselineNet = forecastNetWorth(
     loans,
     investments,
     nwHorizon,
     undefined,
     today
-  );
-  const scenarioNet = forecastNetWorth(
-    loans,
-    investments,
-    nwHorizon,
-    scenario,
-    today
-  );
-  const netWorthDelta = roundToCents(
-    scenarioNet[scenarioNet.length - 1].Value -
-      baselineNet[baselineNet.length - 1].Value
   );
 
   // Interest and payoff over a long horizon so full loan lifetimes are captured.
@@ -102,41 +112,94 @@ export const computeScenarioImpact = (
   // series is still a date-stamped axis).
   const length = forecastNetWorth([], [], longHorizon, undefined, today).length;
 
-  const baselineInterest = loans.reduce(
+  const interest = loans.reduce(
     (sum, loan) => sum + totalLoanInterest(loan, longHorizon, 0, today),
     0
   );
-  const scenarioInterest = loans.reduce(
-    (sum, loan) =>
-      sum +
-      totalLoanInterest(
-        loan,
-        longHorizon,
-        scenario.ExtraLoanPayments?.[loan.Id] ?? 0,
-        today
-      ),
-    0
-  );
-  const interestSaved = roundToCents(baselineInterest - scenarioInterest);
-
-  const baselinePayoff = debtFreeMonth(
+  const payoffMonth = debtFreeMonth(
     loans,
     longHorizon,
     undefined,
     today,
     length
   );
+
+  return {
+    nwHorizon,
+    longHorizon,
+    length,
+    netWorthAtHorizon: baselineNet[baselineNet.length - 1].Value,
+    interest,
+    payoffMonth,
+  };
+};
+
+// Score a single scenario against a precomputed baseline — the
+// scenario-dependent half of computeScenarioImpact, split out so a many-scenario
+// search can amortise the baseline across candidates (roadmap 5.2).
+export const computeScenarioImpactWithBaseline = (
+  loans: Loan[],
+  investments: Investment[],
+  scenario: ScenarioInput,
+  baseline: ScenarioBaseline,
+  today: Date = new Date()
+): ScenarioImpact => {
+  const scenarioNet = forecastNetWorth(
+    loans,
+    investments,
+    baseline.nwHorizon,
+    scenario,
+    today
+  );
+  const netWorthDelta = roundToCents(
+    scenarioNet[scenarioNet.length - 1].Value - baseline.netWorthAtHorizon
+  );
+
+  const scenarioInterest = loans.reduce(
+    (sum, loan) =>
+      sum +
+      totalLoanInterest(
+        loan,
+        baseline.longHorizon,
+        scenario.ExtraLoanPayments?.[loan.Id] ?? 0,
+        today
+      ),
+    0
+  );
+  const interestSaved = roundToCents(baseline.interest - scenarioInterest);
+
   const scenarioPayoff = debtFreeMonth(
     loans,
-    longHorizon,
+    baseline.longHorizon,
     scenario,
     today,
-    length
+    baseline.length
   );
   const payoffMonthsEarlier =
-    baselinePayoff !== undefined && scenarioPayoff !== undefined
-      ? Math.max(0, baselinePayoff - scenarioPayoff)
+    baseline.payoffMonth !== undefined && scenarioPayoff !== undefined
+      ? Math.max(0, baseline.payoffMonth - scenarioPayoff)
       : 0;
 
   return { netWorthDelta, interestSaved, payoffMonthsEarlier };
+};
+
+export const computeScenarioImpact = (
+  loans: Loan[],
+  investments: Investment[],
+  scenario: ScenarioInput,
+  today: Date = new Date(),
+  // Optional override for the net-worth comparison horizon. Defaults to the
+  // chart's default horizon (Phase 4); the Phase 5 optimizer passes the user's
+  // chosen horizon so "net worth at horizon" reflects the picker. Interest and
+  // payoff are always measured over a full 50-year lifetime regardless.
+  horizon?: Date
+): ScenarioImpact => {
+  const baseline = computeScenarioBaseline(loans, investments, today, horizon);
+  return computeScenarioImpactWithBaseline(
+    loans,
+    investments,
+    scenario,
+    baseline,
+    today
+  );
 };

@@ -7,6 +7,7 @@ import {
   generateInvestmentGrowth,
   getContributionForYear,
   getInvestmentYear,
+  getNextCompoundingDate,
   getPeriodsPerYear,
 } from './investment-helpers';
 
@@ -20,6 +21,34 @@ const getMonthsBetween = (start: Date, end: Date): number =>
 // Months between occurrences for a frequency (monthly=1, quarterly=3, annually=12).
 const getIntervalMonths = (frequency: CompoundingFrequency): number =>
   12 / getPeriodsPerYear(frequency);
+
+// Fraction (0 ≤ f < 1) of the current compounding period already elapsed at
+// `today`, measured exactly as generateInvestmentGrowth does: step from the
+// StartDate cadence to the last boundary on or before `today` and pro-rate by
+// elapsed/total days of that period. Returns 0 when `today` lands on a
+// boundary (or before StartDate) — no partial period is in flight. (#88)
+const getPartialPeriodFraction = (
+  startDate: Date,
+  today: Date,
+  frequency: CompoundingFrequency
+): number => {
+  if (today <= startDate) {
+    return 0;
+  }
+  let boundary = new Date(startDate.getTime());
+  let next = getNextCompoundingDate(boundary, frequency);
+  while (next <= today) {
+    boundary = next;
+    next = getNextCompoundingDate(boundary, frequency);
+  }
+  // boundary ≤ today < next.
+  if (boundary.getTime() === today.getTime()) {
+    return 0;
+  }
+  const totalMs = next.getTime() - boundary.getTime();
+  const elapsedMs = today.getTime() - boundary.getTime();
+  return elapsedMs / totalMs;
+};
 
 // Default chart horizon: the longest loan schedule, extended to at least
 // 30 years from today when any investments exist (or when there is nothing
@@ -56,6 +85,32 @@ export const getDefaultHorizon = (
   return latestLoanEnd.toDate();
 };
 
+// The monthly payment the forecast actually applies to a loan. When a usable
+// positive MonthlyPayment is stored it is used as-is; otherwise a payment is
+// derived that amortizes today's actual balance over the remaining term — not
+// the original principal over the full term, which would mis-estimate an
+// anchored forecast. A stored 0 (or any non-positive value) is treated as
+// "unset" rather than a real $0/month payment, which would otherwise grow the
+// balance forever. (#51)
+//
+// Shared by forecastLoan and the dashboard summary so the "Monthly commitments"
+// card and the chart never disagree on a loan's outflow: a loan imported with
+// MonthlyPayment: 0 (or no MonthlyPayment key) amortizes in the forecast, so it
+// must contribute that same derived payment to the commitment total. (#91)
+export const getEffectiveMonthlyPayment = (
+  loan: Loan,
+  today: Date = new Date()
+): number => {
+  const balance = roundToCents(Math.max(loan.CurrentAmount, 0));
+  const remainingTerms = Math.max(1, getMonthsBetween(today, loan.EndDate));
+  const storedPayment = loan.MonthlyPayment ?? 0;
+  return storedPayment > 0
+    ? storedPayment
+    : loan.InterestRate > 0
+      ? getMonthlyPayment(balance, loan.InterestRate, remainingTerms)
+      : roundToCents(balance / remainingTerms);
+};
+
 // Forecast a loan's remaining balance month by month from today to the
 // horizon. The series is anchored to CurrentAmount (today's actual balance)
 // rather than replaying the theoretical schedule from StartDate, so the
@@ -74,20 +129,7 @@ export const forecastLoan = (
 
   let balance = roundToCents(Math.max(loan.CurrentAmount, 0));
 
-  // When no usable payment is stored, derive one that amortizes today's actual
-  // balance over the remaining term — not the original principal over the full
-  // term, which would mis-estimate an anchored forecast. A stored 0 (or any
-  // non-positive value) is treated as "unset" rather than a real $0/month
-  // payment, which would otherwise grow the balance forever. (#51)
-  const remainingTerms = Math.max(1, getMonthsBetween(today, loan.EndDate));
-  const storedPayment = loan.MonthlyPayment ?? 0;
-  const basePayment =
-    storedPayment > 0
-      ? storedPayment
-      : loan.InterestRate > 0
-        ? getMonthlyPayment(balance, loan.InterestRate, remainingTerms)
-        : roundToCents(balance / remainingTerms);
-  const payment = basePayment + extraMonthlyPayment;
+  const payment = getEffectiveMonthlyPayment(loan, today) + extraMonthlyPayment;
 
   const points: ForecastPoint[] = [{ Date: start.toDate(), Value: balance }];
 
@@ -146,6 +188,29 @@ export const forecastInvestment = (
 
   const investmentStartMonth = dayjs(investment.StartDate).startOf('month');
 
+  // Off-boundary anchor reconciliation (#88). When `today` falls inside a
+  // compounding period, the anchor (generateInvestmentGrowth up to today, or
+  // CurrentValue) already carries that period's *partial* interest (pro-rated
+  // r·f). Applying a full `periodRate` at the next boundary would count the
+  // elapsed slice twice. At that first boundary we instead grow the carried
+  // anchor by the complementary factor (1+r)/(1+r·f) — which upgrades the
+  // pro-rated slice to exactly one full period — while contributions made
+  // during the remainder of the period still earn the full period rate (they
+  // open the period in the canonical engine). When `today` is on a boundary
+  // f = 0, the factor is (1+r), and this reduces to the previous behavior, so
+  // boundary-anchored consistency is unchanged.
+  const partialFraction = getPartialPeriodFraction(
+    investment.StartDate,
+    today,
+    investment.CompoundingPeriod
+  );
+  const firstBoundaryFactor =
+    (1 + periodRate) / (1 + periodRate * partialFraction);
+  let firstBoundaryApplied = false;
+  // Contributions added since today within the still-open first period; these
+  // earn the full period rate, separate from the carried anchor's correction.
+  let partialPeriodContributions = 0;
+
   let value = anchorValue;
   const points: ForecastPoint[] = [
     { Date: start.toDate(), Value: roundToCents(value) },
@@ -158,6 +223,10 @@ export const forecastInvestment = (
     const elapsedMonths = monthDate
       .startOf('month')
       .diff(investmentStartMonth, 'month');
+
+    // Contributions added before the first compounding boundary belong to the
+    // open period and earn the full period rate there.
+    let contributionThisMonth = 0;
 
     if (
       baseContribution > 0 &&
@@ -178,7 +247,7 @@ export const forecastInvestment = (
         monthDate.subtract(contributionInterval, 'month').toDate(),
         investment.StartDate
       );
-      value += getContributionForYear(
+      contributionThisMonth += getContributionForYear(
         baseContribution,
         yearNumber,
         investment.ContributionStepUpAmount,
@@ -187,11 +256,27 @@ export const forecastInvestment = (
     }
 
     if (extraMonthlyContribution > 0) {
-      value += extraMonthlyContribution;
+      contributionThisMonth += extraMonthlyContribution;
+    }
+
+    value += contributionThisMonth;
+    if (!firstBoundaryApplied) {
+      partialPeriodContributions += contributionThisMonth;
     }
 
     if (elapsedMonths > 0 && elapsedMonths % compoundingInterval === 0) {
-      value *= 1 + periodRate;
+      if (!firstBoundaryApplied) {
+        // First boundary after an off-boundary `today`: grow the carried anchor
+        // by the complementary factor, and credit this period's contributions
+        // the full period rate. With f = 0 (boundary anchor) this collapses to
+        // value *= (1 + periodRate).
+        value =
+          (value - partialPeriodContributions) * firstBoundaryFactor +
+          partialPeriodContributions * (1 + periodRate);
+        firstBoundaryApplied = true;
+      } else {
+        value *= 1 + periodRate;
+      }
     }
 
     points.push({
