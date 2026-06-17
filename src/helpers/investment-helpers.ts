@@ -119,26 +119,49 @@ export const getInvestmentPeriods = (
   return Math.max(periods, 1);
 };
 
-// Get the next compounding date based on frequency
+// Add `months` calendar months to a date, CLAMPING to the last valid day of the
+// target month (Jan 31 + 1mo → Feb 28) instead of OVERFLOWING the way bare
+// Date.setMonth does ("Feb 31" → Mar 3). Native Date math (no dayjs) keeps this
+// cheap on the hot forecast/growth loops. Time-of-day is preserved.
+const addMonthsClamped = (date: Date, months: number): Date => {
+  const day = date.getDate();
+  const result = new Date(date.getTime());
+  // Move to the 1st first so the pending large day can't itself overflow the
+  // month while we shift months.
+  result.setDate(1);
+  result.setMonth(result.getMonth() + months);
+  // Day 0 of the following month is the last day of the target month.
+  const lastDayOfMonth = new Date(
+    result.getFullYear(),
+    result.getMonth() + 1,
+    0
+  ).getDate();
+  result.setDate(Math.min(day, lastDayOfMonth));
+  return result;
+};
+
+// Get the next compounding date based on frequency.
+//
+// Clamps month/year steps to the last valid day of the target month rather than
+// overflowing. For a day-29..31 start, Date.setMonth's overflow ("Feb 31" →
+// Mar 3) silently skipped a whole month (February), so generateInvestmentGrowth
+// ran one calendar month behind for the life of the investment and disagreed
+// with the calendar period counters (getInvestmentPeriods) and forecastInvestment
+// — both of which step months with dayjs, which clamps. Clamping here makes all
+// three agree for month-end starts. (#93) For day-1..28 starts clamping is a
+// no-op, so non-month-end behavior is unchanged. (Feb 29 annual clamps to Feb 28,
+// consistent with getAnniversaryDate.)
 export const getNextCompoundingDate = (
   currentDate: Date,
   frequency: CompoundingFrequency
 ): Date => {
-  const nextDate = new Date(currentDate.getTime());
-
-  switch (frequency) {
-    case CompoundingFrequency.Monthly:
-      nextDate.setMonth(nextDate.getMonth() + 1);
-      break;
-    case CompoundingFrequency.Quarterly:
-      nextDate.setMonth(nextDate.getMonth() + 3);
-      break;
-    case CompoundingFrequency.Annually:
-      nextDate.setFullYear(nextDate.getFullYear() + 1);
-      break;
-  }
-
-  return nextDate;
+  const monthsToAdd =
+    frequency === CompoundingFrequency.Monthly
+      ? 1
+      : frequency === CompoundingFrequency.Quarterly
+        ? 3
+        : 12; // Annually
+  return addMonthsClamped(currentDate, monthsToAdd);
 };
 
 // Count how many contributions occur between two dates (exclusive of end date)

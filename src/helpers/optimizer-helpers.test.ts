@@ -194,7 +194,13 @@ describe('suggestPlans', () => {
   it('normalizes a step that does not divide 100 so split ratios still total 100% (#95)', () => {
     // stepPercent 7 does not divide 100 (a raw grid would top out at 98%); it is
     // snapped to the nearest exact divisor (5) so labels/ratios sum to 100.
-    const plans = suggestPlans([loan, loan2], [], 300, { stepPercent: 7 }, TODAY);
+    const plans = suggestPlans(
+      [loan, loan2],
+      [],
+      300,
+      { stepPercent: 7 },
+      TODAY
+    );
     for (const plan of plans) {
       expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(300, 2);
     }
@@ -205,6 +211,22 @@ describe('suggestPlans', () => {
         Number(m[1])
       );
       expect(pcts.reduce((sum, n) => sum + n, 0)).toBe(100);
+    }
+  });
+
+  it('falls back to the default step for a non-positive stepPercent (#95)', () => {
+    // A zero/negative step is meaningless; it falls back to the default grid
+    // rather than dividing by zero, and still produces budget-preserving splits.
+    const plans = suggestPlans(
+      [loan, loan2],
+      [],
+      300,
+      { stepPercent: 0 },
+      TODAY
+    );
+    expect(plans.length).toBeGreaterThan(2);
+    for (const plan of plans) {
+      expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(300, 2);
     }
   });
 });
@@ -253,7 +275,24 @@ describe('rebalanceAllocation', () => {
     // Old behavior parked the negative drift cent on the last other target;
     // here that target's share rounds to 0, so it would have become -0.01.
     // The drift now lands on the largest other target and is clamped at 0.
-    const result = rebalanceAllocation({ a: 0, b: 1, c: 1, d: 0 }, 'a', 99.99, 100);
+    const result = rebalanceAllocation(
+      { a: 0, b: 1, c: 1, d: 0 },
+      'a',
+      99.99,
+      100
+    );
+    Object.values(result).forEach((v) => expect(v).toBeGreaterThanOrEqual(0));
+    expect(Object.values(result).reduce((sum, v) => sum + v, 0)).toBeCloseTo(
+      100,
+      2
+    );
+  });
+
+  it('parks rounding drift on the largest other target even when it is not first (#95)', () => {
+    // others b:1, c:1, d:5 → shares 14.29 / 14.29 / 71.43 overshoot by a cent;
+    // the drift lands on d (the largest, last in order), keeping Σ == total.
+    const result = rebalanceAllocation({ a: 0, b: 1, c: 1, d: 5 }, 'a', 0, 100);
+    expect(result.d).toBeCloseTo(71.42, 2);
     Object.values(result).forEach((v) => expect(v).toBeGreaterThanOrEqual(0));
     expect(Object.values(result).reduce((sum, v) => sum + v, 0)).toBeCloseTo(
       100,
