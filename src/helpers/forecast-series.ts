@@ -118,7 +118,11 @@ export const sliceForecastChartData = (
   data: ForecastChartData,
   months: number
 ): ForecastChartData => {
-  const count = Math.min(months + 1, data.dates.length);
+  // Clamp `months` at the low end before adding the index-0 point: a negative
+  // window is meaningless, and `Array.slice(0, negative)` would trim from the
+  // end rather than return an empty window, silently yielding a back-trimmed
+  // series instead of nothing. (#95)
+  const count = Math.min(Math.max(0, months + 1), data.dates.length);
   return {
     dates: data.dates.slice(0, count),
     series: data.series.map((s) => ({

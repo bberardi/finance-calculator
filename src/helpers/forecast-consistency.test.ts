@@ -6,6 +6,7 @@ import {
 } from './loan-helpers';
 import {
   generateInvestmentGrowth,
+  getInvestmentPeriods,
   getPeriodsPerYear,
 } from './investment-helpers';
 import { forecastLoan, forecastInvestment } from './forecast-helpers';
@@ -170,6 +171,67 @@ describe('Consistency: forecastInvestment matches growth at compounding boundari
         );
       }
     });
+  });
+});
+
+describe('Consistency: month-end start dates do not skip a period (#93)', () => {
+  // For a day-29..31 start, Date.setMonth used to overflow February ("Feb 31" →
+  // Mar 3), so generateInvestmentGrowth ran a calendar month behind: it produced
+  // one fewer compounding period than the calendar counters (getInvestmentPeriods)
+  // and forecastInvestment, for the life of the investment. Clamped stepping
+  // (Jan 31 → Feb 28) removes the skip so all three agree again.
+
+  it('getInvestmentPeriods equals the period count generateInvestmentGrowth produces (symptom A)', () => {
+    const inv = makeInvestment({
+      StartDate: new Date(2025, 0, 31),
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    });
+    const end = new Date(2025, 4, 31); // 2025-05-31
+    // growth includes a period-0 anchor entry, so its period count is length − 1.
+    const growthPeriods = generateInvestmentGrowth(inv, end).length - 1;
+    expect(getInvestmentPeriods(inv, end)).toBe(growthPeriods);
+    expect(getInvestmentPeriods(inv, end)).toBe(5); // was 5 vs 4 before the fix
+  });
+
+  it('a month-end start loses no period versus a mid-month start (no skipped February)', () => {
+    const end = new Date(2025, 4, 31);
+    const monthEnd = makeInvestment({
+      StartDate: new Date(2025, 0, 31),
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    });
+    const midMonth = makeInvestment({
+      StartDate: new Date(2025, 0, 15),
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    });
+    // Before the fix the month-end start produced one fewer period (February was
+    // skipped); now both span the same number of compounding events.
+    expect(generateInvestmentGrowth(monthEnd, end).length).toBe(
+      generateInvestmentGrowth(midMonth, end).length
+    );
+  });
+
+  it('forecastInvestment matches generateInvestmentGrowth at the first (aligned) boundary for a month-end start (symptom B)', () => {
+    // Anchored at StartDate, the first compounding boundary (Feb 28) is the one
+    // date where the clamped growth schedule and the forecast's month grid still
+    // coincide. Before the fix, generateInvestmentGrowth treated Jan 31 → Feb 28
+    // as a *partial* slice of a Jan 31 → Mar 3 period, so its value at Feb 28
+    // diverged from the forecast's full-period month-1 value. With clamping,
+    // Feb 28 is a full period in both and they agree to the cent.
+    const start = new Date(2025, 0, 31);
+    const firstBoundary = new Date(2025, 1, 28); // 2025-02-28
+    const inv = makeInvestment({
+      StartDate: start,
+      StartingBalance: 1000,
+      AverageReturnRate: 12,
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    });
+    const growth = generateInvestmentGrowth(inv, firstBoundary);
+    const forecast = forecastInvestment(inv, firstBoundary, 0, start);
+    expect(cents(forecast.at(-1)!.Value)).toBe(
+      cents(growth.at(-1)!.TotalValue)
+    );
+    // One full 1%/month period applied, not a partial slice.
+    expect(cents(growth.at(-1)!.TotalValue)).toBe(cents(1010));
   });
 });
 

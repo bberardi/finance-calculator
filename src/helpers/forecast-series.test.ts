@@ -165,4 +165,12 @@ describe('sliceForecastChartData', () => {
     sliceForecastChartData(full, 1);
     expect(full.dates).toHaveLength(beforeLength);
   });
+
+  it('returns an empty window for a negative month count (#95)', () => {
+    // A negative window is clamped to empty rather than letting
+    // Array.slice(0, negative) back-trim the series from the end.
+    const sliced = sliceForecastChartData(full, -3);
+    expect(sliced.dates).toHaveLength(0);
+    sliced.series.forEach((s) => expect(s.values).toHaveLength(0));
+  });
 });

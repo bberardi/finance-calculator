@@ -11,6 +11,8 @@ import {
   CompoundingFrequency,
   StepUpType,
 } from '../models/investment-model';
+import { validateLoan } from './validation-helpers';
+import { getEffectiveMonthlyPayment } from './forecast-helpers';
 
 describe('exportToJson and importFromJson', () => {
   const testLoan: Loan = {
@@ -675,6 +677,32 @@ describe('exportToJson and importFromJson', () => {
       });
       const { loans } = importFromJson(json);
       expect(loans[0].MonthlyPayment).toBeUndefined();
+    });
+
+    it('an imported loan with absent MonthlyPayment is repairable to a valid, editable loan (#94)', () => {
+      // The import boundary admits a loan with no MonthlyPayment, but validateLoan
+      // (the Edit form's Save gate) requires MonthlyPayment > 0. The form must be
+      // able to fill in a derivable payment so the import → edit → save round-trip
+      // is not trapped — a payment derived from the loan's own fields is positive
+      // and makes the loan pass the form gate.
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [{ ...baseLoan }],
+        investments: [],
+      });
+      const imported = importFromJson(json).loans[0];
+      const today = new Date('2024-06-01');
+
+      // As imported, the form gate blocks it (no positive payment).
+      expect(validateLoan(imported).errors.MonthlyPayment).toBeDefined();
+
+      // A payment derived from its own fields is positive and clears the gate.
+      const derived = getEffectiveMonthlyPayment(imported, today);
+      expect(derived).toBeGreaterThan(0);
+      expect(
+        validateLoan({ ...imported, MonthlyPayment: derived }).errors
+          .MonthlyPayment
+      ).toBeUndefined();
     });
   });
 
