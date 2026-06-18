@@ -8,6 +8,7 @@ import {
   TableFooter,
   TableSortLabel,
   LinearProgress,
+  Checkbox,
   Paper,
   Box,
   Card,
@@ -24,6 +25,7 @@ import { getTerms } from '../helpers/loan-helpers';
 import { forecastLoan, getPayoffDate } from '../helpers/forecast-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
+import { filterBySearch } from '../helpers/filter-helpers';
 import {
   Calculate,
   CalendarMonth,
@@ -33,6 +35,9 @@ import {
 } from '@mui/icons-material';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { DialogFallback } from '../components/dialog-fallback';
+import { TableSearchField } from '../components/table-search-field';
+import { BulkActionsToolbar } from '../components/bulk-actions-toolbar';
+import { useRowSelection } from '../hooks/use-row-selection';
 
 // Code-split the popouts (roadmap 6.6): they are modal, opened on demand, and
 // pull in date pickers + the table virtualizer, so they stay out of the initial
@@ -163,24 +168,38 @@ const LOAN_COLUMNS: LoanColumn[] = [
 const LoanCard = ({
   row,
   handlers,
+  selected,
+  onSelect,
 }: {
   row: LoanRow;
   handlers: LoanRowHandlers;
+  selected: boolean;
+  onSelect: () => void;
 }) => {
   const { loan } = row;
   return (
     <Card sx={{ marginBottom: 2 }}>
       <CardContent>
-        <Typography variant="h6" component="div" gutterBottom>
-          {loan.Name}
-        </Typography>
-        <Typography
-          variant="body2"
-          gutterBottom
-          sx={{ color: 'text.secondary' }}
-        >
-          {loan.Provider}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+          <Checkbox
+            checked={selected}
+            onChange={onSelect}
+            slotProps={{ input: { 'aria-label': `Select ${loan.Name}` } }}
+            sx={{ mt: -1, ml: -1 }}
+          />
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" component="div" gutterBottom>
+              {loan.Name}
+            </Typography>
+            <Typography
+              variant="body2"
+              gutterBottom
+              sx={{ color: 'text.secondary' }}
+            >
+              {loan.Provider}
+            </Typography>
+          </Box>
+        </Box>
         <Grid container spacing={2}>
           <Grid size={6}>
             <Typography variant="body2">
@@ -244,6 +263,10 @@ export const LoanTable = (props: LoanTableProps) => {
   const [sortColumn, setSortColumn] = useState<LoanColumnId>('InterestRate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  // Search/filter + multi-select (roadmap 6.4).
+  const [query, setQuery] = useState('');
+  const selection = useRowSelection();
+
   const handlers: LoanRowHandlers = {
     onAmortization: setSelectedAmortization,
     onPit: setSelectedPit,
@@ -271,6 +294,13 @@ export const LoanTable = (props: LoanTableProps) => {
     [rows, column, sortDirection]
   );
 
+  // Visible rows after the text filter (name or provider).
+  const visibleRows = useMemo(
+    () =>
+      filterBySearch(sortedRows, query, (r) => [r.loan.Name, r.loan.Provider]),
+    [sortedRows, query]
+  );
+
   const handleSort = (id: LoanColumnId) => {
     if (sortColumn === id) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -280,12 +310,36 @@ export const LoanTable = (props: LoanTableProps) => {
     }
   };
 
-  const totalPrincipal = props.loans.reduce((sum, l) => sum + l.Principal, 0);
-  const totalCurrent = props.loans.reduce((sum, l) => sum + l.CurrentAmount, 0);
-  const totalPayment = props.loans.reduce(
+  // Totals reflect what's currently visible (equal to all loans when unfiltered).
+  const visibleLoans = visibleRows.map((r) => r.loan);
+  const totalPrincipal = visibleLoans.reduce((sum, l) => sum + l.Principal, 0);
+  const totalCurrent = visibleLoans.reduce(
+    (sum, l) => sum + l.CurrentAmount,
+    0
+  );
+  const totalPayment = visibleLoans.reduce(
     (sum, l) => sum + (l.MonthlyPayment ?? 0),
     0
   );
+
+  // Effective selection: selected loans that still exist. Derived (not the raw
+  // Set) so a bulk delete naturally drops its rows from the count.
+  const selectedLoans = props.loans.filter((l) => selection.isSelected(l.Id));
+  const visibleIds = visibleRows.map((r) => r.loan.Id);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selection.isSelected(id));
+  const someVisibleSelected = visibleIds.some((id) => selection.isSelected(id));
+
+  const onBulkDuplicate = () => {
+    selectedLoans.forEach((loan) => props.onLoanClone(loan));
+    selection.clear();
+  };
+  // Delete routes through Body for the confirm dialog + soft-undo. Selection is
+  // left as-is; the confirmed deletions drop out of `selectedLoans` on their
+  // own, and a cancel keeps the selection intact.
+  const onBulkDelete = () => props.onLoanBulkDelete(selectedLoans);
+
+  const noMatches = visibleRows.length === 0 && query.trim() !== '';
 
   return (
     <>
@@ -304,10 +358,33 @@ export const LoanTable = (props: LoanTableProps) => {
         )}
       </Suspense>
 
-      {isMobile ? (
+      <TableSearchField
+        value={query}
+        onChange={setQuery}
+        label="Search loans"
+      />
+      <BulkActionsToolbar
+        count={selectedLoans.length}
+        itemLabel="loan"
+        onDuplicate={onBulkDuplicate}
+        onDelete={onBulkDelete}
+        onClear={selection.clear}
+      />
+
+      {noMatches ? (
+        <Typography color="text.secondary" sx={{ py: 2 }}>
+          No loans match “{query}”.
+        </Typography>
+      ) : isMobile ? (
         <Box>
-          {sortedRows.map((row) => (
-            <LoanCard key={row.loan.Id} row={row} handlers={handlers} />
+          {visibleRows.map((row) => (
+            <LoanCard
+              key={row.loan.Id}
+              row={row}
+              handlers={handlers}
+              selected={selection.isSelected(row.loan.Id)}
+              onSelect={() => selection.toggle(row.loan.Id)}
+            />
           ))}
         </Box>
       ) : (
@@ -315,6 +392,18 @@ export const LoanTable = (props: LoanTableProps) => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected && !allVisibleSelected}
+                    onChange={(e) =>
+                      selection.setMany(visibleIds, e.target.checked)
+                    }
+                    slotProps={{
+                      input: { 'aria-label': 'Select all loans' },
+                    }}
+                  />
+                </TableCell>
                 {LOAN_COLUMNS.map((col) => (
                   <TableCell
                     key={col.id}
@@ -337,54 +426,67 @@ export const LoanTable = (props: LoanTableProps) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedRows.map((row) => (
-                <TableRow key={row.loan.Id}>
-                  <TableCell>{row.loan.Name}</TableCell>
-                  <TableCell>{row.loan.Provider}</TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(row.loan.Principal)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(row.loan.CurrentAmount)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatPercent(row.loan.InterestRate)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(row.loan.MonthlyPayment || 0)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatPayoff(row.payoffDate)}
-                  </TableCell>
-                  <TableCell>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        minWidth: 120,
-                      }}
-                    >
-                      <LinearProgress
-                        variant="determinate"
-                        value={row.principalPaidPct}
-                        sx={{ flexGrow: 1 }}
+              {visibleRows.map((row) => {
+                const isSelected = selection.isSelected(row.loan.Id);
+                return (
+                  <TableRow key={row.loan.Id} selected={isSelected}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => selection.toggle(row.loan.Id)}
+                        slotProps={{
+                          input: { 'aria-label': `Select ${row.loan.Name}` },
+                        }}
                       />
-                      <Typography variant="caption" sx={{ minWidth: 32 }}>
-                        {Math.round(row.principalPaidPct)}%
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <EntityRowActions
-                      actions={loanActions(row.loan, handlers)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>{row.loan.Name}</TableCell>
+                    <TableCell>{row.loan.Provider}</TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(row.loan.Principal)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(row.loan.CurrentAmount)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatPercent(row.loan.InterestRate)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(row.loan.MonthlyPayment || 0)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatPayoff(row.payoffDate)}
+                    </TableCell>
+                    <TableCell>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          minWidth: 120,
+                        }}
+                      >
+                        <LinearProgress
+                          variant="determinate"
+                          value={row.principalPaidPct}
+                          sx={{ flexGrow: 1 }}
+                        />
+                        <Typography variant="caption" sx={{ minWidth: 32 }}>
+                          {Math.round(row.principalPaidPct)}%
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <EntityRowActions
+                        actions={loanActions(row.loan, handlers)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             <TableFooter>
               <TableRow>
+                <TableCell padding="checkbox" />
                 <TableCell>
                   <strong>Totals</strong>
                 </TableCell>
@@ -416,4 +518,5 @@ export type LoanTableProps = {
   onLoanEdit: (l: Loan) => void;
   onLoanDelete: (l: Loan) => void;
   onLoanClone: (l: Loan) => void;
+  onLoanBulkDelete: (loans: Loan[]) => void;
 };

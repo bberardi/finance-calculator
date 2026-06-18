@@ -25,6 +25,7 @@ import { ScenarioBar } from './scenario/scenario-bar';
 import { ScenarioImpactSummary } from './scenario/scenario-impact-summary';
 import { OptimizerPanel } from './optimizer/optimizer-panel';
 import { useFinanceData } from './state/use-finance-data';
+import { DataSnapshot } from './state/finance-reducer';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
 import {
@@ -62,7 +63,21 @@ type UndoableDelete =
   | { kind: 'loan'; entity: Loan; index: number }
   | { kind: 'investment'; entity: Investment; index: number };
 
+// A bulk delete pending confirmation: which kind, and the selected entities.
+type PendingBulkDelete =
+  | { kind: 'loan'; entities: Loan[] }
+  | { kind: 'investment'; entities: Investment[] };
+
+// A committed bulk delete that can still be undone: the pre-delete data
+// snapshot (restored wholesale) plus the snackbar message.
+interface BulkUndo {
+  snapshot: DataSnapshot;
+  message: string;
+}
+
 const DELETE_UNDO_DURATION_MS = 6000;
+// A bulk delete removes many rows at once, so give the undo a little longer.
+const BULK_DELETE_UNDO_DURATION_MS = 8000;
 
 // Command-bar primary actions ("Add Loan" / "Add Investment"): solid white
 // buttons with deep brand-green text. Styled explicitly rather than via
@@ -82,6 +97,8 @@ export const Body = () => {
       loans,
       investments,
       sampleDataLoaded,
+      stashedLoans,
+      stashedInvestments,
       scenarios,
       activeScenarioId,
     },
@@ -93,6 +110,7 @@ export const Body = () => {
     updateInvestment,
     deleteInvestment,
     insertInvestmentAt,
+    restoreData,
     loadSampleData,
     clearSampleData,
   } = useFinanceData();
@@ -107,6 +125,11 @@ export const Body = () => {
   // Delete confirmation + soft-undo state (roadmap 0.7).
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>();
   const [undoableDelete, setUndoableDelete] = useState<UndoableDelete>();
+
+  // Bulk delete confirmation + soft-undo state (roadmap 6.4).
+  const [pendingBulkDelete, setPendingBulkDelete] =
+    useState<PendingBulkDelete>();
+  const [bulkUndo, setBulkUndo] = useState<BulkUndo>();
 
   const onLoadSampleData = () => loadSampleData(sampleLoans, sampleInvestments);
 
@@ -209,6 +232,62 @@ export const Body = () => {
     setUndoableDelete(undefined);
   };
 
+  // Bulk delete (roadmap 6.4). The tables hand up the selected entities; Body
+  // owns the confirm + soft-undo, reusing the snapshot/restore mechanism from
+  // the import undo (6.3) so a whole multi-row delete reverts in one step.
+  const onLoanBulkDelete = (selected: Loan[]) => {
+    if (selected.length > 0) {
+      setPendingBulkDelete({ kind: 'loan', entities: selected });
+    }
+  };
+
+  const onInvestmentBulkDelete = (selected: Investment[]) => {
+    if (selected.length > 0) {
+      setPendingBulkDelete({ kind: 'investment', entities: selected });
+    }
+  };
+
+  const bulkDeleteCount = pendingBulkDelete?.entities.length ?? 0;
+  const bulkDeleteNoun =
+    pendingBulkDelete?.kind === 'investment' ? 'investment' : 'loan';
+  const pluralize = (count: number, noun: string) =>
+    `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+  const onConfirmBulkDelete = () => {
+    if (!pendingBulkDelete) {
+      return;
+    }
+    // Snapshot the restorable data before deleting, so undo restores it whole.
+    const snapshot: DataSnapshot = {
+      loans,
+      investments,
+      scenarios,
+      stashedLoans,
+      stashedInvestments,
+    };
+    if (pendingBulkDelete.kind === 'loan') {
+      pendingBulkDelete.entities.forEach((loan) => deleteLoan(loan.Id));
+    } else {
+      pendingBulkDelete.entities.forEach((inv) => deleteInvestment(inv.Id));
+    }
+    setBulkUndo({
+      snapshot,
+      message: `Deleted ${pluralize(
+        pendingBulkDelete.entities.length,
+        pendingBulkDelete.kind
+      )}`,
+    });
+    setPendingBulkDelete(undefined);
+  };
+
+  const onUndoBulkDelete = () => {
+    if (!bulkUndo) {
+      return;
+    }
+    restoreData(bulkUndo.snapshot);
+    setBulkUndo(undefined);
+  };
+
   const deletedName = undoableDelete?.entity.Name ?? '';
   const bothEmpty = loans.length === 0 && investments.length === 0;
   const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
@@ -295,6 +374,7 @@ export const Body = () => {
                 onLoanEdit={onLoanAddEdit}
                 onLoanDelete={onLoanDelete}
                 onLoanClone={onLoanClone}
+                onLoanBulkDelete={onLoanBulkDelete}
               />
             ) : (
               <SectionEmptyState
@@ -313,6 +393,7 @@ export const Body = () => {
                 onInvestmentEdit={onInvestmentAddEdit}
                 onInvestmentDelete={onInvestmentDelete}
                 onInvestmentClone={onInvestmentClone}
+                onInvestmentBulkDelete={onInvestmentBulkDelete}
               />
             ) : (
               <SectionEmptyState
@@ -417,6 +498,38 @@ export const Body = () => {
           }
         >
           {`Deleted ${deletedName}`}
+        </Alert>
+      </Snackbar>
+
+      {/* Bulk delete confirmation (roadmap 6.4): one prompt for the whole
+          selection, e.g. "Delete 3 loans?". */}
+      <ConfirmDeleteDialog
+        itemName={
+          pendingBulkDelete
+            ? pluralize(bulkDeleteCount, bulkDeleteNoun)
+            : undefined
+        }
+        onCancel={() => setPendingBulkDelete(undefined)}
+        onConfirm={onConfirmBulkDelete}
+      />
+
+      {/* Soft-undo for a bulk delete: restores the whole pre-delete snapshot. */}
+      <Snackbar
+        open={!!bulkUndo}
+        autoHideDuration={BULK_DELETE_UNDO_DURATION_MS}
+        onClose={() => setBulkUndo(undefined)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity="info"
+          sx={{ width: '100%' }}
+          action={
+            <Button color="inherit" size="small" onClick={onUndoBulkDelete}>
+              UNDO
+            </Button>
+          }
+        >
+          {bulkUndo?.message}
         </Alert>
       </Snackbar>
     </Container>
