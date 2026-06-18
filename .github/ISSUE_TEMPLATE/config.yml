@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Roadmap & project direction
+    url: https://github.com/bberardi/finance-calculator/blob/main/ROADMAP.md
+    about: See where PathWise is headed before filing a feature request.

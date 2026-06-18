@@ -5,6 +5,7 @@ import { brandGradient } from './theme';
 export const Header = () => {
   return (
     <Box
+      component="header"
       sx={{
         background: brandGradient,
         color: '#ffffff',

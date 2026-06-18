@@ -41,6 +41,7 @@ export const EntityRowActions = ({
         color={action.color ?? 'primary'}
         size={isMobile ? 'medium' : 'small'}
         title={action.title}
+        aria-label={action.title}
       >
         {action.icon}
       </IconButton>
