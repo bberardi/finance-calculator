@@ -1,10 +1,36 @@
 import { Button, Alert, Snackbar, Tooltip } from '@mui/material';
 import { useState, useRef } from 'react';
-import { importFromJson, mergeData } from '../helpers/data-helpers';
+import { importFromJson, previewMerge } from '../helpers/data-helpers';
 import { downloadJsonExport } from './export-download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useFinanceData } from '../state/use-finance-data';
+import { Loan } from '../models/loan-model';
+import { Investment } from '../models/investment-model';
+import { Scenario } from '../models/scenario-model';
+import { DataSnapshot } from '../state/finance-reducer';
+import {
+  ImportPreviewDialog,
+  ImportPreviewSection,
+} from './import-preview-dialog';
+
+// A parsed import awaiting confirmation: the entities to merge plus the
+// precomputed add/overwrite preview shown to the user.
+interface PendingImport {
+  loans: Loan[];
+  investments: Investment[];
+  scenarios: Scenario[];
+  sections: ImportPreviewSection[];
+}
+
+// A just-committed import that can still be undone: the pre-merge snapshot to
+// restore plus the summary message shown in the snackbar.
+interface ImportUndo {
+  snapshot: DataSnapshot;
+  message: string;
+}
+
+const IMPORT_UNDO_DURATION_MS = 8000;
 
 export const DataManager = () => {
   const {
@@ -17,9 +43,14 @@ export const DataManager = () => {
       stashedInvestments,
     },
     importMerge,
+    restoreData,
   } = useFinanceData();
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [exportMessage, setExportMessage] = useState<string>('');
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(
+    null
+  );
+  const [importUndo, setImportUndo] = useState<ImportUndo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // While sample data is displayed, the user's real data is parked in the
@@ -36,7 +67,7 @@ export const DataManager = () => {
   const handleExport = () => {
     try {
       downloadJsonExport(realLoans, realInvestments, scenarios);
-      setSuccessMessage('Data exported successfully!');
+      setExportMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
       console.error('Error exporting data:', error);
@@ -77,33 +108,27 @@ export const DataManager = () => {
           scenarios: importedScenarios,
         } = importFromJson(content);
 
-        // Compute merge statistics for the success message. The actual state
-        // update is performed by the reducer's ImportMerge action (which runs
-        // the same mergeData merge), keeping merge semantics in one place.
-        const { result: loansResult } = mergeData(realLoans, importedLoans);
-        const { result: investmentsResult } = mergeData(
+        // Compute the add-vs-overwrite preview against the *real* data (the
+        // merge target), so the user confirms exactly what the subsequent merge
+        // will do. The merge itself still runs in the reducer (one source of
+        // truth) once confirmed.
+        const loanPreview = previewMerge(realLoans, importedLoans);
+        const investmentPreview = previewMerge(
           realInvestments,
           importedInvestments
         );
+        const scenarioPreview = previewMerge(scenarios, importedScenarios);
 
-        importMerge(importedLoans, importedInvestments, importedScenarios);
-
-        // Build detailed success message
-        const totalLoansProcessed = loansResult.added + loansResult.updated;
-        const loanMsg =
-          totalLoansProcessed > 0
-            ? `${totalLoansProcessed} loans (${loansResult.added} added, ${loansResult.updated} updated)`
-            : '0 loans';
-        const totalInvestmentsProcessed =
-          investmentsResult.added + investmentsResult.updated;
-        const investmentMsg =
-          totalInvestmentsProcessed > 0
-            ? `${totalInvestmentsProcessed} investments (${investmentsResult.added} added, ${investmentsResult.updated} updated)`
-            : '0 investments';
-
-        setSuccessMessage(
-          `Data imported successfully! ${loanMsg} and ${investmentMsg} processed.`
-        );
+        setPendingImport({
+          loans: importedLoans,
+          investments: importedInvestments,
+          scenarios: importedScenarios,
+          sections: [
+            { label: 'Loans', ...loanPreview },
+            { label: 'Investments', ...investmentPreview },
+            { label: 'Scenarios', ...scenarioPreview },
+          ],
+        });
       } catch (error) {
         console.error('Error importing data:', error);
         setErrorMessage(
@@ -124,9 +149,46 @@ export const DataManager = () => {
     }
   };
 
-  const handleCloseSnackbar = () => {
-    setErrorMessage('');
-    setSuccessMessage('');
+  const handleConfirmImport = () => {
+    if (!pendingImport) return;
+
+    // Capture the pre-merge data so the import can be undone. These are the
+    // raw state fields RestoreData replaces — not the derived `real*` views.
+    const snapshot: DataSnapshot = {
+      loans,
+      investments,
+      scenarios,
+      stashedLoans,
+      stashedInvestments,
+    };
+
+    const added = pendingImport.sections.reduce(
+      (sum, s) => sum + s.added.length,
+      0
+    );
+    const overwritten = pendingImport.sections.reduce(
+      (sum, s) => sum + s.overwritten.length,
+      0
+    );
+
+    importMerge(
+      pendingImport.loans,
+      pendingImport.investments,
+      pendingImport.scenarios
+    );
+    setPendingImport(null);
+    setImportUndo({
+      snapshot,
+      message: `Imported ${added} item${added === 1 ? '' : 's'}${
+        overwritten > 0 ? `, overwrote ${overwritten}` : ''
+      }.`,
+    });
+  };
+
+  const handleUndoImport = () => {
+    if (!importUndo) return;
+    restoreData(importUndo.snapshot);
+    setImportUndo(null);
   };
 
   return (
@@ -168,14 +230,23 @@ export const DataManager = () => {
         onChange={handleFileUpload}
       />
 
+      {/* Pre-merge "what changed" preview (roadmap 6.3): merges only run after
+          the user reviews the add/overwrite list and confirms. */}
+      <ImportPreviewDialog
+        open={!!pendingImport}
+        sections={pendingImport?.sections ?? []}
+        onConfirm={handleConfirmImport}
+        onCancel={() => setPendingImport(null)}
+      />
+
       <Snackbar
         open={!!errorMessage}
         autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
+        onClose={() => setErrorMessage('')}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
-          onClose={handleCloseSnackbar}
+          onClose={() => setErrorMessage('')}
           severity="error"
           sx={{ width: '100%' }}
         >
@@ -184,17 +255,39 @@ export const DataManager = () => {
       </Snackbar>
 
       <Snackbar
-        open={!!successMessage}
+        open={!!exportMessage}
         autoHideDuration={4000}
-        onClose={handleCloseSnackbar}
+        onClose={() => setExportMessage('')}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
-          onClose={handleCloseSnackbar}
+          onClose={() => setExportMessage('')}
           severity="success"
           sx={{ width: '100%' }}
         >
-          {successMessage}
+          {exportMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Soft-undo for an import merge (roadmap 6.3): mirrors the delete-undo
+          snackbar, restoring the pre-merge snapshot. Longer window than a
+          delete because a merge can touch many entities at once. */}
+      <Snackbar
+        open={!!importUndo}
+        autoHideDuration={IMPORT_UNDO_DURATION_MS}
+        onClose={() => setImportUndo(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity="success"
+          sx={{ width: '100%' }}
+          action={
+            <Button color="inherit" size="small" onClick={handleUndoImport}>
+              UNDO
+            </Button>
+          }
+        >
+          {importUndo?.message}
         </Alert>
       </Snackbar>
     </>

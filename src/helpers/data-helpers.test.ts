@@ -3,6 +3,7 @@ import {
   exportToJson,
   importFromJson,
   mergeData,
+  previewMerge,
   EXPORT_SCHEMA_VERSION,
 } from './data-helpers';
 import { Loan } from '../models/loan-model';
@@ -1038,6 +1039,81 @@ describe('mergeData', () => {
     expect(result.find((item) => item.name === 'Empty ID 2')).toBeUndefined();
     expect(stats.added).toBe(0);
     expect(stats.updated).toBe(0);
+  });
+});
+
+describe('previewMerge', () => {
+  it('partitions imported items into added vs overwritten by Id', () => {
+    const existing = [
+      { Id: '1', name: 'Item 1' },
+      { Id: '2', name: 'Item 2' },
+    ];
+    const imported = [
+      { Id: '2', name: 'Updated 2' },
+      { Id: '3', name: 'New 3' },
+    ];
+
+    const { added, overwritten } = previewMerge(existing, imported);
+
+    expect(added.map((i) => i.Id)).toEqual(['3']);
+    expect(overwritten.map((i) => i.Id)).toEqual(['2']);
+  });
+
+  it('skips imported items with empty/whitespace Ids', () => {
+    const existing = [{ Id: '1', name: 'Item 1' }];
+    const imported = [
+      { Id: '', name: 'No Id' },
+      { Id: '   ', name: 'Blank Id' },
+      { Id: '2', name: 'Real' },
+    ];
+
+    const { added, overwritten } = previewMerge(existing, imported);
+
+    expect(added.map((i) => i.Id)).toEqual(['2']);
+    expect(overwritten).toEqual([]);
+  });
+
+  it('does not treat an existing empty Id as a match target', () => {
+    const existing = [{ Id: '', name: 'Existing blank' }];
+    const imported = [{ Id: '5', name: 'New' }];
+
+    const { added, overwritten } = previewMerge(existing, imported);
+
+    expect(added.map((i) => i.Id)).toEqual(['5']);
+    expect(overwritten).toEqual([]);
+  });
+
+  it('counts a duplicate Id within the import as an overwrite (matches mergeData replay)', () => {
+    const existing: Array<{ Id: string; name: string }> = [];
+    const imported = [
+      { Id: 'x', name: 'First x' },
+      { Id: 'x', name: 'Second x' },
+    ];
+
+    const { added, overwritten } = previewMerge(existing, imported);
+
+    expect(added.map((i) => i.name)).toEqual(['First x']);
+    expect(overwritten.map((i) => i.name)).toEqual(['Second x']);
+  });
+
+  it('agrees with mergeData counts (added.length/overwritten.length == added/updated)', () => {
+    const existing = [
+      { Id: '1', name: 'a' },
+      { Id: '2', name: 'b' },
+      { Id: '', name: 'skip-me' },
+    ];
+    const imported = [
+      { Id: '2', name: 'b2' }, // overwrite
+      { Id: '3', name: 'c' }, // add
+      { Id: '3', name: 'c-dup' }, // duplicate import → overwrite
+      { Id: '', name: 'skip' }, // skipped
+    ];
+
+    const preview = previewMerge(existing, imported);
+    const { result } = mergeData(existing, imported);
+
+    expect(preview.added.length).toBe(result.added);
+    expect(preview.overwritten.length).toBe(result.updated);
   });
 });
 

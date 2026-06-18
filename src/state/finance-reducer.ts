@@ -22,6 +22,18 @@ export interface FinanceState {
   activeScenarioId: string | null;
 }
 
+// The data fields an ImportMerge can touch, captured before a merge so the
+// import-undo (6.3) can restore them exactly. `sampleDataLoaded` and
+// `activeScenarioId` are untouched by a merge, so they are not part of the
+// snapshot.
+export interface DataSnapshot {
+  loans: Loan[];
+  investments: Investment[];
+  scenarios: Scenario[];
+  stashedLoans: Loan[] | null;
+  stashedInvestments: Investment[] | null;
+}
+
 export const initialFinanceState: FinanceState = {
   loans: [],
   investments: [],
@@ -55,6 +67,9 @@ export type FinanceAction =
       investments: Investment[];
       scenarios?: Scenario[];
     }
+  // Soft-undo for an import merge (roadmap 6.3): restore the data captured
+  // immediately before the merge, reverting a merge-by-Id clobber.
+  | { type: 'RestoreData'; snapshot: DataSnapshot }
   | { type: 'LoadSampleData'; loans: Loan[]; investments: Investment[] }
   | { type: 'ClearSampleData' }
   // Scenario actions (Phase 4). Like entities, Id generation happens at the
@@ -188,6 +203,18 @@ export const financeReducer = (
         scenarios: mergedScenarios,
       };
     }
+
+    case 'RestoreData':
+      // Replace exactly the fields a merge can have changed. Other state
+      // (sample-data flag, active scenario) is left as-is.
+      return {
+        ...state,
+        loans: action.snapshot.loans,
+        investments: action.snapshot.investments,
+        scenarios: action.snapshot.scenarios,
+        stashedLoans: action.snapshot.stashedLoans,
+        stashedInvestments: action.snapshot.stashedInvestments,
+      };
 
     case 'LoadSampleData': {
       // Loading sample data: stash the user's real data and show the samples

@@ -6,20 +6,18 @@ import {
   Container,
   Divider,
   Paper,
+  Skeleton,
   Snackbar,
   Toolbar,
 } from '@mui/material';
-import { useState } from 'react';
-import { AddEditLoan } from './loan/add-edit-loan';
+import { lazy, Suspense, useState } from 'react';
 import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
-import { AddEditInvestment } from './investment/add-edit-investment';
 import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
-import { ForecastChart } from './chart/forecast-chart';
 import { NetWorthSummary } from './dashboard/net-worth-summary';
 import { MilestoneCallouts } from './dashboard/milestone-callouts';
 import { AssumptionsPanel } from './dashboard/assumptions-panel';
@@ -34,6 +32,22 @@ import {
   SectionEmptyState,
 } from './components/empty-state';
 import { sampleLoans, sampleInvestments } from './state/sample-data';
+
+// Code-split the heaviest, non-critical-path chunks (roadmap 6.6): the forecast
+// chart (@mui/x-charts) and the add/edit forms (@mui/x-date-pickers) are kept
+// out of the initial bundle. The chart loads once there is data to plot; the
+// forms load the first time one is opened (mounted on demand, below).
+const ForecastChart = lazy(() =>
+  import('./chart/forecast-chart').then((m) => ({ default: m.ForecastChart }))
+);
+const AddEditLoan = lazy(() =>
+  import('./loan/add-edit-loan').then((m) => ({ default: m.AddEditLoan }))
+);
+const AddEditInvestment = lazy(() =>
+  import('./investment/add-edit-investment').then((m) => ({
+    default: m.AddEditInvestment,
+  }))
+);
 
 // A delete pending confirmation: which kind of entity, and the entity itself
 // (we need its name for the prompt).
@@ -316,11 +330,17 @@ export const Body = () => {
             {/* Scenario controls (roadmap 4.2): create/select/delete what-if
                 scenarios; the active one overlays the chart (4.3). */}
             <ScenarioBar />
-            <ForecastChart
-              loans={loans}
-              investments={investments}
-              scenario={activeScenario}
-            />
+            <Suspense
+              fallback={
+                <Skeleton variant="rounded" height={400} sx={{ mt: 1 }} />
+              }
+            >
+              <ForecastChart
+                loans={loans}
+                investments={investments}
+                scenario={activeScenario}
+              />
+            </Suspense>
             {/* Scenario impact summary (roadmap 4.4): what the active scenario
                 buys vs. baseline — shown only when a scenario is active. */}
             {activeScenario && (
@@ -348,19 +368,28 @@ export const Body = () => {
         </>
       )}
 
-      <AddEditLoan
-        open={isAddLoanOpen}
-        onSave={onLoanAddEditSave}
-        onClose={onLoanAddEditClose}
-        loan={editLoan}
-      />
+      {/* Mounted only while open so the date-picker chunk (6.6) loads on first
+          use rather than at startup. The forms re-initialize from props in a
+          mount-run effect, so a fresh mount opens cleanly. */}
+      <Suspense fallback={null}>
+        {isAddLoanOpen && (
+          <AddEditLoan
+            open
+            onSave={onLoanAddEditSave}
+            onClose={onLoanAddEditClose}
+            loan={editLoan}
+          />
+        )}
 
-      <AddEditInvestment
-        open={isAddInvestmentOpen}
-        onSave={onInvestmentAddEditSave}
-        onClose={onInvestmentAddEditClose}
-        investment={editInvestment}
-      />
+        {isAddInvestmentOpen && (
+          <AddEditInvestment
+            open
+            onSave={onInvestmentAddEditSave}
+            onClose={onInvestmentAddEditClose}
+            investment={editInvestment}
+          />
+        )}
+      </Suspense>
 
       <ConfirmDeleteDialog
         itemName={pendingDelete?.entity.Name}

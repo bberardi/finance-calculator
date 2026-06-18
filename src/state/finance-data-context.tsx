@@ -4,6 +4,7 @@ import { Investment } from '../models/investment-model';
 import { Scenario } from '../models/scenario-model';
 import { generateId } from '../helpers/id-helpers';
 import {
+  DataSnapshot,
   FinanceAction,
   FinanceState,
   financeReducer,
@@ -30,6 +31,8 @@ export interface FinanceDataContextValue {
     investments: Investment[],
     scenarios?: Scenario[]
   ) => void;
+  // Undo an import merge by restoring a pre-merge snapshot (roadmap 6.3).
+  restoreData: (snapshot: DataSnapshot) => void;
   loadSampleData: (loans: Loan[], investments: Investment[]) => void;
   clearSampleData: () => void;
   // Scenario actions (Phase 4). addScenario assigns an Id and returns it so the
@@ -78,6 +81,8 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
         investments: Investment[],
         scenarios?: Scenario[]
       ) => dispatch({ type: 'ImportMerge', loans, investments, scenarios }),
+      restoreData: (snapshot: DataSnapshot) =>
+        dispatch({ type: 'RestoreData', snapshot }),
       loadSampleData: (loans: Loan[], investments: Investment[]) =>
         dispatch({ type: 'LoadSampleData', loans, investments }),
       clearSampleData: () => dispatch({ type: 'ClearSampleData' }),

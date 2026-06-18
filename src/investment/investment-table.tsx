@@ -31,10 +31,19 @@ import {
   Edit,
   TrendingUp,
 } from '@mui/icons-material';
-import { useMemo, useState } from 'react';
-import { PitPopout } from './pit-popout';
-import { GrowthSchedulePopout } from './growth-schedule-popout';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
+
+// Code-split the popouts (roadmap 6.6): modal, opened on demand, and pulling in
+// date pickers + the table virtualizer — kept out of the initial bundle.
+const PitPopout = lazy(() =>
+  import('./pit-popout').then((m) => ({ default: m.PitPopout }))
+);
+const GrowthSchedulePopout = lazy(() =>
+  import('./growth-schedule-popout').then((m) => ({
+    default: m.GrowthSchedulePopout,
+  }))
+);
 
 // Callbacks an investment row/card needs. Passed down from the table so the row
 // and card components can live at module scope (no remount-on-render).
@@ -290,18 +299,20 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 
   return (
     <>
-      {selectedPit && (
-        <PitPopout
-          investment={selectedPit}
-          onClose={() => setSelectedPit(undefined)}
-        />
-      )}
-      {selectedGrowth && (
-        <GrowthSchedulePopout
-          investment={selectedGrowth}
-          onClose={() => setSelectedGrowth(undefined)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {selectedPit && (
+          <PitPopout
+            investment={selectedPit}
+            onClose={() => setSelectedPit(undefined)}
+          />
+        )}
+        {selectedGrowth && (
+          <GrowthSchedulePopout
+            investment={selectedGrowth}
+            onClose={() => setSelectedGrowth(undefined)}
+          />
+        )}
+      </Suspense>
 
       {isMobile ? (
         <Box>

@@ -18,9 +18,8 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { Loan } from '../models/loan-model';
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { PitPopout } from './pit-popout';
 import { getTerms } from '../helpers/loan-helpers';
 import { forecastLoan, getPayoffDate } from '../helpers/forecast-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
@@ -32,8 +31,19 @@ import {
   Delete,
   Edit,
 } from '@mui/icons-material';
-import { AmortizationPopout } from './amortization-popout';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
+
+// Code-split the popouts (roadmap 6.6): they are modal, opened on demand, and
+// pull in date pickers + the table virtualizer, so they stay out of the initial
+// bundle and load only when a row action is clicked.
+const PitPopout = lazy(() =>
+  import('./pit-popout').then((m) => ({ default: m.PitPopout }))
+);
+const AmortizationPopout = lazy(() =>
+  import('./amortization-popout').then((m) => ({
+    default: m.AmortizationPopout,
+  }))
+);
 
 // Callbacks a loan row/card needs. Passed down from the table so the row and
 // card components can live at module scope (no remount-on-render).
@@ -278,18 +288,20 @@ export const LoanTable = (props: LoanTableProps) => {
 
   return (
     <>
-      {selectedPit && (
-        <PitPopout
-          loan={selectedPit}
-          onClose={() => setSelectedPit(undefined)}
-        />
-      )}
-      {selectedAmortization && (
-        <AmortizationPopout
-          loan={selectedAmortization}
-          onClose={() => setSelectedAmortization(undefined)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {selectedPit && (
+          <PitPopout
+            loan={selectedPit}
+            onClose={() => setSelectedPit(undefined)}
+          />
+        )}
+        {selectedAmortization && (
+          <AmortizationPopout
+            loan={selectedAmortization}
+            onClose={() => setSelectedAmortization(undefined)}
+          />
+        )}
+      </Suspense>
 
       {isMobile ? (
         <Box>
