@@ -330,6 +330,36 @@ describe('exportToJson and importFromJson', () => {
     expect(() => importFromJson(invalidJson)).toThrow('Invalid date');
   });
 
+  it('should reject a loan with a boolean StartDate (non-string date type) (#100)', () => {
+    // new Date(true) is a *valid* Date (1970-01-01T00:00:00.001Z), so the NaN
+    // check never fires — the type must be rejected up front.
+    const json = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      loans: [{ ...testLoan, StartDate: true }],
+      investments: [],
+    });
+    expect(() => importFromJson(json)).toThrow("Invalid value for 'StartDate'");
+  });
+
+  it('should reject a loan with a numeric (epoch) EndDate (#100)', () => {
+    // new Date(1700000000000) coerces a raw epoch to an arbitrary valid date.
+    const json = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      loans: [{ ...testLoan, EndDate: 1700000000000 }],
+      investments: [],
+    });
+    expect(() => importFromJson(json)).toThrow("Invalid value for 'EndDate'");
+  });
+
+  it('should reject an investment with a non-string StartDate (#100)', () => {
+    const json = JSON.stringify({
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      loans: [],
+      investments: [{ ...testInvestment, StartDate: true }],
+    });
+    expect(() => importFromJson(json)).toThrow("Invalid value for 'StartDate'");
+  });
+
   it('should reject a loan whose EndDate is before its StartDate (#85)', () => {
     // The add/edit form blocks EndDate <= StartDate; import must agree so it
     // can't accept a loan that yields a degenerate 1-term schedule and traps the

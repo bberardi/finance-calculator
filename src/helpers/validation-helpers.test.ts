@@ -259,10 +259,48 @@ describe('validateInvestment — errors', () => {
     ).toBeDefined();
   });
 
+  it('rejects a negative RecurringContribution (matches import) (#99)', () => {
+    expect(
+      validateInvestment({ ...validInvestment(), RecurringContribution: -500 })
+        .errors.RecurringContribution
+    ).toBeDefined();
+    // Absent and 0 stay valid.
+    expect(
+      validateInvestment({ ...validInvestment(), RecurringContribution: 0 })
+        .errors.RecurringContribution
+    ).toBeUndefined();
+    expect(
+      validateInvestment(validInvestment()).errors.RecurringContribution
+    ).toBeUndefined();
+  });
+
+  it('rejects a negative ContributionStepUpAmount (matches import) (#99)', () => {
+    expect(
+      validateInvestment({
+        ...validInvestment(),
+        ContributionStepUpAmount: -10,
+      }).errors.ContributionStepUpAmount
+    ).toBeDefined();
+  });
+
+  it('rejects a negative CurrentValue (matches import) (#99)', () => {
+    expect(
+      validateInvestment({ ...validInvestment(), CurrentValue: -1 }).errors
+        .CurrentValue
+    ).toBeDefined();
+    expect(
+      validateInvestment({ ...validInvestment(), CurrentValue: 0 }).errors
+        .CurrentValue
+    ).toBeUndefined();
+  });
+
   it('isInvestmentValid is false whenever any error is present', () => {
     expect(isInvestmentValid({ ...validInvestment(), Name: '' })).toBe(false);
     expect(
       isInvestmentValid({ ...validInvestment(), StartingBalance: -1 })
+    ).toBe(false);
+    expect(
+      isInvestmentValid({ ...validInvestment(), RecurringContribution: -1 })
     ).toBe(false);
   });
 });

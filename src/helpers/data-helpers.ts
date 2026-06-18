@@ -97,6 +97,25 @@ const validateOptionalNumericField = (
   );
 };
 
+// Date fields must be ISO date *strings*. `new Date(value)` coerces a raw epoch
+// number or a boolean into a valid Date (e.g. `new Date(true)` →
+// 1970-01-01T00:00:00.001Z), so a downstream `isNaN(getTime())` check never
+// fires and a tampered/hand-edited file silently materializes a wrong date.
+// Reject any non-string up front, consistent with the numeric type validation
+// (the NaN check still catches malformed strings afterward). (#100)
+const validateDateField = (
+  value: unknown,
+  field: string,
+  entityType: string,
+  index: number
+): void => {
+  if (typeof value !== 'string') {
+    throw new Error(
+      `Invalid value for '${field}' in ${entityType} at index ${index}: expected an ISO date string.`
+    );
+  }
+};
+
 /** Valid CompoundingFrequency values derived from the enum */
 const VALID_COMPOUNDING_FREQUENCIES: string[] =
   Object.values(CompoundingFrequency);
@@ -311,6 +330,12 @@ export const importFromJson = (
         'a non-negative finite number'
       );
 
+      // Date fields must be ISO strings (the NaN check below catches malformed
+      // strings; this rejects non-string types that would coerce to a wrong
+      // date). (#100)
+      validateDateField(serializedLoan.StartDate, 'StartDate', 'loan', index);
+      validateDateField(serializedLoan.EndDate, 'EndDate', 'loan', index);
+
       // Pick fields explicitly so unknown properties are dropped at the import boundary
       return {
         Id: serializedLoan.Id,
@@ -407,6 +432,16 @@ export const importFromJson = (
           index,
           (n) => n >= 0,
           'a non-negative finite number'
+        );
+
+        // Date field must be an ISO string (the NaN check below catches malformed
+        // strings; this rejects non-string types that would coerce to a wrong
+        // date). (#100)
+        validateDateField(
+          serializedInvestment.StartDate,
+          'StartDate',
+          'investment',
+          index
         );
 
         // Validate enum fields: CompoundingPeriod must be a valid CompoundingFrequency value

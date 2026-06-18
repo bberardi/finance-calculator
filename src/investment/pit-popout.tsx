@@ -21,7 +21,14 @@ import { NumericFormat, NumberFormatValues } from 'react-number-format';
 import { ResponsiveDialog } from '../components/responsive-dialog';
 
 export const PitPopout = (props: PitPopoutProps) => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Seed in range of the date picker's minDate (StartDate). For a future-dated
+  // investment, today is before StartDate, so defaulting to today would open the
+  // popout in an invalid state (min-date error, 0 periods). Use the later of the
+  // two so the initial date is always >= StartDate. (#102)
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const now = new Date();
+    return props.investment.StartDate > now ? props.investment.StartDate : now;
+  });
   const [pitInvestment, setPitInvestment] =
     useState<PitInvestment>(defaultPitInvestment);
 
