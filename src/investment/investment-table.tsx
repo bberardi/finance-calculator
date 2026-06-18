@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
+import { DialogFallback } from '../components/dialog-fallback';
 
 // Code-split the popouts (roadmap 6.6): modal, opened on demand, and pulling in
 // date pickers + the table virtualizer — kept out of the initial bundle.
@@ -299,7 +300,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
 
   return (
     <>
-      <Suspense fallback={null}>
+      <Suspense fallback={<DialogFallback />}>
         {selectedPit && (
           <PitPopout
             investment={selectedPit}

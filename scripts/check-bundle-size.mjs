@@ -26,19 +26,27 @@ const fmt = (bytes) => `${(bytes / 1024).toFixed(2)} kB`;
 const html = readFileSync(join(DIST, 'index.html'), 'utf8');
 
 const refs = new Set();
-const entry = html.match(/<script[^>]+type="module"[^>]+src="([^"]+)"/);
-if (entry) refs.add(basename(entry[1]));
-for (const m of html.matchAll(
-  /<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g
-)) {
-  refs.add(basename(m[1]));
-}
 
-if (refs.size === 0) {
+// Find the module entry <script> and its src independent of attribute order.
+// Coupling to a fixed `type="module" ... src` ordering would let a future Vite
+// output reorder the attributes, drop the entry chunk (the largest) from the
+// total, and turn the gate into a false green — so a missing entry is a hard
+// failure, never a partial measurement.
+const entryTag = html.match(/<script\b[^>]*\btype="module"[^>]*>/);
+const entrySrc = entryTag?.[0].match(/\bsrc="([^"]+)"/)?.[1];
+if (!entrySrc) {
   console.error(
-    'Bundle-size check: no entry/modulepreload scripts found in dist/index.html. Did `npm run build` run first?'
+    'Bundle-size check: could not find the module entry <script src> in dist/index.html. Did `npm run build` run first, or did the build output format change?'
   );
   process.exit(1);
+}
+refs.add(basename(entrySrc));
+
+// Add every modulepreload chunk, also independent of attribute order.
+for (const tag of html.matchAll(/<link\b[^>]*>/g)) {
+  if (!/\brel="modulepreload"/.test(tag[0])) continue;
+  const href = tag[0].match(/\bhref="([^"]+)"/)?.[1];
+  if (href) refs.add(basename(href));
 }
 
 const rows = [];

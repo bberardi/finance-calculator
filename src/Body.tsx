@@ -31,6 +31,7 @@ import {
   OnboardingEmptyState,
   SectionEmptyState,
 } from './components/empty-state';
+import { DialogFallback } from './components/dialog-fallback';
 import { sampleLoans, sampleInvestments } from './state/sample-data';
 
 // Code-split the heaviest, non-critical-path chunks (roadmap 6.6): the forecast
@@ -371,7 +372,7 @@ export const Body = () => {
       {/* Mounted only while open so the date-picker chunk (6.6) loads on first
           use rather than at startup. The forms re-initialize from props in a
           mount-run effect, so a fresh mount opens cleanly. */}
-      <Suspense fallback={null}>
+      <Suspense fallback={<DialogFallback />}>
         {isAddLoanOpen && (
           <AddEditLoan
             open

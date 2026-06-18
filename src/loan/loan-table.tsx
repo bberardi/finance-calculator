@@ -32,6 +32,7 @@ import {
   Edit,
 } from '@mui/icons-material';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
+import { DialogFallback } from '../components/dialog-fallback';
 
 // Code-split the popouts (roadmap 6.6): they are modal, opened on demand, and
 // pull in date pickers + the table virtualizer, so they stay out of the initial
@@ -288,7 +289,7 @@ export const LoanTable = (props: LoanTableProps) => {
 
   return (
     <>
-      <Suspense fallback={null}>
+      <Suspense fallback={<DialogFallback />}>
         {selectedPit && (
           <PitPopout
             loan={selectedPit}
