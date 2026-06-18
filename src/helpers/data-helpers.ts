@@ -37,6 +37,15 @@ export interface MergeResult {
   updated: number;
 }
 
+export interface MergePreview<T> {
+  // Imported items whose Id is not yet present — they will be added.
+  added: T[];
+  // Imported items whose Id already exists — they will overwrite (clobber) the
+  // current value. This is the unrecoverable case the pre-merge preview (6.3)
+  // exists to surface before the user commits.
+  overwritten: T[];
+}
+
 /**
  * Check if an ID is valid (non-empty and non-whitespace)
  */
@@ -530,6 +539,45 @@ export const importFromJson = (
     }
     throw error;
   }
+};
+
+/**
+ * Partition `imported` into the items that will be ADDED (Id not yet present)
+ * vs. those that will OVERWRITE an existing item (Id already present). Mirrors
+ * mergeData's Id rules exactly — invalid Ids are skipped, and a duplicate Id
+ * within the imported list counts as an overwrite once its first occurrence has
+ * been seen — so `added.length`/`overwritten.length` equal mergeData's
+ * `added`/`updated` counts. This drives the pre-merge "what changed" preview
+ * (6.3) so the user confirms precisely what the subsequent merge will do.
+ */
+export const previewMerge = <T extends { Id: string }>(
+  existing: T[],
+  imported: T[]
+): MergePreview<T> => {
+  const seen = new Set<string>();
+  existing.forEach((item) => {
+    if (isValidId(item.Id)) {
+      seen.add(item.Id);
+    }
+  });
+
+  const added: T[] = [];
+  const overwritten: T[] = [];
+  imported.forEach((item) => {
+    if (!isValidId(item.Id)) {
+      return;
+    }
+    if (seen.has(item.Id)) {
+      overwritten.push(item);
+    } else {
+      added.push(item);
+      // A later import row with this same Id is now an overwrite, matching how
+      // mergeData replays the imported list in order.
+      seen.add(item.Id);
+    }
+  });
+
+  return { added, overwritten };
 };
 
 /**

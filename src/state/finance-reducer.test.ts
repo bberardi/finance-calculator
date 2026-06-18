@@ -374,6 +374,81 @@ describe('financeReducer', () => {
     });
   });
 
+  describe('RestoreData (import soft-undo, roadmap 6.3)', () => {
+    it('an import then a restore of the pre-merge snapshot reverts the data exactly', () => {
+      const before = stateWith({
+        loans: [makeLoan('a', { Name: 'Original A' })],
+        investments: [makeInvestment('x')],
+      });
+      // Capture the snapshot the DataManager would take before merging.
+      const snapshot = {
+        loans: before.loans,
+        investments: before.investments,
+        scenarios: before.scenarios,
+        stashedLoans: before.stashedLoans,
+        stashedInvestments: before.stashedInvestments,
+      };
+
+      // A merge clobbers loan 'a' and adds loan 'b'.
+      const merged = financeReducer(before, {
+        type: 'ImportMerge',
+        loans: [makeLoan('a', { Name: 'Clobbered A' }), makeLoan('b')],
+        investments: [],
+      });
+      expect(merged.loans.map((l) => l.Id).sort()).toEqual(['a', 'b']);
+
+      // Undo restores the exact pre-merge loans/investments.
+      const restored = financeReducer(merged, {
+        type: 'RestoreData',
+        snapshot,
+      });
+      expect(restored.loans).toEqual(before.loans);
+      expect(restored.loans[0].Name).toBe('Original A');
+      expect(restored.investments).toEqual(before.investments);
+    });
+
+    it('restores stashed real data (the merge target while sample data is loaded)', () => {
+      const snapshot = {
+        loans: [makeLoan('sample')],
+        investments: [],
+        scenarios: [],
+        stashedLoans: [makeLoan('real')],
+        stashedInvestments: [makeInvestment('real-inv')],
+      };
+      const dirtied = stateWith({
+        sampleDataLoaded: true,
+        loans: [makeLoan('sample')],
+        stashedLoans: [makeLoan('real'), makeLoan('imported')],
+        stashedInvestments: [],
+      });
+
+      const restored = financeReducer(dirtied, {
+        type: 'RestoreData',
+        snapshot,
+      });
+
+      expect(restored.stashedLoans?.map((l) => l.Id)).toEqual(['real']);
+      expect(restored.stashedInvestments?.map((i) => i.Id)).toEqual([
+        'real-inv',
+      ]);
+      // The sample-data flag is not part of the snapshot and is left untouched.
+      expect(restored.sampleDataLoaded).toBe(true);
+    });
+
+    it('does not mutate the input state', () => {
+      const start = stateWith({ loans: [makeLoan('a')] });
+      const snapshot = {
+        loans: [makeLoan('b')],
+        investments: [],
+        scenarios: [],
+        stashedLoans: null,
+        stashedInvestments: null,
+      };
+      financeReducer(start, { type: 'RestoreData', snapshot });
+      expect(start.loans.map((l) => l.Id)).toEqual(['a']);
+    });
+  });
+
   describe('Sample data load/clear (roadmap 0.9)', () => {
     it('LoadSampleData stashes user data and shows sample data', () => {
       const userLoans = [makeLoan('user-1')];

@@ -39,3 +39,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Bundle-size budget
+        # Performance gate (roadmap 6.6): fails if the initial-load JS grows past
+        # the budget, so a heavy import can't silently regress first paint. Runs
+        # against the dist/ produced by the Build step above.
+        run: npm run check:size
