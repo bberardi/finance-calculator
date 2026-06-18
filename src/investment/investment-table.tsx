@@ -33,7 +33,7 @@ import {
   Edit,
   TrendingUp,
 } from '@mui/icons-material';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { DialogFallback } from '../components/dialog-fallback';
 import { TableSearchField } from '../components/table-search-field';
@@ -286,6 +286,14 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   // Search/filter + multi-select (roadmap 6.4).
   const [query, setQuery] = useState('');
   const selection = useRowSelection();
+
+  // Keep the selection in sync with the investments that currently exist: a
+  // deleted row leaves the Set, so a bulk-delete undo restores rows unselected
+  // instead of re-selecting them (PR #109 review follow-up).
+  const { retain } = selection;
+  useEffect(() => {
+    retain(props.investments.map((i) => i.Id));
+  }, [props.investments, retain]);
 
   const handlers: InvestmentRowHandlers = {
     onGrowth: setSelectedGrowth,

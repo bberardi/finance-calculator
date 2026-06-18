@@ -19,7 +19,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { Loan } from '../models/loan-model';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { getTerms } from '../helpers/loan-helpers';
 import { forecastLoan, getPayoffDate } from '../helpers/forecast-helpers';
@@ -266,6 +266,14 @@ export const LoanTable = (props: LoanTableProps) => {
   // Search/filter + multi-select (roadmap 6.4).
   const [query, setQuery] = useState('');
   const selection = useRowSelection();
+
+  // Keep the selection in sync with the loans that currently exist: a deleted
+  // row leaves the Set, so a bulk-delete undo restores rows unselected instead
+  // of re-selecting them and re-showing the toolbar (PR #109 review follow-up).
+  const { retain } = selection;
+  useEffect(() => {
+    retain(props.loans.map((l) => l.Id));
+  }, [props.loans, retain]);
 
   const handlers: LoanRowHandlers = {
     onAmortization: setSelectedAmortization,
