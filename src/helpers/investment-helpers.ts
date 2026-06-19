@@ -79,7 +79,7 @@ export const getInvestmentPeriods = (
   const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
 
   // Calculate the exact number of periods based on the compounding frequency
-  let periods = 0;
+  let periods: number;
 
   if (periodsPerYear === 12) {
     // Monthly
@@ -324,7 +324,7 @@ export const generateInvestmentGrowth = (
     }
 
     // Apply compound interest (full period or pro-rated)
-    let interestEarned = 0;
+    let interestEarned: number;
     if (nextCompoundDate <= end) {
       // Full compounding period
       const valueBeforeInterest = currentValue;

@@ -535,7 +535,9 @@ export const importFromJson = (
     return { loans, investments, scenarios };
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new Error('Invalid JSON format: unable to parse file');
+      throw new Error('Invalid JSON format: unable to parse file', {
+        cause: error,
+      });
     }
     throw error;
   }
