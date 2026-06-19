@@ -216,3 +216,42 @@ Rationale for the order: completeness first (so the net-worth line is true), the
 - **Math Correctness Charter (§4) is non-negotiable**: math-touching PRs ship with cited reference tests, uphold the invariants, and keep `src/helpers/**` at 100% line+branch coverage; math bugs get a failing regression test before the fix.
 - Semver bump in `package.json` for behavior changes; update `.github/copilot-instructions.md` and README when structure changes.
 - Keep models input-only; derived data is computed, never stored.
+
+---
+
+## 8. Candidate Additions (for triage)
+
+A backlog of opportunities surfaced from the closed-issue history, the current UI, and gaps between what the engine supports and what users can reach. These are **proposals, not commitments** — each still has to pass the §"Non-goals" filters (serves the money question, no backend, not a budgeting app) before it earns a phase slot. Grouped by category, each with a one-line rationale and supporting evidence.
+
+### 8a. UX improvements
+
+| #   | Proposal                                                                                                                                                              | Rationale                                                                                                                                                                                       |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U1  | **Debt-only persona pass**: ensure the chart, dashboard, and milestones stay coherent for a portfolio with loans but no investments (incl. past-term-but-still-owing) | The user with only debt is exactly who most wants a payoff projection, yet #86 showed the chart could collapse to the past while the milestone cards still showed a debt-free date — they disagreed. |
+| U2  | **First-run onboarding / guided tour**: a dismissible walkthrough from "add a position" → "run the optimizer" → "view as scenario," beyond today's empty states         | The optimizer is the headline feature but is several clicks deep; a first-time visitor has no guided path to it. Pairs with the Phase 6.2 Playwright happy-path, which already encodes this flow.    |
+| U3  | **Surface the annualized return**: render `PitInvestment.ProjectedAnnualReturn` in the investment PIT popout once it is corrected to a true annual rate                | The field is computed and exported but shown nowhere (#57 also flagged it currently holds a period return, not an annualized one) — a latent, near-free metric users expect from an investment view. |
+| U4  | **Edit-safety for custom inputs**: warn (don't silently overwrite) when opening a loan whose stored `MonthlyPayment` differs from the amortized value                  | #56 — editing a loan to fix its name silently clobbers a deliberately-set extra-principal payment; the fix is a guardrail, and it unblocks the "I pay extra principal" use case the issue calls out. |
+
+### 8b. Data safety & trust
+
+| #   | Proposal                                                                                                                                                          | Rationale                                                                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | **Unify validation as one source of truth**: derive the Add/Edit forms, JSON import, and the engine's accepted domain from a single shared validator             | A whole class of closed bugs (#72, #79, #85, #94, #99, #100) came from these three boundaries drifting apart — creating "uneditable import traps" and rejecting products the engine supports. Every Phase 7 asset type re-opens this risk unless it is unified. |
+| D2  | **Clear-sample-data safeguard**: warn before `ClearSampleData` discards entities that were imported or hand-entered, not just sample edits                        | #83 — importing while samples are loaded could silently lose the imported data (the import even reported success); a confirmation closes the last silent-data-loss path Phase 6.3's import undo doesn't cover. |
+
+### 8c. New features / capabilities
+
+| #   | Proposal                                                                                                                                                                | Rationale                                                                                                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1  | **Balance check-ins (reconciliation log)**: let users periodically record an actual balance and chart actual-vs-projected drift over time                                 | The README already advertises "balance check-ins" as sequenced post-1.0 work, but no phase defines it — this closes a README↔ROADMAP gap and turns the static `CurrentValue`/`CurrentAmount` anchors into a living accuracy signal. |
+| F2  | **Goal / solve-for mode**: invert the engine — "to reach $X by date Y, contribute $Z/mo" (or "pay $Z/mo to be debt-free by Y")                                            | Today every projection runs forward from inputs; a planning tool's other half is solving backward for the input that hits a target. Distinct from Phase 10.3's FI mode and a natural reuse of the pure engine. |
+| F3  | **CSV export of amortization & growth schedules**: a per-schedule "Download CSV" alongside the JSON backup                                                                | The Math Charter validates against spreadsheet `PMT`/`FV`; users will want the same — letting them check the numbers in their own spreadsheet directly serves the trust ethos, and is far cheaper than the Phase 11.3 PDF report. |
+
+### 8d. Reach & inclusivity
+
+| #   | Proposal                                                                                                                                          | Rationale                                                                                                                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **Locale & currency formatting**: make `format-helpers` currency/locale configurable instead of hardcoded `en-US`/`USD`                            | All formatting is fixed to US dollars and US grouping (`format-helpers.ts`); non-US users see the wrong symbol and separators. The engine is currency-agnostic, so this is a presentation-layer change. |
+| R2  | **Reduced-motion & dialog focus management**: honor `prefers-reduced-motion` on chart/scenario animations and trap/restore focus in dialogs        | Complements the Phase 6.1 audit's labels and keyboard nav with the motion and focus-management half of an accessibility pass, which 6.1 does not explicitly enumerate.       |
+
+> If, on review, a candidate is judged out of scope or duplicative, strike it here with a one-line reason rather than deleting it, so the triage decision is recorded.
