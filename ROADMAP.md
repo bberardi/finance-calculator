@@ -77,16 +77,7 @@ Each layer catches a class of error the others miss; all five are required for t
 
 ### Phases 0–5 — ✅ COMPLETE (shipped, v0.7.0 → v1.0.0)
 
-The founding vision is fully shipped. Detailed acceptance criteria live in the merged PRs; this is the condensed record.
-
-| Phase | What shipped                                                                                                                                                                                                                                                                                   | Version    | Key PRs                |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------- |
-| **0** | Foundations & UX overhaul: PR CI gate, date-indexed forecast engine, derived-data stripping (export v2), context+reducer, dep modernization (React 19/MUI 9/Vite 8), theme + dark mode, Dialog forms, validation, sample data/empty states, Math Charter + core/UI boundary, correctness sweep | v0.7.x     | #37–#66, #74, #76, #87 |
-| **1** | Local persistence (#20): `storage-helpers` + D8 migration ladder, "Save on this device" toggle, first-visit privacy notice, global error boundary with export escape hatch                                                                                                                     | v0.8.0     | #82                    |
-| **2** | Visualizations (#18): forecast chart (per-entity + net-worth lines, stable colors, show/hide legend, 5Y/10Y/30Y/Full range, responsive, accessible table fallback)                                                                                                                             | v0.9.0     | #82                    |
-| **3** | Net-worth dashboard: summary cards, milestone callouts, table upgrades (sorting, totals, payoff/current columns, principal-paid progress, clone), stated-assumptions panel                                                                                                                     | v0.10.0    | #82                    |
-| **4** | Scenario forecasting (#24): named-scenario model + reducer, builder dialog, dotted color-matched overlays, impact summary, persistence via export schema v3 (first D8 migration)                                                                                                               | v0.11.0    | #82                    |
-| **5** | **"Next Dollar" optimizer**: pure `evaluatePlan`/`suggestPlans` engine, Web-Worker search, flagship "$X extra/month" panel + ranked comparison, "view as scenario," custom split builder                                                                                                       | **v1.0.0** | #90, #92, #96          |
+The founding vision is fully shipped (v0.7.0 → v1.0.0). The per-release record now lives in [CHANGELOG.md](./CHANGELOG.md); detailed acceptance criteria live in the merged PRs.
 
 Open math-quality follow-ups surfaced by this work are folded into **Phase 6** (items 6.9–6.10).
 
