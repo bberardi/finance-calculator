@@ -1,0 +1,67 @@
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest';
+import {
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitForElementToBeRemoved,
+} from '../test/test-utils';
+import { DataManager } from './data-manager';
+import { exportToJson } from '../helpers/data-helpers';
+import { Loan } from '../models/loan-model';
+
+const loan: Loan = {
+  Id: 'imp-1',
+  Name: 'Imported Loan',
+  Provider: 'Bank',
+  InterestRate: 5,
+  Principal: 1000,
+  CurrentAmount: 1000,
+  MonthlyPayment: 50,
+  StartDate: new Date(2024, 0, 1),
+  EndDate: new Date(2025, 0, 1),
+};
+
+const importFile = () =>
+  new File([exportToJson([loan], [], [])], 'data.json', {
+    type: 'application/json',
+  });
+
+const fileInput = (container: HTMLElement) =>
+  container.querySelector('input[type="file"]') as HTMLInputElement;
+
+describe('DataManager import preview + undo (roadmap 6.3)', () => {
+  it('previews the merge and only commits on confirm, then offers undo', async () => {
+    const { container } = renderWithProviders(<DataManager />);
+
+    await userEvent.upload(fileInput(container), importFile());
+
+    // The pre-merge preview appears and lists the entity — nothing merged yet.
+    expect(await screen.findByText('Review import')).toBeInTheDocument();
+    expect(screen.getByText('Imported Loan')).toBeInTheDocument();
+    expect(screen.queryByText(/Imported 1 item/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }));
+
+    // Confirmed → soft-undo snackbar with an UNDO action. findByRole waits for
+    // the preview dialog to finish closing (its modal aria-hidden otherwise
+    // masks the snackbar) before the UNDO button becomes accessible.
+    expect(
+      await screen.findByRole('button', { name: 'UNDO' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Imported 1 item/)).toBeInTheDocument();
+  });
+
+  it('cancelling the preview imports nothing', async () => {
+    const { container } = renderWithProviders(<DataManager />);
+
+    await userEvent.upload(fileInput(container), importFile());
+    await screen.findByText('Review import');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // The dialog closes via an exit transition, so wait for it to leave the DOM.
+    await waitForElementToBeRemoved(() => screen.queryByText('Review import'));
+    expect(screen.queryByText(/Imported/)).not.toBeInTheDocument();
+  });
+});

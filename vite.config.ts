@@ -21,7 +21,22 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Default environment for the pure math/helper/reducer tests. UI component
+    // tests opt into jsdom per-file with a `// @vitest-environment jsdom`
+    // docblock, so the fast node default stays in force for src/helpers/**.
     environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
+    server: {
+      deps: {
+        // MUI's ESM build does a directory import of react-transition-group
+        // (TransitionGroupContext) that Node's ESM resolver rejects. Inlining
+        // the @mui packages (the importers) + react-transition-group routes
+        // them through Vite's resolver, which handles the directory import, for
+        // the jsdom component tests. The MUI transform is a one-time per-run
+        // cost (Vite-cached locally), amortized across the component tests.
+        inline: [/@mui\//, 'react-transition-group'],
+      },
+    },
     // Keep the default ignores and also skip generated dirs — notably the
     // Stryker sandbox, whose copied *.test.ts files would otherwise be
     // discovered and double-counted during a local mutation run.
