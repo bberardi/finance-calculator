@@ -7,6 +7,7 @@ import {
   TableBody,
   TableFooter,
   TableSortLabel,
+  Checkbox,
   Paper,
   Box,
   Card,
@@ -24,6 +25,7 @@ import {
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
+import { filterBySearch } from '../helpers/filter-helpers';
 import {
   Calculate,
   ContentCopy,
@@ -31,9 +33,12 @@ import {
   Edit,
   TrendingUp,
 } from '@mui/icons-material';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { DialogFallback } from '../components/dialog-fallback';
+import { TableSearchField } from '../components/table-search-field';
+import { BulkActionsToolbar } from '../components/bulk-actions-toolbar';
+import { useRowSelection } from '../hooks/use-row-selection';
 
 // Code-split the popouts (roadmap 6.6): modal, opened on demand, and pulling in
 // date pickers + the table virtualizer — kept out of the initial bundle.
@@ -181,19 +186,33 @@ const InvestmentCard = ({
   investment,
   handlers,
   isMobile,
+  selected,
+  onSelect,
 }: {
   investment: Investment;
   handlers: InvestmentRowHandlers;
   isMobile: boolean;
+  selected: boolean;
+  onSelect: () => void;
 }) => (
   <Card sx={{ marginBottom: 2 }}>
     <CardContent>
-      <Typography variant="h6" component="div">
-        {investment.Name}
-      </Typography>
-      <Typography sx={{ color: 'text.secondary', mb: 1.5 }}>
-        {investment.Provider}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+        <Checkbox
+          checked={selected}
+          onChange={onSelect}
+          slotProps={{ input: { 'aria-label': `Select ${investment.Name}` } }}
+          sx={{ mt: -1, ml: -1 }}
+        />
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" component="div">
+            {investment.Name}
+          </Typography>
+          <Typography sx={{ color: 'text.secondary', mb: 1.5 }}>
+            {investment.Provider}
+          </Typography>
+        </Box>
+      </Box>
       <Box sx={{ marginBottom: 1 }}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -264,6 +283,18 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     useState<InvestmentColumnId>('AverageReturnRate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  // Search/filter + multi-select (roadmap 6.4).
+  const [query, setQuery] = useState('');
+  const selection = useRowSelection();
+
+  // Keep the selection in sync with the investments that currently exist: a
+  // deleted row leaves the Set, so a bulk-delete undo restores rows unselected
+  // instead of re-selecting them (PR #109 review follow-up).
+  const { retain } = selection;
+  useEffect(() => {
+    retain(props.investments.map((i) => i.Id));
+  }, [props.investments, retain]);
+
   const handlers: InvestmentRowHandlers = {
     onGrowth: setSelectedGrowth,
     onPit: setSelectedPit,
@@ -280,6 +311,12 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     [props.investments, column, sortDirection]
   );
 
+  // Visible rows after the text filter (name or provider).
+  const visibleInvestments = useMemo(
+    () => filterBySearch(sortedInvestments, query, (i) => [i.Name, i.Provider]),
+    [sortedInvestments, query]
+  );
+
   const handleSort = (id: InvestmentColumnId) => {
     if (sortColumn === id) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -289,14 +326,34 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     }
   };
 
-  const totalStarting = props.investments.reduce(
+  // Totals reflect what's currently visible (equal to all when unfiltered).
+  const totalStarting = visibleInvestments.reduce(
     (sum, i) => sum + i.StartingBalance,
     0
   );
-  const totalCurrent = props.investments.reduce(
+  const totalCurrent = visibleInvestments.reduce(
     (sum, i) => sum + currentValue(i),
     0
   );
+
+  // Effective selection: selected investments that still exist.
+  const selectedInvestments = props.investments.filter((i) =>
+    selection.isSelected(i.Id)
+  );
+  const visibleIds = visibleInvestments.map((i) => i.Id);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selection.isSelected(id));
+  const someVisibleSelected = visibleIds.some((id) => selection.isSelected(id));
+
+  const onBulkDuplicate = () => {
+    selectedInvestments.forEach((i) => props.onInvestmentClone(i));
+    selection.clear();
+  };
+  // Delete routes through Body for the confirm dialog + soft-undo; selection is
+  // left as-is and the confirmed deletions drop out of the count on their own.
+  const onBulkDelete = () => props.onInvestmentBulkDelete(selectedInvestments);
+
+  const noMatches = visibleInvestments.length === 0 && query.trim() !== '';
 
   return (
     <>
@@ -315,14 +372,33 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
         )}
       </Suspense>
 
-      {isMobile ? (
+      <TableSearchField
+        value={query}
+        onChange={setQuery}
+        label="Search investments"
+      />
+      <BulkActionsToolbar
+        count={selectedInvestments.length}
+        itemLabel="investment"
+        onDuplicate={onBulkDuplicate}
+        onDelete={onBulkDelete}
+        onClear={selection.clear}
+      />
+
+      {noMatches ? (
+        <Typography color="text.secondary" sx={{ py: 2 }}>
+          No investments match “{query}”.
+        </Typography>
+      ) : isMobile ? (
         <Box>
-          {sortedInvestments.map((investment) => (
+          {visibleInvestments.map((investment) => (
             <InvestmentCard
               key={investment.Id}
               investment={investment}
               handlers={handlers}
               isMobile={isMobile}
+              selected={selection.isSelected(investment.Id)}
+              onSelect={() => selection.toggle(investment.Id)}
             />
           ))}
         </Box>
@@ -331,6 +407,18 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected && !allVisibleSelected}
+                    onChange={(e) =>
+                      selection.setMany(visibleIds, e.target.checked)
+                    }
+                    slotProps={{
+                      input: { 'aria-label': 'Select all investments' },
+                    }}
+                  />
+                </TableCell>
                 {INVESTMENT_COLUMNS.map((col) => (
                   <TableCell
                     key={col.id}
@@ -352,33 +440,48 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedInvestments.map((row) => (
-                <TableRow key={row.Id}>
-                  <TableCell>{row.Name}</TableCell>
-                  <TableCell>{row.Provider}</TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(row.StartingBalance)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(currentValue(row))}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatPercent(row.AverageReturnRate, 3)}
-                  </TableCell>
-                  <TableCell>
-                    {getCompoundingText(row.CompoundingPeriod)}
-                  </TableCell>
-                  <TableCell align="right">{formatContribution(row)}</TableCell>
-                  <TableCell>
-                    <EntityRowActions
-                      actions={investmentActions(row, handlers)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {visibleInvestments.map((row) => {
+                const isSelected = selection.isSelected(row.Id);
+                return (
+                  <TableRow key={row.Id} selected={isSelected}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => selection.toggle(row.Id)}
+                        slotProps={{
+                          input: { 'aria-label': `Select ${row.Name}` },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>{row.Name}</TableCell>
+                    <TableCell>{row.Provider}</TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(row.StartingBalance)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(currentValue(row))}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatPercent(row.AverageReturnRate, 3)}
+                    </TableCell>
+                    <TableCell>
+                      {getCompoundingText(row.CompoundingPeriod)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatContribution(row)}
+                    </TableCell>
+                    <TableCell>
+                      <EntityRowActions
+                        actions={investmentActions(row, handlers)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             <TableFooter>
               <TableRow>
+                <TableCell padding="checkbox" />
                 <TableCell>
                   <strong>Totals</strong>
                 </TableCell>
@@ -407,4 +510,5 @@ export type InvestmentTableProps = {
   onInvestmentEdit: (investment: Investment) => void;
   onInvestmentDelete: (investment: Investment) => void;
   onInvestmentClone: (investment: Investment) => void;
+  onInvestmentBulkDelete: (investments: Investment[]) => void;
 };
