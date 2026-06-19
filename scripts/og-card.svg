@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d4a37" />
+      <stop offset="1" stop-color="#06291e" />
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#00a86b" />
+      <stop offset="1" stop-color="#34e6a0" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- The growth mark (icon), centered-left, scaled to 380px -->
+  <g transform="translate(90,125) scale(0.742)">
+    <rect x="0" y="0" width="512" height="512" rx="128" fill="#08382a" />
+    <g fill="url(#bar)" opacity="0.55">
+      <rect x="128" y="300" width="58" height="92" rx="16" />
+      <rect x="214" y="252" width="58" height="140" rx="16" />
+      <rect x="300" y="196" width="58" height="196" rx="16" />
+    </g>
+    <g
+      fill="none"
+      stroke="#6ef0b0"
+      stroke-width="26"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M116 338 L200 268 L286 304 L392 158" />
+      <path d="M344 158 H392 V206" />
+    </g>
+    <circle cx="150" cy="178" r="11" fill="#b8f5d6" />
+  </g>
+
+  <text
+    x="510"
+    y="300"
+    font-family="'DejaVu Sans', Inter, sans-serif"
+    font-size="96"
+    font-weight="700"
+    fill="#ffffff"
+  >
+    PathWise
+  </text>
+  <text
+    x="512"
+    y="360"
+    font-family="'DejaVu Sans', Inter, sans-serif"
+    font-size="32"
+    fill="#9fe6c4"
+  >
+    Where should your next dollar go?
+  </text>
+</svg>

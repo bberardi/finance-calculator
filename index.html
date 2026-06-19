@@ -15,9 +15,12 @@
       href="https://bberardi.github.io/finance-calculator/"
     />
 
-    <!-- Favicon / app icons served from /public (roadmap 6.7). -->
-    <link rel="icon" type="image/png" href="/pathwise.png" />
-    <link rel="apple-touch-icon" href="/pathwise.png" />
+    <!-- Favicon / app icons served from /public (roadmap 6.7). A modern SVG
+         favicon with a 32px PNG fallback for older browsers, plus the
+         apple-touch icon for iOS home screens. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- Open Graph (roadmap 6.7): rich link previews on social / chat. Image
          URLs must be absolute for scrapers, so the production URL is used. -->
@@ -37,12 +40,17 @@
     />
     <meta
       property="og:image"
-      content="https://bberardi.github.io/finance-calculator/pathwise.png"
+      content="https://bberardi.github.io/finance-calculator/og-image.png"
     />
-    <meta property="og:image:alt" content="PathWise logo" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PathWise — where should your next dollar go?"
+    />
 
     <!-- Twitter card -->
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
       content="PathWise — see all your loans and investments in one place"
@@ -53,9 +61,12 @@
     />
     <meta
       name="twitter:image"
-      content="https://bberardi.github.io/finance-calculator/pathwise.png"
+      content="https://bberardi.github.io/finance-calculator/og-image.png"
     />
-    <meta name="twitter:image:alt" content="PathWise logo" />
+    <meta
+      name="twitter:image:alt"
+      content="PathWise — where should your next dollar go?"
+    />
   </head>
   <body>
     <div id="root"></div>

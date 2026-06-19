@@ -1,5 +1,5 @@
 import { Box, CardMedia, Stack, Typography } from '@mui/material';
-import Logo from './assets/pathwise-icon.png';
+import Logo from './assets/logo.svg';
 import { brandGradient } from './theme';
 
 export const Header = () => {
