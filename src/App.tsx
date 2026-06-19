@@ -8,6 +8,7 @@ import {
   Box,
   CssBaseline,
   InitColorSchemeScript,
+  Link,
   Stack,
   ThemeProvider,
 } from '@mui/material';
@@ -30,8 +31,34 @@ function App() {
                 white screen. Inside the provider so the fallback can export. */}
             <AppErrorBoundary>
               <Stack sx={{ height: '100vh', flexDirection: 'column' }}>
+                {/* Skip-to-content link (roadmap 6.1): the first focusable
+                    element, visually hidden until focused, so keyboard and
+                    screen-reader users can jump past the header straight to the
+                    main content. */}
+                <Link
+                  href="#main-content"
+                  sx={{
+                    position: 'absolute',
+                    left: 8,
+                    top: 8,
+                    px: 2,
+                    py: 1,
+                    borderRadius: 1,
+                    bgcolor: 'background.paper',
+                    color: 'primary.main',
+                    zIndex: (t) => t.zIndex.tooltip + 1,
+                    transform: 'translateY(-150%)',
+                    transition: 'transform 0.15s ease-in',
+                    '&:focus': { transform: 'translateY(0)' },
+                  }}
+                >
+                  Skip to main content
+                </Link>
                 <Header />
                 <Box
+                  component="main"
+                  id="main-content"
+                  tabIndex={-1}
                   sx={{
                     flexGrow: 1,
                     display: 'flex',

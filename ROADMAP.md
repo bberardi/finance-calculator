@@ -22,15 +22,7 @@ Everything past this point (Phases 6–11) is post-1.0 expansion, sequenced but 
 
 ## 2. Current State (June 2026, v1.0.0 — Phases 0–5 complete)
 
-PathWise is feature-complete against its founding vision. It persists data, charts every position and net worth over time, surfaces a net-worth dashboard, overlays named what-if scenarios, and — as of 1.0 — ranks where the next dollar does the most good.
-
-- **Stack**: React 19 + TypeScript + Vite 8 + MUI 9 (+ `@mui/x-charts` v9), deployed to GitHub Pages via Actions.
-- **Data**: Loan & Investment CRUD (auto-calculated payments, compounding frequencies, recurring contributions, yearly step-ups, amortization/growth popouts, PIT calculators); JSON export/import (schema v3) with ID-based smart merge, validation, and a single versioned migration ladder; opt-in `localStorage` persistence with a first-visit privacy notice and a global error boundary with an "export my data" escape hatch.
-- **Forecasting**: a pure, date-indexed engine (`forecast-helpers.ts`) producing per-loan, per-investment, and aggregate net-worth monthly series anchored to today's balances — scenario-aware, and the single source of every projection on screen.
-- **Optimizer (1.0)**: a pure `evaluatePlan`/`suggestPlans` engine ranking single-target plans and coarse grid-searched splits, run in a **Web Worker**; the flagship "$X extra/month" panel with a ranked comparison table, one-click "view as scenario," and a custom split builder.
-- **Correctness**: the Math Correctness Charter (§4) is in force — reference / consistency / property / edge-case suites, a 100% line+branch coverage gate on `src/helpers/**` in CI, the core/UI purity boundary, and scheduled Stryker mutation testing.
-
-What remains is deferred by design: the quality / a11y / correctness long tail (Phase 6) and the post-1.0 feature phases (7–11).
+PathWise is feature-complete against its founding vision (v1.0.0). The shipped, per-release history now lives in [CHANGELOG.md](./CHANGELOG.md), and the current feature list in [README.md](./README.md); what follows is the forward-looking plan.
 
 ---
 
@@ -77,16 +69,7 @@ Each layer catches a class of error the others miss; all five are required for t
 
 ### Phases 0–5 — ✅ COMPLETE (shipped, v0.7.0 → v1.0.0)
 
-The founding vision is fully shipped. Detailed acceptance criteria live in the merged PRs; this is the condensed record.
-
-| Phase | What shipped                                                                                                                                                                                                                                                                                   | Version    | Key PRs                |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------- |
-| **0** | Foundations & UX overhaul: PR CI gate, date-indexed forecast engine, derived-data stripping (export v2), context+reducer, dep modernization (React 19/MUI 9/Vite 8), theme + dark mode, Dialog forms, validation, sample data/empty states, Math Charter + core/UI boundary, correctness sweep | v0.7.x     | #37–#66, #74, #76, #87 |
-| **1** | Local persistence (#20): `storage-helpers` + D8 migration ladder, "Save on this device" toggle, first-visit privacy notice, global error boundary with export escape hatch                                                                                                                     | v0.8.0     | #82                    |
-| **2** | Visualizations (#18): forecast chart (per-entity + net-worth lines, stable colors, show/hide legend, 5Y/10Y/30Y/Full range, responsive, accessible table fallback)                                                                                                                             | v0.9.0     | #82                    |
-| **3** | Net-worth dashboard: summary cards, milestone callouts, table upgrades (sorting, totals, payoff/current columns, principal-paid progress, clone), stated-assumptions panel                                                                                                                     | v0.10.0    | #82                    |
-| **4** | Scenario forecasting (#24): named-scenario model + reducer, builder dialog, dotted color-matched overlays, impact summary, persistence via export schema v3 (first D8 migration)                                                                                                               | v0.11.0    | #82                    |
-| **5** | **"Next Dollar" optimizer**: pure `evaluatePlan`/`suggestPlans` engine, Web-Worker search, flagship "$X extra/month" panel + ranked comparison, "view as scenario," custom split builder                                                                                                       | **v1.0.0** | #90, #92, #96          |
+The founding vision is fully shipped (v0.7.0 → v1.0.0). The per-release record now lives in [CHANGELOG.md](./CHANGELOG.md); detailed acceptance criteria live in the merged PRs.
 
 Open math-quality follow-ups surfaced by this work are folded into **Phase 6** (items 6.9–6.10).
 
@@ -107,18 +90,12 @@ Declared once, up front, so future feature debates have a reference point. Every
 
 Pay down the UI/test/perf/correctness debt deferred through 1.0. Items are independent and slot in anywhere alongside the feature phases, but are grouped here so the phase has a defined "done."
 
-| #    | Work item                                                                                                                                                                                | Notes / acceptance                                                                                     |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 6.1  | **Accessibility audit**: aria labels on icon buttons, keyboard nav end-to-end, screen-reader pass, color-contrast check                                                                  | The chart "view as table" fallback (Phase 2) feeds this.                                               |
-| 6.2  | **UI test coverage**: component tests (React Testing Library + jsdom) for forms / tables / DataManager; a Playwright smoke test (add positions → run optimizer → view as scenario)       | Pragmatic UI coverage targets; the 100% bar in §4 stays scoped to math.                                |
-| 6.3  | **DataManager safety**: snackbar soft-undo for import-merge overwrites, plus a pre-merge "what changed" preview (which entities are _added_ vs. _overwritten_) before committing a merge | Merge-by-Id clobbers are otherwise unrecoverable.                                                      |
-| 6.4  | **Table scale**: search / filter / grouping and bulk multi-select (delete or duplicate many at once) on the loan/investment tables                                                       | Keeps the tables usable as Phase 7 fills them with cash, property, and custom-asset rows.              |
-| 6.5  | **Schedule popout polish**: virtualize the long amortization/growth tables (600+ rows for a 50-year loan) and add a lifetime-totals footer (interest paid / contributed / earned)        | Windowing keeps mobile scrolling smooth; totals are a cheap derivation from series already computed.   |
-| 6.6  | **Performance gate**: code-split the heaviest bundles (charts, date pickers, popouts), then add a bundle-size regression budget in `ci.yml` (optionally Lighthouse-CI)                   | Mirrors §4's coverage gate so first paint can't silently regress as Monte Carlo (Phase 9) lands.       |
-| 6.7  | **Discoverability**: social/SEO + Open Graph / Twitter-card metadata + preview image in `index.html`; production-correct favicon / app icons served from `public/`                       | Preview image pairs with Phase 11 shareable links; icon sizes prep the Phase 11 PWA install.           |
-| 6.8  | **Repo hygiene**: `CHANGELOG.md`, `CONTRIBUTING.md`, issue/PR templates; move `prettier` to `devDependencies`; keep deps current (Dependabot / scheduled bumps)                          | LICENSE already added; this makes the README's contribution invitation discoverable.                   |
-| 6.9  | **Date-math migration to dayjs** _(correctness backlog)_: replace raw `Date` stepping in `investment-helpers`; fix the Jan 31 + 1 month → Mar 3 rollover                                 | _Done when_: stepping uses dayjs (D7), the edge test asserts Jan 31 + 1 month → Feb, leap-day covered. |
-| 6.10 | **Mutation-score ratchet** _(correctness backlog)_: triage Stryker survivors toward zero and ratchet `thresholds.break` up                                                               | Baseline ~85%, `break` at 83. Next targets: `investment-helpers.ts`, `forecast-helpers.ts`.            |
+| #   | Work item                                                                                                                                                                          | Notes / acceptance                                                                           |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 6.1 | **Accessibility audit**: aria labels on icon buttons, keyboard nav end-to-end, screen-reader pass, color-contrast check                                                            | The chart "view as table" fallback (Phase 2) feeds this.                                     |
+| 6.2 | **UI test coverage**: component tests (React Testing Library + jsdom) for forms / tables / DataManager; a Playwright smoke test (add positions → run optimizer → view as scenario) | Pragmatic UI coverage targets; the 100% bar in §4 stays scoped to math.                      |
+| 6.7 | **Discoverability**: social/SEO + Open Graph / Twitter-card metadata + preview image in `index.html`; production-correct favicon / app icons served from `public/`                 | Preview image pairs with Phase 11 shareable links; icon sizes prep the Phase 11 PWA install. |
+| 6.8 | **Repo hygiene**: `CHANGELOG.md`, `CONTRIBUTING.md`, issue/PR templates; move `prettier` to `devDependencies`; keep deps current (Dependabot / scheduled bumps)                    | LICENSE already added; this makes the README's contribution invitation discoverable.         |
 
 ---
 
