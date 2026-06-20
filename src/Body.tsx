@@ -11,6 +11,7 @@ import {
   Skeleton,
   Snackbar,
   Toolbar,
+  Typography,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { lazy, Suspense, useState } from 'react';
@@ -418,6 +419,15 @@ export const Body = () => {
   };
 
   const deletedName = undoableDelete?.entity.Name ?? '';
+  // Split assets for display: custom liabilities live in the Liabilities section
+  // (next to loans); everything else is a true asset. They remain one collection
+  // in state — this is purely a presentation split.
+  const liabilityAssets = assets.filter(
+    (a) => a.AssetType === AssetType.CustomLiability
+  );
+  const assetHoldings = assets.filter(
+    (a) => a.AssetType !== AssetType.CustomLiability
+  );
   const allEmpty =
     loans.length === 0 && investments.length === 0 && assets.length === 0;
   const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
@@ -543,25 +553,6 @@ export const Body = () => {
           </Box>
 
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
-            <Divider>Loans</Divider>
-            {loans.length > 0 ? (
-              <LoanTable
-                loans={loans}
-                onLoanEdit={onLoanAddEdit}
-                onLoanDelete={onLoanDelete}
-                onLoanClone={onLoanClone}
-                onLoanBulkDelete={onLoanBulkDelete}
-              />
-            ) : (
-              <SectionEmptyState
-                message="No loans yet."
-                actionLabel="Add your first loan"
-                onAction={() => onLoanAddEdit()}
-              />
-            )}
-          </Paper>
-
-          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Investments</Divider>
             {investments.length > 0 ? (
               <InvestmentTable
@@ -581,12 +572,13 @@ export const Body = () => {
           </Paper>
 
           {/* Assets section (roadmap 7.1–7.3): cash, property, and custom
-              assets/liabilities that complete the net-worth picture. */}
+              assets that complete the net-worth picture. Custom liabilities are
+              shown under Liabilities instead. */}
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Assets</Divider>
-            {assets.length > 0 ? (
+            {assetHoldings.length > 0 ? (
               <AssetTable
-                assets={assets}
+                assets={assetHoldings}
                 loans={loans}
                 onAssetEdit={onAssetAddEdit}
                 onAssetDelete={onAssetDelete}
@@ -599,6 +591,71 @@ export const Body = () => {
                 actionLabel="Add your first asset"
                 onAction={() => onAssetAddEdit()}
               />
+            )}
+          </Paper>
+
+          {/* Liabilities section: loans and custom liabilities together, matching
+              the "Add Liability" entry point. Loans keep their rich table
+              (amortization, payoff, PIT); custom liabilities use the shared asset
+              table with liability-framed labels. */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Liabilities</Divider>
+            {loans.length === 0 && liabilityAssets.length === 0 ? (
+              <SectionEmptyState
+                message="No liabilities yet."
+                actionLabel="Add your first liability"
+                onAction={(e) => setLiabilityMenuAnchor(e.currentTarget)}
+              />
+            ) : (
+              <>
+                {loans.length > 0 && (
+                  <Box>
+                    {liabilityAssets.length > 0 && (
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        Loans
+                      </Typography>
+                    )}
+                    <LoanTable
+                      loans={loans}
+                      onLoanEdit={onLoanAddEdit}
+                      onLoanDelete={onLoanDelete}
+                      onLoanClone={onLoanClone}
+                      onLoanBulkDelete={onLoanBulkDelete}
+                    />
+                  </Box>
+                )}
+                {liabilityAssets.length > 0 && (
+                  <Box sx={{ mt: loans.length > 0 ? 3 : 0 }}>
+                    {loans.length > 0 && (
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        Other liabilities
+                      </Typography>
+                    )}
+                    <AssetTable
+                      assets={liabilityAssets}
+                      loans={loans}
+                      onAssetEdit={onAssetAddEdit}
+                      onAssetDelete={onAssetDelete}
+                      onAssetClone={onAssetClone}
+                      onAssetBulkDelete={onAssetBulkDelete}
+                      showTypeColumn={false}
+                      showEquityColumn={false}
+                      searchLabel="Search liabilities"
+                      itemLabel="liability"
+                      itemLabelPlural="liabilities"
+                      balanceHeader="Owed"
+                    />
+                  </Box>
+                )}
+              </>
             )}
           </Paper>
 

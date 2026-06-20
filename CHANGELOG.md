@@ -34,7 +34,10 @@ an `AssetType` discriminator covering all three Phase 7 items.
   add/edit dialog in the UI.
 - **Two consolidated entry points** in the command bar (and onboarding): **Add
   Asset** (Investment · Cash · Property · Custom asset) and **Add Liability**
-  (Loan · Custom liability), each a type menu that opens the matching form.
+  (Loan · Custom liability), each a type menu that opens the matching form. The
+  positions display mirrors this: a **Liabilities** section groups loans and
+  custom liabilities together (loans keep their amortization/payoff/PIT table),
+  alongside the Investments and Assets sections.
 - Export **schema v4** (the next D8 migration rung): a v3 file gains an empty
   `assets` list on import; older files keep migrating forward.
 

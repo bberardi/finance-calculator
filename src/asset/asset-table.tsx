@@ -17,7 +17,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Asset, AssetType } from '../models/asset-model';
 import { Loan } from '../models/loan-model';
 import { forecastHomeEquity } from '../helpers/forecast-helpers';
@@ -58,17 +58,17 @@ const assetActions = (
 ): RowAction[] => [
   {
     icon: <Edit />,
-    title: 'Edit Asset',
+    title: 'Edit',
     onClick: () => handlers.onEdit(asset),
   },
   {
     icon: <ContentCopy />,
-    title: 'Duplicate Asset',
+    title: 'Duplicate',
     onClick: () => handlers.onClone(asset),
   },
   {
     icon: <Delete />,
-    title: 'Delete Asset',
+    title: 'Delete',
     onClick: () => handlers.onDelete(asset),
     color: 'error',
   },
@@ -86,35 +86,8 @@ interface AssetColumn {
   label: string;
   numeric: boolean;
   value: (row: AssetRow) => SortValue;
+  render: (row: AssetRow) => ReactNode;
 }
-
-const ASSET_COLUMNS: AssetColumn[] = [
-  { id: 'Name', label: 'Name', numeric: false, value: (r) => r.asset.Name },
-  {
-    id: 'Provider',
-    label: 'Provider',
-    numeric: false,
-    value: (r) => r.asset.Provider,
-  },
-  {
-    id: 'AssetType',
-    label: 'Type',
-    numeric: false,
-    value: (r) => ASSET_TYPE_LABELS[r.asset.AssetType],
-  },
-  {
-    id: 'Balance',
-    label: 'Balance',
-    numeric: true,
-    value: (r) => r.asset.Balance,
-  },
-  {
-    id: 'GrowthRate',
-    label: 'Rate',
-    numeric: true,
-    value: (r) => r.asset.GrowthRate,
-  },
-];
 
 const equityText = (row: AssetRow): string =>
   row.equity === undefined ? '—' : formatCurrency(row.equity);
@@ -124,11 +97,13 @@ const AssetCard = ({
   handlers,
   selected,
   onSelect,
+  showType,
 }: {
   row: AssetRow;
   handlers: AssetRowHandlers;
   selected: boolean;
   onSelect: () => void;
+  showType: boolean;
 }) => {
   const { asset } = row;
   return (
@@ -150,7 +125,8 @@ const AssetCard = ({
               gutterBottom
               sx={{ color: 'text.secondary' }}
             >
-              {asset.Provider} · {ASSET_TYPE_LABELS[asset.AssetType]}
+              {asset.Provider}
+              {showType ? ` · ${ASSET_TYPE_LABELS[asset.AssetType]}` : ''}
             </Typography>
           </Box>
         </Box>
@@ -182,7 +158,20 @@ const AssetCard = ({
   );
 };
 
+// Table of simple holdings (Phase 7). Reused for two groups with different
+// framing: the Assets section (cash / property / custom assets — Type and Equity
+// columns shown) and the Liabilities section's custom liabilities (a single
+// type, so those columns are hidden and the labels read "liability"/"Owed").
 export const AssetTable = (props: AssetTableProps) => {
+  const {
+    showTypeColumn = true,
+    showEquityColumn = true,
+    searchLabel = 'Search assets',
+    itemLabel = 'asset',
+    itemLabelPlural = 'assets',
+    balanceHeader = 'Balance',
+  } = props;
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -203,6 +192,53 @@ export const AssetTable = (props: AssetTableProps) => {
     onDelete: props.onAssetDelete,
   };
 
+  // Sortable data columns, built from props so the Type column can be dropped
+  // and the balance header relabelled per group.
+  const columns = useMemo<AssetColumn[]>(() => {
+    const cols: AssetColumn[] = [
+      {
+        id: 'Name',
+        label: 'Name',
+        numeric: false,
+        value: (r) => r.asset.Name,
+        render: (r) => r.asset.Name,
+      },
+      {
+        id: 'Provider',
+        label: 'Provider',
+        numeric: false,
+        value: (r) => r.asset.Provider,
+        render: (r) => r.asset.Provider,
+      },
+    ];
+    if (showTypeColumn) {
+      cols.push({
+        id: 'AssetType',
+        label: 'Type',
+        numeric: false,
+        value: (r) => ASSET_TYPE_LABELS[r.asset.AssetType],
+        render: (r) => ASSET_TYPE_LABELS[r.asset.AssetType],
+      });
+    }
+    cols.push(
+      {
+        id: 'Balance',
+        label: balanceHeader,
+        numeric: true,
+        value: (r) => r.asset.Balance,
+        render: (r) => formatCurrency(r.asset.Balance),
+      },
+      {
+        id: 'GrowthRate',
+        label: 'Rate',
+        numeric: true,
+        value: (r) => r.asset.GrowthRate,
+        render: (r) => formatPercent(r.asset.GrowthRate),
+      }
+    );
+    return cols;
+  }, [showTypeColumn, balanceHeader]);
+
   // Engine-derived rows: today's home equity for a property linked to a
   // mortgage that still exists (7.2). Memoized so it recomputes only when the
   // assets or loans change.
@@ -220,8 +256,7 @@ export const AssetTable = (props: AssetTableProps) => {
     });
   }, [props.assets, props.loans, today]);
 
-  const column =
-    ASSET_COLUMNS.find((c) => c.id === sortColumn) ?? ASSET_COLUMNS[0];
+  const column = columns.find((c) => c.id === sortColumn) ?? columns[0];
   const sortedRows = useMemo(
     () => sortBy(rows, column.value, sortDirection),
     [rows, column, sortDirection]
@@ -264,14 +299,11 @@ export const AssetTable = (props: AssetTableProps) => {
 
   return (
     <>
-      <TableSearchField
-        value={query}
-        onChange={setQuery}
-        label="Search assets"
-      />
+      <TableSearchField value={query} onChange={setQuery} label={searchLabel} />
       <BulkActionsToolbar
         count={selectedAssets.length}
-        itemLabel="asset"
+        itemLabel={itemLabel}
+        itemLabelPlural={itemLabelPlural}
         onDuplicate={onBulkDuplicate}
         onDelete={onBulkDelete}
         onClear={selection.clear}
@@ -279,7 +311,7 @@ export const AssetTable = (props: AssetTableProps) => {
 
       {noMatches ? (
         <Typography color="text.secondary" sx={{ py: 2 }}>
-          No assets match “{query}”.
+          No {itemLabelPlural} match “{query}”.
         </Typography>
       ) : isMobile ? (
         <Box>
@@ -290,6 +322,7 @@ export const AssetTable = (props: AssetTableProps) => {
               handlers={handlers}
               selected={selection.isSelected(row.asset.Id)}
               onSelect={() => selection.toggle(row.asset.Id)}
+              showType={showTypeColumn}
             />
           ))}
         </Box>
@@ -306,11 +339,11 @@ export const AssetTable = (props: AssetTableProps) => {
                       selection.setMany(visibleIds, e.target.checked)
                     }
                     slotProps={{
-                      input: { 'aria-label': 'Select all assets' },
+                      input: { 'aria-label': `Select all ${itemLabelPlural}` },
                     }}
                   />
                 </TableCell>
-                {ASSET_COLUMNS.map((col) => (
+                {columns.map((col) => (
                   <TableCell
                     key={col.id}
                     align={col.numeric ? 'right' : 'left'}
@@ -327,7 +360,9 @@ export const AssetTable = (props: AssetTableProps) => {
                     </TableSortLabel>
                   </TableCell>
                 ))}
-                <TableCell align="right">Equity</TableCell>
+                {showEquityColumn && (
+                  <TableCell align="right">Equity</TableCell>
+                )}
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -347,18 +382,17 @@ export const AssetTable = (props: AssetTableProps) => {
                         }}
                       />
                     </TableCell>
-                    <TableCell>{row.asset.Name}</TableCell>
-                    <TableCell>{row.asset.Provider}</TableCell>
-                    <TableCell>
-                      {ASSET_TYPE_LABELS[row.asset.AssetType]}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(row.asset.Balance)}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatPercent(row.asset.GrowthRate)}
-                    </TableCell>
-                    <TableCell align="right">{equityText(row)}</TableCell>
+                    {columns.map((col) => (
+                      <TableCell
+                        key={col.id}
+                        align={col.numeric ? 'right' : 'left'}
+                      >
+                        {col.render(row)}
+                      </TableCell>
+                    ))}
+                    {showEquityColumn && (
+                      <TableCell align="right">{equityText(row)}</TableCell>
+                    )}
                     <TableCell>
                       <EntityRowActions
                         actions={assetActions(row.asset, handlers)}
@@ -371,16 +405,29 @@ export const AssetTable = (props: AssetTableProps) => {
             <TableFooter>
               <TableRow>
                 <TableCell padding="checkbox" />
-                <TableCell>
-                  <strong>Totals</strong>
-                </TableCell>
-                <TableCell />
-                <TableCell />
-                <TableCell align="right">
-                  <strong>{formatCurrency(totalBalance)}</strong>
-                </TableCell>
-                <TableCell />
-                <TableCell />
+                {columns.map((col) => {
+                  if (col.id === 'Name') {
+                    return (
+                      <TableCell key={col.id}>
+                        <strong>Totals</strong>
+                      </TableCell>
+                    );
+                  }
+                  if (col.id === 'Balance') {
+                    return (
+                      <TableCell key={col.id} align="right">
+                        <strong>{formatCurrency(totalBalance)}</strong>
+                      </TableCell>
+                    );
+                  }
+                  return (
+                    <TableCell
+                      key={col.id}
+                      align={col.numeric ? 'right' : 'left'}
+                    />
+                  );
+                })}
+                {showEquityColumn && <TableCell />}
                 <TableCell />
               </TableRow>
             </TableFooter>
@@ -398,4 +445,11 @@ export type AssetTableProps = {
   onAssetDelete: (a: Asset) => void;
   onAssetClone: (a: Asset) => void;
   onAssetBulkDelete: (assets: Asset[]) => void;
+  // Display tuning so the same table serves the Assets and Liabilities groups.
+  showTypeColumn?: boolean;
+  showEquityColumn?: boolean;
+  searchLabel?: string;
+  itemLabel?: string;
+  itemLabelPlural?: string;
+  balanceHeader?: string;
 };

@@ -74,7 +74,9 @@ export const OnboardingEmptyState = ({
 export interface SectionEmptyStateProps {
   message: string;
   actionLabel: string;
-  onAction: () => void;
+  // Receives the click event so an action can anchor a menu to the button
+  // (callers that just open a dialog can ignore it).
+  onAction: (event: MouseEvent<HTMLElement>) => void;
 }
 
 export const SectionEmptyState = ({
