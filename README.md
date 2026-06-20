@@ -4,7 +4,7 @@
 
 # PathWise
 
-**See all your loans and investments in one place — and decide where your next dollar should go.**
+**See all your loans, investments, and assets in one place — and decide where your next dollar should go.**
 
 [**🌐 Live site**](https://bberardi.github.io/finance-calculator/) · [**🗺️ Roadmap**](./ROADMAP.md) · [**🐛 Issues**](https://github.com/bberardi/finance-calculator/issues)
 
@@ -22,7 +22,7 @@
 
 Free financial calculators handle **one** loan _or_ **one** investment at a time. Real decisions don't work that way — _"should my extra $300/month go toward the mortgage, the car loan, or the brokerage account?"_ requires seeing every position together and comparing what-ifs across all of them.
 
-**PathWise** forecasts your net worth from multiple loans and investments at once, so you can answer that question without exporting everything into a spreadsheet and doing the math by hand.
+**PathWise** forecasts your net worth from multiple loans, investments, and assets at once, so you can answer that question without exporting everything into a spreadsheet and doing the math by hand.
 
 Everything runs in your browser. There's **no backend, no account, and no tracking** — your numbers never leave your device.
 
@@ -31,13 +31,14 @@ Everything runs in your browser. There's **no backend, no account, and no tracki
 - 📊 **Multiple positions at a glance** — manage any number of loans and investments side by side, not one calculator at a time.
 - 🏦 **Loan modeling** — auto-calculated monthly payment, full amortization schedule, and a point-in-time view of any loan on any date.
 - 📈 **Investment modeling** — configurable compounding frequencies, recurring contributions, and yearly step-ups (flat or percentage), with a projected-growth schedule.
-- 💰 **Net worth forecasting** — a date-indexed engine projects loans, investments, and overall net worth onto a single shared timeline.
-- 📉 **Interactive forecast chart** — a line per position plus an overall net-worth line, with a show/hide legend, 5Y/10Y/30Y/Full range control, and an accessible "view as table" fallback.
+- 🏠 **Whole net worth** — cash accounts (HYSA/CD/checking), property (with home-equity from a linked mortgage), and custom assets/liabilities feed the net-worth roll-up alongside loans and investments. `CustomLiability` entries subtract from net worth; all others add.
+- 💰 **Net worth forecasting** — a date-indexed engine projects loans, investments, assets, and overall net worth onto a single shared timeline.
+- 📉 **Interactive forecast chart** — a line per position (including one per asset) plus an overall net-worth line, with a show/hide legend, 5Y/10Y/30Y/Full range control, and an accessible "view as table" fallback.
 - 🧮 **Net worth dashboard** — at-a-glance total assets, debt, net worth, and monthly commitments, plus milestone callouts (debt-free date, net worth at +5/+10/+30 years).
 - 🔮 **What-if scenarios** — model extra monthly payments/contributions, overlay them on the chart as dotted lines, and see the impact (net worth at horizon, interest saved, debt-free date moved up).
 - 🎯 **"Next dollar" optimizer** — tell PathWise how much extra you have each month and it ranks where that money does the most good: all toward one position **and** splits across several, scored by long-term net worth impact and interest saved. Pit your own intuition against it with a custom split builder, and send any plan to the chart with one click. The search runs in a Web Worker so the interaction stays smooth.
 - 💾 **On-device persistence** — opt in to "Save on this device" and your data survives a refresh, stored only in your browser's local storage; turning it off clears it.
-- 🔁 **Import / export** — back up and restore your data as JSON, with ID-based smart merge and validation on import.
+- 🔁 **Import / export** — back up and restore your data as JSON (schema v4), with ID-based smart merge and validation on import; v3 files gain an empty asset list on upgrade.
 - 🌗 **Light & dark mode** — a full Material UI theme with a persisted color-mode toggle.
 - 📱 **Responsive** — data tables on desktop, cards on mobile.
 - ✅ **Trustworthy math** — the calculation core is a pure, fully unit-tested TypeScript layer (see the [Math Correctness Charter](./ROADMAP.md#4-math-correctness-charter-non-negotiable)).
@@ -95,8 +96,8 @@ Every change should land with `npm test`, `npm run build`, `npm run check:lint`,
 
 ```
 src/
-├── models/      # Input-only data types (Loan, Investment, forecast)
-├── helpers/     # Pure business logic & math (loans, investments, forecast engine)
+├── models/      # Input-only data types (Loan, Investment, Asset, forecast)
+├── helpers/     # Pure business logic & math (loans, investments, assets, forecast engine)
 ├── state/       # Finance data context, reducer, and sample data
 ├── theme/       # MUI theme and color-mode toggle
 ├── components/  # Shared UI (dialogs, empty states, row actions)
@@ -104,6 +105,7 @@ src/
 ├── optimizer/   # "Next dollar" optimizer panel, custom split builder, Web Worker
 ├── loan/        # Loan table, add/edit form, amortization & PIT popouts
 ├── investment/  # Investment table, add/edit form, growth & PIT popouts
+├── asset/       # Asset table, add/edit form (cash, property, custom assets/liabilities)
 └── data-manager/# JSON import/export
 ```
 
@@ -128,7 +130,11 @@ PathWise reached its headline goal at **v1.0** — a **"next dollar" optimizer**
 4. **Scenario forecasting** — overlay what-if extra payments/contributions on the charts _(issue #24)_ ✅
 5. **"Next dollar" optimizer** — given $X extra per month, rank allocations (all-in-one and splits) by long-term net worth impact ✅
 
-Post-1.0 work (balance check-ins, whole-net-worth modeling, Monte Carlo, and more) is sequenced in the full [**ROADMAP.md**](./ROADMAP.md), alongside phases, technical decisions, and the future horizon.
+**v1.1** extends net worth to the whole balance sheet:
+
+6. **Whole net worth (Phase 7)** — cash accounts (HYSA/CD/checking with APY), property (appreciation rate + home-equity from a linked mortgage), and custom assets/liabilities fill out the net-worth picture; export schema bumped to v4 ✅
+
+Post-1.1 work (balance check-ins, Monte Carlo, and more) is sequenced in the full [**ROADMAP.md**](./ROADMAP.md), alongside phases, technical decisions, and the future horizon.
 
 ## Contributing
 
@@ -141,14 +147,14 @@ Contributions are welcome! A few working agreements from the project conventions
 
 ## Glossary
 
-| Term                      | Meaning                                                                                                          |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Amortization schedule** | The month-by-month breakdown of a loan's payments into principal and interest over its term.                     |
-| **Compounding frequency** | How often investment interest is applied (e.g., monthly, quarterly, annually).                                   |
-| **Step-up**               | A scheduled yearly increase to an investment's recurring contribution, as a flat amount or %.                    |
-| **Point-in-time (PIT)**   | The state of a loan or investment on a specific date.                                                            |
-| **Forecast**              | A date-indexed projection of a position's value (or balance) over time.                                          |
-| **Net worth**             | Total investment value minus total outstanding loan balances at a point in time.                                 |
-| **Scenario**              | A named what-if: extra monthly amounts applied on top of existing payments/contributions, overlaid on the chart. |
-| **Allocation plan**       | A way to divide $X extra per month across positions — all to one (single-target) or split across several.        |
-| **Next-dollar optimizer** | The engine that scores and ranks allocation plans by long-term net worth impact and interest saved.              |
+| Term                      | Meaning                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Amortization schedule** | The month-by-month breakdown of a loan's payments into principal and interest over its term.                                   |
+| **Compounding frequency** | How often investment interest is applied (e.g., monthly, quarterly, annually).                                                 |
+| **Step-up**               | A scheduled yearly increase to an investment's recurring contribution, as a flat amount or %.                                  |
+| **Point-in-time (PIT)**   | The state of a loan or investment on a specific date.                                                                          |
+| **Forecast**              | A date-indexed projection of a position's value (or balance) over time.                                                        |
+| **Net worth**             | Total investment and asset value minus total outstanding loan balances (and any custom liability balances) at a point in time. |
+| **Scenario**              | A named what-if: extra monthly amounts applied on top of existing payments/contributions, overlaid on the chart.               |
+| **Allocation plan**       | A way to divide $X extra per month across positions — all to one (single-target) or split across several.                      |
+| **Next-dollar optimizer** | The engine that scores and ranks allocation plans by long-term net worth impact and interest saved.                            |

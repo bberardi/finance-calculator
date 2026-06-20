@@ -7,6 +7,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useFinanceData } from '../state/use-finance-data';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { DataSnapshot } from '../state/finance-reducer';
 import {
@@ -20,6 +21,7 @@ interface PendingImport {
   loans: Loan[];
   investments: Investment[];
   scenarios: Scenario[];
+  assets: Asset[];
   sections: ImportPreviewSection[];
 }
 
@@ -37,10 +39,12 @@ export const DataManager = () => {
     state: {
       loans,
       investments,
+      assets,
       scenarios,
       sampleDataLoaded,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
     },
     importMerge,
     restoreData,
@@ -61,12 +65,14 @@ export const DataManager = () => {
   const realInvestments = sampleDataLoaded
     ? (stashedInvestments ?? [])
     : investments;
+  const realAssets = sampleDataLoaded ? (stashedAssets ?? []) : assets;
 
-  const hasData = realLoans.length > 0 || realInvestments.length > 0;
+  const hasData =
+    realLoans.length > 0 || realInvestments.length > 0 || realAssets.length > 0;
 
   const handleExport = () => {
     try {
-      downloadJsonExport(realLoans, realInvestments, scenarios);
+      downloadJsonExport(realLoans, realInvestments, scenarios, realAssets);
       setExportMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
@@ -106,6 +112,7 @@ export const DataManager = () => {
           loans: importedLoans,
           investments: importedInvestments,
           scenarios: importedScenarios,
+          assets: importedAssets,
         } = importFromJson(content);
 
         // Compute the add-vs-overwrite preview against the *real* data (the
@@ -118,14 +125,17 @@ export const DataManager = () => {
           importedInvestments
         );
         const scenarioPreview = previewMerge(scenarios, importedScenarios);
+        const assetPreview = previewMerge(realAssets, importedAssets);
 
         setPendingImport({
           loans: importedLoans,
           investments: importedInvestments,
           scenarios: importedScenarios,
+          assets: importedAssets,
           sections: [
             { label: 'Loans', ...loanPreview },
             { label: 'Investments', ...investmentPreview },
+            { label: 'Assets', ...assetPreview },
             { label: 'Scenarios', ...scenarioPreview },
           ],
         });
@@ -157,9 +167,11 @@ export const DataManager = () => {
     const snapshot: DataSnapshot = {
       loans,
       investments,
+      assets,
       scenarios,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
     };
 
     const added = pendingImport.sections.reduce(
@@ -174,7 +186,8 @@ export const DataManager = () => {
     importMerge(
       pendingImport.loans,
       pendingImport.investments,
-      pendingImport.scenarios
+      pendingImport.scenarios,
+      pendingImport.assets
     );
     setPendingImport(null);
     setImportUndo({

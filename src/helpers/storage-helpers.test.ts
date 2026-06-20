@@ -120,7 +120,7 @@ describe('saveData / loadData round-trip', () => {
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
     // Same serializer the export path uses: current schema, derived data stripped.
-    expect(parsed.schemaVersion).toBe(3);
+    expect(parsed.schemaVersion).toBe(4);
     expect(parsed.loans).toHaveLength(1);
     expect(parsed.loans[0].Id).toBe(sampleLoan.Id);
     // Inputs only — no computed amortization schedule rides along.

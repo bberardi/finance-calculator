@@ -1,5 +1,6 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { mergeData } from '../helpers/data-helpers';
 
@@ -12,10 +13,13 @@ import { mergeData } from '../helpers/data-helpers';
 export interface FinanceState {
   loans: Loan[];
   investments: Investment[];
+  // Simple holdings — cash / property / custom (Phase 7, Whole Net Worth).
+  assets: Asset[];
   sampleDataLoaded: boolean;
   // User data stashed while sample data is loaded; null otherwise.
   stashedLoans: Loan[] | null;
   stashedInvestments: Investment[] | null;
+  stashedAssets: Asset[] | null;
   // Named what-if scenarios (Phase 4). Session-scoped until 4.5 persists them.
   scenarios: Scenario[];
   // Which scenario is currently overlaid on the chart, or null for none.
@@ -29,17 +33,21 @@ export interface FinanceState {
 export interface DataSnapshot {
   loans: Loan[];
   investments: Investment[];
+  assets: Asset[];
   scenarios: Scenario[];
   stashedLoans: Loan[] | null;
   stashedInvestments: Investment[] | null;
+  stashedAssets: Asset[] | null;
 }
 
 export const initialFinanceState: FinanceState = {
   loans: [],
   investments: [],
+  assets: [],
   sampleDataLoaded: false,
   stashedLoans: null,
   stashedInvestments: null,
+  stashedAssets: null,
   scenarios: [],
   activeScenarioId: null,
 };
@@ -61,16 +69,28 @@ export type FinanceAction =
   | { type: 'UpdateInvestment'; investment: Investment }
   | { type: 'DeleteInvestment'; id: string }
   | { type: 'InsertInvestmentAt'; investment: Investment; index: number }
+  // Asset actions (Phase 7). Like loans/investments, Id generation happens at
+  // the dispatch call site so the reducer stays pure.
+  | { type: 'AddAsset'; asset: Asset }
+  | { type: 'UpdateAsset'; asset: Asset }
+  | { type: 'DeleteAsset'; id: string }
+  | { type: 'InsertAssetAt'; asset: Asset; index: number }
   | {
       type: 'ImportMerge';
       loans: Loan[];
       investments: Investment[];
       scenarios?: Scenario[];
+      assets?: Asset[];
     }
   // Soft-undo for an import merge (roadmap 6.3): restore the data captured
   // immediately before the merge, reverting a merge-by-Id clobber.
   | { type: 'RestoreData'; snapshot: DataSnapshot }
-  | { type: 'LoadSampleData'; loans: Loan[]; investments: Investment[] }
+  | {
+      type: 'LoadSampleData';
+      loans: Loan[];
+      investments: Investment[];
+      assets: Asset[];
+    }
   | { type: 'ClearSampleData' }
   // Scenario actions (Phase 4). Like entities, Id generation happens at the
   // dispatch call site so the reducer stays pure.
@@ -161,11 +181,41 @@ export const financeReducer = (
         ),
       };
 
+    case 'AddAsset':
+      return { ...state, assets: [...state.assets, action.asset] };
+
+    case 'UpdateAsset':
+      // Replace in place, preserving order (regression for #48).
+      return {
+        ...state,
+        assets: state.assets.map((asset) =>
+          asset.Id === action.asset.Id ? action.asset : asset
+        ),
+      };
+
+    case 'DeleteAsset':
+      return {
+        ...state,
+        assets: state.assets.filter((asset) => asset.Id !== action.id),
+      };
+
+    case 'InsertAssetAt':
+      // Restore a deleted asset at its original index (undo).
+      if (state.assets.some((asset) => asset.Id === action.asset.Id)) {
+        return state;
+      }
+      return {
+        ...state,
+        assets: insertAt(state.assets, action.asset, action.index),
+      };
+
     case 'ImportMerge': {
       // Scenarios merge by Id too (Phase 4.5); omitted means "leave unchanged".
       const mergedScenarios = action.scenarios
         ? mergeData(state.scenarios, action.scenarios).items
         : state.scenarios;
+      // Assets merge by Id (Phase 7); omitted means "leave unchanged".
+      const importedAssets = action.assets;
 
       // While sample data is loaded, the visible loans/investments are the
       // samples and the user's real data is parked in the stash. Merge imports
@@ -182,10 +232,14 @@ export const financeReducer = (
           state.stashedInvestments ?? [],
           action.investments
         );
+        const mergedStashedAssets = importedAssets
+          ? mergeData(state.stashedAssets ?? [], importedAssets).items
+          : state.stashedAssets;
         return {
           ...state,
           stashedLoans: mergedLoans,
           stashedInvestments: mergedInvestments,
+          stashedAssets: mergedStashedAssets,
           scenarios: mergedScenarios,
         };
       }
@@ -196,10 +250,14 @@ export const financeReducer = (
         state.investments,
         action.investments
       );
+      const mergedAssets = importedAssets
+        ? mergeData(state.assets, importedAssets).items
+        : state.assets;
       return {
         ...state,
         loans: mergedLoans,
         investments: mergedInvestments,
+        assets: mergedAssets,
         scenarios: mergedScenarios,
       };
     }
@@ -211,9 +269,11 @@ export const financeReducer = (
         ...state,
         loans: action.snapshot.loans,
         investments: action.snapshot.investments,
+        assets: action.snapshot.assets,
         scenarios: action.snapshot.scenarios,
         stashedLoans: action.snapshot.stashedLoans,
         stashedInvestments: action.snapshot.stashedInvestments,
+        stashedAssets: action.snapshot.stashedAssets,
       };
 
     case 'LoadSampleData': {
@@ -228,8 +288,10 @@ export const financeReducer = (
         sampleDataLoaded: true,
         stashedLoans: state.loans,
         stashedInvestments: state.investments,
+        stashedAssets: state.assets,
         loans: action.loans,
         investments: action.investments,
+        assets: action.assets,
       };
     }
 
@@ -244,8 +306,10 @@ export const financeReducer = (
         sampleDataLoaded: false,
         loans: state.stashedLoans ?? [],
         investments: state.stashedInvestments ?? [],
+        assets: state.stashedAssets ?? [],
         stashedLoans: null,
         stashedInvestments: null,
+        stashedAssets: null,
       };
     }
 

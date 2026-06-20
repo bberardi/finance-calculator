@@ -11,6 +11,7 @@ import {
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { ScenarioInput } from '../models/forecast-model';
 import { getDefaultHorizon } from '../helpers/forecast-helpers';
 import {
@@ -34,6 +35,7 @@ import { ForecastDataTable } from './forecast-data-table';
 interface ForecastChartProps {
   loans: Loan[];
   investments: Investment[];
+  assets?: Asset[];
   scenario?: ScenarioInput;
   height?: number;
 }
@@ -64,6 +66,7 @@ const RANGE_LABELS: { value: TimeRange; label: string }[] = [
 export const ForecastChart = ({
   loans,
   investments,
+  assets,
   scenario,
   height,
 }: ForecastChartProps) => {
@@ -79,6 +82,7 @@ export const ForecastChart = ({
 
   // Baseline (solid) lines always; when a scenario is active, add color-matched
   // dotted overlay lines (suffix-tagged ids) on top — originals remain (4.3).
+  const assetList = useMemo(() => assets ?? [], [assets]);
   const fullData = useMemo<ForecastChartData>(() => {
     const horizon = getDefaultHorizon(loans, investments, today);
     const baseline = buildForecastChartData(
@@ -86,7 +90,8 @@ export const ForecastChart = ({
       investments,
       horizon,
       undefined,
-      today
+      today,
+      assetList
     );
     if (!scenario) {
       return baseline;
@@ -96,7 +101,8 @@ export const ForecastChart = ({
       investments,
       horizon,
       scenario,
-      today
+      today,
+      assetList
     );
     const scenarioSeries = overlay.series.map((s) => ({
       ...s,
@@ -107,7 +113,7 @@ export const ForecastChart = ({
       dates: baseline.dates,
       series: [...baseline.series, ...scenarioSeries],
     };
-  }, [loans, investments, scenario, today]);
+  }, [loans, investments, assetList, scenario, today]);
 
   const [range, setRange] = useState<TimeRange>('full');
 

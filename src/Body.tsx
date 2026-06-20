@@ -15,6 +15,8 @@ import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
+import { Asset } from './models/asset-model';
+import { AssetTable } from './asset/asset-table';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
@@ -33,7 +35,11 @@ import {
   SectionEmptyState,
 } from './components/empty-state';
 import { DialogFallback } from './components/dialog-fallback';
-import { sampleLoans, sampleInvestments } from './state/sample-data';
+import {
+  sampleLoans,
+  sampleInvestments,
+  sampleAssets,
+} from './state/sample-data';
 
 // Code-split the heaviest, non-critical-path chunks (roadmap 6.6): the forecast
 // chart (@mui/x-charts) and the add/edit forms (@mui/x-date-pickers) are kept
@@ -50,23 +56,29 @@ const AddEditInvestment = lazy(() =>
     default: m.AddEditInvestment,
   }))
 );
+const AddEditAsset = lazy(() =>
+  import('./asset/add-edit-asset').then((m) => ({ default: m.AddEditAsset }))
+);
 
 // A delete pending confirmation: which kind of entity, and the entity itself
 // (we need its name for the prompt).
 type PendingDelete =
   | { kind: 'loan'; entity: Loan }
-  | { kind: 'investment'; entity: Investment };
+  | { kind: 'investment'; entity: Investment }
+  | { kind: 'asset'; entity: Asset };
 
 // A delete that just happened and can still be undone: the removed entity plus
 // the index it occupied, so undo can restore it exactly where it was.
 type UndoableDelete =
   | { kind: 'loan'; entity: Loan; index: number }
-  | { kind: 'investment'; entity: Investment; index: number };
+  | { kind: 'investment'; entity: Investment; index: number }
+  | { kind: 'asset'; entity: Asset; index: number };
 
 // A bulk delete pending confirmation: which kind, and the selected entities.
 type PendingBulkDelete =
   | { kind: 'loan'; entities: Loan[] }
-  | { kind: 'investment'; entities: Investment[] };
+  | { kind: 'investment'; entities: Investment[] }
+  | { kind: 'asset'; entities: Asset[] };
 
 // A committed bulk delete that can still be undone: the pre-delete data
 // snapshot (restored wholesale) plus the snackbar message.
@@ -96,9 +108,11 @@ export const Body = () => {
     state: {
       loans,
       investments,
+      assets,
       sampleDataLoaded,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
       scenarios,
       activeScenarioId,
     },
@@ -110,6 +124,10 @@ export const Body = () => {
     updateInvestment,
     deleteInvestment,
     insertInvestmentAt,
+    addAsset,
+    updateAsset,
+    deleteAsset,
+    insertAssetAt,
     restoreData,
     loadSampleData,
     clearSampleData,
@@ -119,8 +137,10 @@ export const Body = () => {
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
   const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
     useState<boolean>(false);
+  const [isAddAssetOpen, setIsAddAssetOpen] = useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
   const [editInvestment, setEditInvestment] = useState<Investment>();
+  const [editAsset, setEditAsset] = useState<Asset>();
 
   // Delete confirmation + soft-undo state (roadmap 0.7).
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>();
@@ -131,7 +151,8 @@ export const Body = () => {
     useState<PendingBulkDelete>();
   const [bulkUndo, setBulkUndo] = useState<BulkUndo>();
 
-  const onLoadSampleData = () => loadSampleData(sampleLoans, sampleInvestments);
+  const onLoadSampleData = () =>
+    loadSampleData(sampleLoans, sampleInvestments, sampleAssets);
 
   const onLoanAddEdit = (loan?: Loan) => {
     setEditLoan(loan);
@@ -195,6 +216,31 @@ export const Body = () => {
       Name: `${investment.Name} (copy)`,
     });
 
+  const onAssetAddEdit = (asset?: Asset) => {
+    setEditAsset(asset);
+    setIsAddAssetOpen(true);
+  };
+
+  const onAssetAddEditClose = () => {
+    setIsAddAssetOpen(false);
+    setEditAsset(undefined);
+  };
+
+  const onAssetAddEditSave = (newAsset: Asset, oldAsset?: Asset) => {
+    if (!oldAsset) {
+      addAsset(newAsset);
+    } else {
+      updateAsset(newAsset);
+    }
+  };
+
+  const onAssetDelete = (asset: Asset) => {
+    setPendingDelete({ kind: 'asset', entity: asset });
+  };
+
+  const onAssetClone = (asset: Asset) =>
+    addAsset({ ...asset, Id: '', Name: `${asset.Name} (copy)` });
+
   // Step 2: confirmation accepted — actually delete, remembering the original
   // index so the snackbar can offer an exact-position undo.
   const onConfirmDelete = () => {
@@ -205,13 +251,21 @@ export const Body = () => {
       const index = loans.findIndex((l) => l.Id === pendingDelete.entity.Id);
       deleteLoan(pendingDelete.entity.Id);
       setUndoableDelete({ kind: 'loan', entity: pendingDelete.entity, index });
-    } else {
+    } else if (pendingDelete.kind === 'investment') {
       const index = investments.findIndex(
         (i) => i.Id === pendingDelete.entity.Id
       );
       deleteInvestment(pendingDelete.entity.Id);
       setUndoableDelete({
         kind: 'investment',
+        entity: pendingDelete.entity,
+        index,
+      });
+    } else {
+      const index = assets.findIndex((a) => a.Id === pendingDelete.entity.Id);
+      deleteAsset(pendingDelete.entity.Id);
+      setUndoableDelete({
+        kind: 'asset',
         entity: pendingDelete.entity,
         index,
       });
@@ -226,8 +280,10 @@ export const Body = () => {
     }
     if (undoableDelete.kind === 'loan') {
       insertLoanAt(undoableDelete.entity, undoableDelete.index);
-    } else {
+    } else if (undoableDelete.kind === 'investment') {
       insertInvestmentAt(undoableDelete.entity, undoableDelete.index);
+    } else {
+      insertAssetAt(undoableDelete.entity, undoableDelete.index);
     }
     setUndoableDelete(undefined);
   };
@@ -247,9 +303,14 @@ export const Body = () => {
     }
   };
 
+  const onAssetBulkDelete = (selected: Asset[]) => {
+    if (selected.length > 0) {
+      setPendingBulkDelete({ kind: 'asset', entities: selected });
+    }
+  };
+
   const bulkDeleteCount = pendingBulkDelete?.entities.length ?? 0;
-  const bulkDeleteNoun =
-    pendingBulkDelete?.kind === 'investment' ? 'investment' : 'loan';
+  const bulkDeleteNoun = pendingBulkDelete?.kind ?? 'loan';
   const pluralize = (count: number, noun: string) =>
     `${count} ${noun}${count === 1 ? '' : 's'}`;
 
@@ -261,14 +322,18 @@ export const Body = () => {
     const snapshot: DataSnapshot = {
       loans,
       investments,
+      assets,
       scenarios,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
     };
     if (pendingBulkDelete.kind === 'loan') {
       pendingBulkDelete.entities.forEach((loan) => deleteLoan(loan.Id));
-    } else {
+    } else if (pendingBulkDelete.kind === 'investment') {
       pendingBulkDelete.entities.forEach((inv) => deleteInvestment(inv.Id));
+    } else {
+      pendingBulkDelete.entities.forEach((asset) => deleteAsset(asset.Id));
     }
     setBulkUndo({
       snapshot,
@@ -289,7 +354,8 @@ export const Body = () => {
   };
 
   const deletedName = undoableDelete?.entity.Name ?? '';
-  const bothEmpty = loans.length === 0 && investments.length === 0;
+  const allEmpty =
+    loans.length === 0 && investments.length === 0 && assets.length === 0;
   const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
 
   return (
@@ -316,6 +382,13 @@ export const Body = () => {
             onClick={() => onInvestmentAddEdit()}
           >
             Add Investment
+          </Button>
+          <Button
+            variant="contained"
+            sx={addActionSx}
+            onClick={() => onAssetAddEdit()}
+          >
+            Add Asset
           </Button>
           <DataManager />
           <PersistenceToggle />
@@ -344,7 +417,7 @@ export const Body = () => {
         </Alert>
       )}
 
-      {bothEmpty ? (
+      {allEmpty ? (
         <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
           <OnboardingEmptyState
             onAddLoan={() => onLoanAddEdit()}
@@ -356,13 +429,21 @@ export const Body = () => {
         <>
           {/* Net-worth dashboard summary cards (roadmap 3.1): lead the content
               with today's totals — the same anchor the forecast chart starts
-              from. */}
+              from. Assets (Phase 7) roll into the totals. */}
           <Box sx={{ marginBottom: SECTION_GAP }}>
-            <NetWorthSummary loans={loans} investments={investments} />
+            <NetWorthSummary
+              loans={loans}
+              investments={investments}
+              assets={assets}
+            />
             {/* Milestone callouts (roadmap 3.2): debt-free date + net worth at
                 +5y/+10y/+30y, cheap reads off the same engine series. */}
             <Box sx={{ marginTop: 2 }}>
-              <MilestoneCallouts loans={loans} investments={investments} />
+              <MilestoneCallouts
+                loans={loans}
+                investments={investments}
+                assets={assets}
+              />
             </Box>
           </Box>
 
@@ -404,9 +485,32 @@ export const Body = () => {
             )}
           </Paper>
 
-          {/* Forecast chart (roadmap 2.2): per-loan, per-investment, and overall
-              net-worth lines from the shared engine. Shown whenever there is at
-              least one position (the enclosing branch already guarantees it). */}
+          {/* Assets section (roadmap 7.1–7.3): cash, property, and custom
+              assets/liabilities that complete the net-worth picture. */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Assets</Divider>
+            {assets.length > 0 ? (
+              <AssetTable
+                assets={assets}
+                loans={loans}
+                onAssetEdit={onAssetAddEdit}
+                onAssetDelete={onAssetDelete}
+                onAssetClone={onAssetClone}
+                onAssetBulkDelete={onAssetBulkDelete}
+              />
+            ) : (
+              <SectionEmptyState
+                message="No assets yet."
+                actionLabel="Add your first asset"
+                onAction={() => onAssetAddEdit()}
+              />
+            )}
+          </Paper>
+
+          {/* Forecast chart (roadmap 2.2): per-loan, per-investment, per-asset,
+              and overall net-worth lines from the shared engine. Shown whenever
+              there is at least one position (the enclosing branch guarantees
+              it). */}
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Forecast</Divider>
             {/* Scenario controls (roadmap 4.2): create/select/delete what-if
@@ -420,6 +524,7 @@ export const Body = () => {
               <ForecastChart
                 loans={loans}
                 investments={investments}
+                assets={assets}
                 scenario={activeScenario}
               />
             </Suspense>
@@ -469,6 +574,16 @@ export const Body = () => {
             onSave={onInvestmentAddEditSave}
             onClose={onInvestmentAddEditClose}
             investment={editInvestment}
+          />
+        )}
+
+        {isAddAssetOpen && (
+          <AddEditAsset
+            open
+            onSave={onAssetAddEditSave}
+            onClose={onAssetAddEditClose}
+            asset={editAsset}
+            loans={loans}
           />
         )}
       </Suspense>

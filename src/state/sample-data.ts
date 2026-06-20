@@ -1,5 +1,6 @@
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { Asset, AssetType } from '../models/asset-model';
 
 // Sample data for the onboarding empty state (roadmap 0.9).
 //
@@ -65,5 +66,41 @@ export const sampleInvestments: Investment[] = [
     StartDate: new Date(2019, 5, 1),
     RecurringContribution: 800,
     ContributionFrequency: CompoundingFrequency.Monthly,
+  },
+];
+
+// Phase 7 sample holdings: a high-yield savings account (7.1), the home whose
+// value backs the sample mortgage above (7.2, linked by LinkedLoanId so net
+// worth reflects home equity), and a depreciating car (7.3, a custom asset with
+// a negative growth rate). Stable Ids keep load/clear idempotent.
+export const sampleAssets: Asset[] = [
+  {
+    Id: '00000000-0000-0000-0000-000000000005',
+    Name: 'Sample: High-Yield Savings',
+    Provider: 'Sample Bank',
+    AssetType: AssetType.Cash,
+    Balance: 25000,
+    GrowthRate: 4.25,
+    CompoundingPeriod: CompoundingFrequency.Monthly,
+  },
+  {
+    Id: '00000000-0000-0000-0000-000000000006',
+    Name: 'Sample: Home',
+    Provider: 'Primary Residence',
+    AssetType: AssetType.Property,
+    Balance: 410000,
+    GrowthRate: 3,
+    // Paired with "Sample: Mortgage" so the app can show home equity.
+    LinkedLoanId: '00000000-0000-0000-0000-000000000001',
+    CompoundingPeriod: CompoundingFrequency.Monthly,
+  },
+  {
+    Id: '00000000-0000-0000-0000-000000000007',
+    Name: 'Sample: Car',
+    Provider: 'Personal',
+    AssetType: AssetType.CustomAsset,
+    Balance: 22000,
+    GrowthRate: -12,
+    CompoundingPeriod: CompoundingFrequency.Monthly,
   },
 ];

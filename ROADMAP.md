@@ -34,10 +34,10 @@ Decisions made up front so phases didn't relitigate them. All are now implemente
 - **D2 — State: React Context + `useReducer`.** ✅ Phase 0 (#50). Two collections + UI state in one reducer; no store library. Revisit (Zustand) only if state grows unwieldy.
 - **D3 — Forecast engine: one pure, date-indexed, scenario-aware module.** ✅ `src/helpers/forecast-helpers.ts` is the _only_ place projections are computed (`forecastLoan`/`forecastInvestment`/`forecastNetWorth`, anchored to today's balances); `loan-helpers`/`investment-helpers` remain the inner math on a common monthly axis.
 - **D4 — Persistence: `localStorage`, opt-in, inputs-only, versioned.** ✅ Phase 1 (#20). Explicit toggle, disabling clears storage, hydration reuses import validation and runs the D8 ladder.
-- **D5 — Versioned export schema.** ✅ v2 in Phase 0 (#41), v3 for scenarios in Phase 4. Import accepts older versions via the D8 ladder.
+- **D5 — Versioned export schema.** ✅ v2 in Phase 0 (#41), v3 for scenarios in Phase 4, v4 for assets in Phase 7. Import accepts older versions via the D8 ladder.
 - **D6 — Keep MUI; modernize deps.** ✅ Phase 0 (#54). No UI-library switch; stack modernized in one pass (MUI 6→9, x-date-pickers 7→9, React 18→19, Vite 5→8), which also unblocked x-charts v9.
 - **D7 — Core math is a boundary-enforced layer, not a separate package (yet).** ✅ ESLint forbids `src/helpers/**` and `src/models/**` from importing `react`/`react-dom`/`@mui/*` or any UI folder — purity is a build failure. Kept the engine worker-safe for the Phase 5 optimizer. _Packaging deferred_ until a **graduation trigger**: a genuine second consumer (CLI, second frontend, or publishing `@pathwise/engine`, Phase 11). The boundary makes the eventual `packages/core` extraction a file move, not a refactor.
-- **D8 — One versioned schema-migration ladder.** ✅ Seeded in Phase 1; first real step (v2→v3, scenarios) in Phase 4. JSON import and `localStorage` hydration both route through a single `schemaVersion`-keyed `migrate(data)` ladder, so every future bump adds exactly one tested migration step.
+- **D8 — One versioned schema-migration ladder.** ✅ Seeded in Phase 1; first real step (v2→v3, scenarios) in Phase 4, second (v3→v4, assets) in Phase 7. JSON import and `localStorage` hydration both route through a single `schemaVersion`-keyed `migrate(data)` ladder, so every future bump adds exactly one tested migration step.
 
 ---
 
@@ -92,15 +92,15 @@ Paid down the UI/test/perf/correctness debt deferred through 1.0: accessibility,
 
 ---
 
-### Phase 7 — Whole Net Worth — _target v1.1_
+### Phase 7 — Whole Net Worth — _v1.1_ — ✅ Complete
 
-Make the net-worth line _true_ by holding everything a person owns. Depends only on 1.0; leans on Phase 6.4 (table scale) and bumps the schema via the D8 ladder.
+Made the net-worth line _true_ by holding everything a person owns. Depends only on 1.0; leans on Phase 6.4 (table scale) and bumped the schema to v4 via the D8 ladder. Delivered through one simple **Asset** model (a balance + an annual growth/decline rate) with an `AssetType` discriminator; ordinary assets add to net worth, custom liabilities subtract. The asset math (`forecastAsset`, `forecastHomeEquity`) is charter-verified and the helpers stay at 100% coverage.
 
-| #   | Work item                            | Notes / acceptance                                                                                                                        |
-| --- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| 7.1 | **Cash accounts (HYSA/CD/checking)** | Trivial model (balance + APY); big completeness win — most net worth includes cash the app can't currently hold. New simple asset type.   |
-| 7.2 | **Property + mortgage pairing**      | Home value + appreciation rate, linked to its mortgage → a **home-equity** series. Makes net worth honest for homeowners. Entity linking. |
-| 7.3 | **Custom asset / liability**         | Catch-all with a simple growth/decline rate (car, private loan, collectibles). Escape hatch so no net worth is blocked on a missing type. |
+| #   | Work item                            | Notes / acceptance                                                                                                                       |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 7.1 | **Cash accounts (HYSA/CD/checking)** | ✅ Simple asset (balance + APY); the biggest completeness win — net worth now holds cash. `AssetType.Cash`.                              |
+| 7.2 | **Property + mortgage pairing**      | ✅ Home value + appreciation rate, linked to its mortgage by `LinkedLoanId` → a **home-equity** figure. Net worth honest for homeowners. |
+| 7.3 | **Custom asset / liability**         | ✅ Catch-all with a simple growth/decline rate (car, private loan, collectibles). Custom liabilities subtract from net worth.            |
 
 ---
 
@@ -168,7 +168,7 @@ Phase 0  Foundations + UX overhaul        ✅ DONE   v0.7.0
                            └── Phase 5  Optimizer ✅ DONE   v1.0.0
 ─────────────────────────────────────────────────────────── 1.0 ───
 Phase 6  Quality & Hardening              v1.0.x   (parallel, anytime)
-Phase 7  Whole Net Worth                  v1.1
+Phase 7  Whole Net Worth                  ✅ DONE   v1.1
 Phase 8  Better Answers                   v1.2
 Phase 9  Honest Uncertainty               v1.3     (needs Phase 7)
 Phase 10 From Calculator to Plan          v1.4

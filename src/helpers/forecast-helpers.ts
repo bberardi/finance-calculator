@@ -1,8 +1,10 @@
 import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { ForecastPoint, ScenarioInput } from '../models/forecast-model';
 import { getMonthlyPayment } from './loan-helpers';
+import { assetNetWorthSign, forecastAsset } from './asset-helpers';
 import {
   generateInvestmentGrowth,
   getContributionForYear,
@@ -301,15 +303,19 @@ export const forecastInvestment = (
   return points;
 };
 
-// Forecast overall net worth (total investment value minus total loan
-// balance) on a shared monthly axis from today to the horizon. Scenario
-// extras are applied to the matching entities by ID.
+// Forecast overall net worth on a shared monthly axis from today to the
+// horizon: total investment value, plus simple assets (cash/property/custom,
+// Phase 7), minus total loan balance and any custom-liability assets. Scenario
+// extras are applied to the matching loans/investments by ID. `assets` is an
+// optional trailing parameter so the many existing call sites keep working
+// unchanged; passive holdings take no scenario extras.
 export const forecastNetWorth = (
   loans: Loan[],
   investments: Investment[],
   horizon: Date,
   scenario?: ScenarioInput,
-  today: Date = new Date()
+  today: Date = new Date(),
+  assets: Asset[] = []
 ): ForecastPoint[] => {
   const months = getMonthsBetween(today, horizon);
   const start = dayjs(today);
@@ -330,11 +336,20 @@ export const forecastNetWorth = (
       today
     )
   );
+  const assetSeries = assets.map((asset) =>
+    forecastAsset(asset, horizon, today)
+  );
 
   const points: ForecastPoint[] = [];
   for (let month = 0; month <= months; month++) {
-    const assets = investmentSeries.reduce(
+    const investmentValue = investmentSeries.reduce(
       (sum, series) => sum + series[month].Value,
+      0
+    );
+    // Ordinary assets add, custom liabilities subtract (assetNetWorthSign).
+    const assetValue = assetSeries.reduce(
+      (sum, series, index) =>
+        sum + assetNetWorthSign(assets[index]) * series[month].Value,
       0
     );
     const debts = loanSeries.reduce(
@@ -343,11 +358,31 @@ export const forecastNetWorth = (
     );
     points.push({
       Date: start.add(month, 'month').toDate(),
-      Value: roundToCents(assets - debts),
+      Value: roundToCents(investmentValue + assetValue - debts),
     });
   }
 
   return points;
+};
+
+// Forecast a property's home equity (Phase 7.2): the linked mortgage's
+// remaining balance subtracted from the property's projected value, month by
+// month on the shared axis. Makes net worth honest for homeowners — the same
+// figure the aggregate net-worth line already reflects, surfaced on its own so
+// the property row can show equity directly. Pure composition of forecastAsset
+// and forecastLoan, both already rounded per point.
+export const forecastHomeEquity = (
+  property: Asset,
+  loan: Loan,
+  horizon: Date,
+  today: Date = new Date()
+): ForecastPoint[] => {
+  const propertySeries = forecastAsset(property, horizon, today);
+  const loanSeries = forecastLoan(loan, horizon, 0, today);
+  return propertySeries.map((point, index) => ({
+    Date: point.Date,
+    Value: roundToCents(point.Value - loanSeries[index].Value),
+  }));
 };
 
 // First date a forecast series reaches zero, or undefined if it never does

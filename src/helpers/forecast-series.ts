@@ -1,11 +1,13 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { ScenarioInput } from '../models/forecast-model';
 import {
   forecastInvestment,
   forecastLoan,
   forecastNetWorth,
 } from './forecast-helpers';
+import { assetNetWorthSign, forecastAsset } from './asset-helpers';
 
 // Chart-ready shaping of the forecast engine (Phase 2). The engine already
 // produces every series on a shared monthly date axis anchored to today; this
@@ -16,7 +18,7 @@ import {
 
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 
-export type ForecastSeriesKind = 'loan' | 'investment' | 'networth';
+export type ForecastSeriesKind = 'loan' | 'investment' | 'asset' | 'networth';
 
 export interface ForecastSeries {
   // Entity Id for loans/investments, or the literal 'networth'.
@@ -38,17 +40,21 @@ export const NET_WORTH_SERIES_ID = 'networth';
 
 /**
  * Build the chart series for the given positions over a horizon. Order is
- * loans, then investments, then the aggregate net-worth line. Loan lines are the
- * remaining balance (declining to 0 at payoff); investment lines are projected
- * value; the net-worth line is Σ investments − Σ loans, computed the same way as
- * `forecastNetWorth` so the chart and any net-worth readout never disagree.
+ * loans, investments, then simple assets (cash/property/custom, Phase 7),
+ * followed by the aggregate net-worth line. Loan lines are the remaining
+ * balance (declining to 0 at payoff); investment and asset lines are projected
+ * value; the net-worth line is Σ investments + Σ assets − Σ loans − Σ liability
+ * assets, computed the same way as `forecastNetWorth` so the chart and any
+ * net-worth readout never disagree. `assets` is an optional trailing parameter
+ * so existing call sites keep working unchanged.
  */
 export const buildForecastChartData = (
   loans: Loan[],
   investments: Investment[],
   horizon: Date,
   scenario?: ScenarioInput,
-  today: Date = new Date()
+  today: Date = new Date(),
+  assets: Asset[] = []
 ): ForecastChartData => {
   const loanForecasts = loans.map((loan) =>
     forecastLoan(
@@ -66,6 +72,9 @@ export const buildForecastChartData = (
       today
     )
   );
+  const assetForecasts = assets.map((asset) =>
+    forecastAsset(asset, horizon, today)
+  );
 
   // A reference series with no entities gives the shared date axis even when
   // there are no positions yet (an empty forecast is still a date-stamped axis).
@@ -73,15 +82,21 @@ export const buildForecastChartData = (
   const dates = reference.map((point) => point.Date);
 
   const netWorthValues = dates.map((_, month) => {
-    const assets = investmentForecasts.reduce(
+    const investmentValue = investmentForecasts.reduce(
       (sum, series) => sum + series[month].Value,
+      0
+    );
+    // Ordinary assets add, custom liabilities subtract (assetNetWorthSign).
+    const assetValue = assetForecasts.reduce(
+      (sum, series, index) =>
+        sum + assetNetWorthSign(assets[index]) * series[month].Value,
       0
     );
     const debts = loanForecasts.reduce(
       (sum, series) => sum + series[month].Value,
       0
     );
-    return roundToCents(assets - debts);
+    return roundToCents(investmentValue + assetValue - debts);
   });
 
   const series: ForecastSeries[] = [
@@ -96,6 +111,12 @@ export const buildForecastChartData = (
       label: investment.Name,
       kind: 'investment' as const,
       values: investmentForecasts[index].map((point) => point.Value),
+    })),
+    ...assets.map((asset, index) => ({
+      id: asset.Id,
+      label: asset.Name,
+      kind: 'asset' as const,
+      values: assetForecasts[index].map((point) => point.Value),
     })),
     {
       id: NET_WORTH_SERIES_ID,

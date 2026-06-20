@@ -4,7 +4,7 @@ import { EXPORT_SCHEMA_VERSION } from './data-helpers';
 
 describe('migrate (D8 migration ladder)', () => {
   it('exposes the current schema version, matching the export schema', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(3);
+    expect(CURRENT_SCHEMA_VERSION).toBe(4);
     expect(CURRENT_SCHEMA_VERSION).toBe(EXPORT_SCHEMA_VERSION);
   });
 
@@ -14,13 +14,16 @@ describe('migrate (D8 migration ladder)', () => {
       loans: [],
       investments: [],
       scenarios: [],
+      assets: [],
     };
     expect(migrate(data)).toBe(data);
   });
 
   it('migrates v2 to v3 by adding an empty scenarios list', () => {
     const migrated = migrate({ schemaVersion: 2, loans: [], investments: [] });
-    expect(migrated.schemaVersion).toBe(3);
+    // The ladder runs every step in turn, so a v2 payload climbs to the current
+    // version (gaining scenarios at v3 and assets at v4 along the way).
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.scenarios).toEqual([]);
   });
 
@@ -28,6 +31,23 @@ describe('migrate (D8 migration ladder)', () => {
     const scenarios = [{ Id: 's1', Name: 'A' }];
     const migrated = migrate({ schemaVersion: 2, scenarios });
     expect(migrated.scenarios).toBe(scenarios);
+  });
+
+  it('migrates v3 to v4 by adding an empty assets list', () => {
+    const migrated = migrate({
+      schemaVersion: 3,
+      loans: [],
+      investments: [],
+      scenarios: [],
+    });
+    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.assets).toEqual([]);
+  });
+
+  it('preserves an assets array already present on a v3 payload', () => {
+    const assets = [{ Id: 'a1', Name: 'Cash' }];
+    const migrated = migrate({ schemaVersion: 3, assets });
+    expect(migrated.assets).toBe(assets);
   });
 
   it('rejects a missing schemaVersion as a legacy v1 file', () => {

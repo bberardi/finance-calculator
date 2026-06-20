@@ -35,10 +35,12 @@ export const usePersistence = (): PersistenceController => {
   const {
     loans,
     investments,
+    assets,
     scenarios,
     sampleDataLoaded,
     stashedLoans,
     stashedInvestments,
+    stashedAssets,
   } = state;
 
   const [enabled, setEnabled] = useState<boolean>(() => isPersistenceEnabled());
@@ -56,6 +58,10 @@ export const usePersistence = (): PersistenceController => {
     () => (sampleDataLoaded ? (stashedInvestments ?? []) : investments),
     [sampleDataLoaded, stashedInvestments, investments]
   );
+  const realAssets = useMemo(
+    () => (sampleDataLoaded ? (stashedAssets ?? []) : assets),
+    [sampleDataLoaded, stashedAssets, assets]
+  );
 
   // Hydrate once on mount when persistence is on. Initial context state is
   // empty, so a merge is effectively a load; the ref makes it run a single time
@@ -69,7 +75,12 @@ export const usePersistence = (): PersistenceController => {
     if (isPersistenceEnabled()) {
       const loaded = loadData();
       if (loaded) {
-        importMerge(loaded.loans, loaded.investments, loaded.scenarios);
+        importMerge(
+          loaded.loans,
+          loaded.investments,
+          loaded.scenarios,
+          loaded.assets
+        );
       }
     }
   }, [importMerge]);
@@ -99,10 +110,19 @@ export const usePersistence = (): PersistenceController => {
       return;
     }
     const handle = setTimeout(() => {
-      reportSaveProblem(saveData(realLoans, realInvestments, scenarios));
+      reportSaveProblem(
+        saveData(realLoans, realInvestments, scenarios, realAssets)
+      );
     }, AUTO_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [enabled, realLoans, realInvestments, scenarios, reportSaveProblem]);
+  }, [
+    enabled,
+    realLoans,
+    realInvestments,
+    scenarios,
+    realAssets,
+    reportSaveProblem,
+  ]);
 
   const toggle = useCallback(() => {
     const next = !enabled;
@@ -110,7 +130,12 @@ export const usePersistence = (): PersistenceController => {
     setPersistenceEnabled(next);
     if (next) {
       // Save immediately on enable so a reload right away still restores data.
-      const status = saveData(realLoans, realInvestments, scenarios);
+      const status = saveData(
+        realLoans,
+        realInvestments,
+        scenarios,
+        realAssets
+      );
       if (status === 'saved') {
         setFeedback({
           severity: 'success',
@@ -127,7 +152,14 @@ export const usePersistence = (): PersistenceController => {
         message: 'Saved data cleared from this device.',
       });
     }
-  }, [enabled, realLoans, realInvestments, scenarios, reportSaveProblem]);
+  }, [
+    enabled,
+    realLoans,
+    realInvestments,
+    scenarios,
+    realAssets,
+    reportSaveProblem,
+  ]);
 
   const clearFeedback = useCallback(() => setFeedback(null), []);
 
