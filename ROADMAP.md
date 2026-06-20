@@ -157,6 +157,74 @@ Take PathWise off the single device without taking on a backend.
 
 ---
 
+### Candidate additions (proposed, unsequenced) — review queue
+
+Suggestions surfaced by a UX/codebase review (June 2026), kept separate from the
+curated phases above until triaged into one. Each passes the §5 non-goal filters
+(serves the core question, works with no backend, isn't budgeting) and is grouped
+by category. Status is **proposed** unless noted.
+
+#### UX & accessibility (extends Phase 6)
+
+- **C1 — Live-region announcements.** Add `aria-live`/`role="alert"` so screen
+  readers hear dynamic results — optimizer re-rank, snackbar undo offers, sort and
+  data-load changes. _Phase 6.1 added labels, landmarks, and a skip link but no
+  announcements, so the app's most dynamic surfaces (optimizer, chart) are silent
+  to assistive tech._
+- **C2 — `prefers-reduced-motion` support.** Gate dialog/alert/chart transitions on
+  the OS "reduce motion" preference. _A WCAG 2.3.3 expectation that's currently
+  unhandled; cheap to add and removes a real discomfort/vestibular trigger._
+- **C3 — Keyboard shortcuts & command palette.** App-level accelerators (add loan,
+  add investment, undo, toggle persistence) and a `Ctrl/Cmd-K` palette, with a
+  discoverable shortcut help sheet. _Navigation today is native tabbing only;
+  shortcuts make the multi-position workflow fast for the power users most likely
+  to track many loans and investments._
+- **C4 — General edit-level undo.** Extend the existing soft-undo (today scoped to
+  delete and import merges) to cover form edits, since saving an edit is currently
+  destructive. _Editing a wrong value over a good one has no recovery path, unlike
+  every other mutation in the app._
+- **C5 — Contextual field help & inline glossary.** Short helper text / info
+  tooltips on inputs (e.g. "Current Value vs. Starting Balance", compounding
+  frequency, step-up) linked to the README glossary. _Reduces input errors and
+  mis-anchored forecasts; complements but is narrower than 10.4 "show the math,"
+  which explains outputs rather than guiding inputs._
+
+#### Internationalization
+
+- **I1 — Locale & multi-currency display.** Make `format-helpers.ts` (today
+  hardcoded to `en-US`/`USD`) honor a user-selected or browser-detected locale and
+  currency symbol, with matching Day.js date locale. _Numbers and dates are the
+  app's entire output; a non-US user can't read their own net worth in their own
+  currency/format today. Pure presentation — no FX conversion or market data, so it
+  stays within the "no real-time market data" non-goal._
+
+#### Data portability & sharing
+
+- **P1 — CSV export of schedules & positions.** Offer CSV alongside JSON for the
+  amortization/growth schedules and the position list. _JSON round-trips the app's
+  own state; CSV lets users take the numbers into the spreadsheets and accountants'
+  tools they already use — serving the "stop doing this by hand in a spreadsheet"
+  ethos in reverse._
+- **P2 — Export the forecast chart as an image (PNG/SVG).** One-click download of
+  the current chart. _A lightweight, immediate version of the 11.3 PDF report — the
+  shareable artifact for a quick financial conversation, with no backend._
+
+#### Forecast honesty (new feature)
+
+- **F1 — Balance check-ins.** A periodic, low-friction prompt to update each
+  position's real current balance (`Loan.CurrentAmount` / `Investment.CurrentValue`),
+  keeping the today-anchor — and therefore every projection and the optimizer —
+  tied to reality over time. _The README already advertises "balance check-ins" as
+  post-1.0 work, but no phase actually defines it (see doc note below); it directly
+  addresses the live `CurrentValue` drift bugs (#110, #125) and is the natural
+  recurring-use loop for an app people return to as their finances change._
+
+> **Doc note:** README.md's roadmap blurb lists "balance check-ins" as sequenced
+> "in the full ROADMAP.md," but no phase currently defines it. Triaging **F1**
+> into a phase (or amending the README) resolves that inconsistency.
+
+---
+
 ## 6. Sequencing at a Glance
 
 ```
