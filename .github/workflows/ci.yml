@@ -49,58 +49,24 @@ jobs:
   e2e:
     name: E2E smoke test
     runs-on: ubuntu-latest
-    # Bound the whole job. A stalled Chromium download once hung the install step
-    # for the full 6-hour default before the runner killed it, leaving the check
-    # "cancelled" and blocking PRs. 20 min is ample for install + one smoke spec,
-    # so a silent CDN stall now fails fast instead of hanging for hours.
-    timeout-minutes: 20
+    # Run inside Playwright's official image, which ships the browsers (and their
+    # OS deps) pre-installed at /ms-playwright. This sidesteps `playwright
+    # install` entirely — that step hung deterministically on this runner,
+    # downloading Chromium to 100% and then stalling in extraction until killed.
+    # The tag MUST track the @playwright/test version in package.json (1.56.1);
+    # bump both together so the bundled browser matches the installed client.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    # Safety net so a hung dev server / browser can't sit at the 6-hour default.
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-
       - name: Install dependencies
+        # The image provides Node + npm; no setup-node (it would override the
+        # image's toolchain) and no browser download (already present).
         run: npm ci
-
-      - name: Resolve Playwright version
-        id: playwright
-        # Key the browser cache on the exact Playwright version so a dependency
-        # bump re-provisions the matching browser instead of reusing a stale one.
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browser
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
-
-      - name: Install Playwright system dependencies
-        # The apt-installed libraries/fonts live outside the cached browser dir,
-        # so install them every run (fast, and required for Chromium to launch).
-        run: npx playwright install-deps chromium
-
-      - name: Install Playwright browser
-        # Only download Chromium on a cache miss. Wrap each attempt in a hard
-        # `timeout` and retry: a silent CDN stall after the download (no progress,
-        # no error) is exactly what hung this job for 6 hours, so abort a stalled
-        # attempt and retry rather than waiting indefinitely.
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          for attempt in 1 2 3; do
-            echo "Playwright browser install attempt $attempt of 3"
-            if timeout 300 npx playwright install chromium; then
-              exit 0
-            fi
-            echo "Attempt $attempt stalled or failed; retrying..." >&2
-          done
-          echo "Playwright browser install failed after 3 attempts" >&2
-          exit 1
 
       - name: E2E smoke test (roadmap 6.2)
         # Playwright boots the Vite dev server itself (see playwright.config.ts)
