@@ -40,7 +40,14 @@ export default defineConfig({
     // Keep the default ignores and also skip generated dirs — notably the
     // Stryker sandbox, whose copied *.test.ts files would otherwise be
     // discovered and double-counted during a local mutation run.
-    exclude: [...configDefaults.exclude, '**/.stryker-tmp/**', 'coverage/**'],
+    exclude: [
+      ...configDefaults.exclude,
+      '**/.stryker-tmp/**',
+      'coverage/**',
+      // Playwright owns the e2e specs (it imports its own `test`); keep Vitest
+      // from discovering them via the default `*.spec.ts` glob.
+      'e2e/**',
+    ],
     coverage: {
       // Math Correctness Charter §4 enforcement: the math core is held to a
       // hard 100% line+branch gate (UI gets pragmatic targets in Phase 6). The

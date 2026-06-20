@@ -16,10 +16,12 @@ Post-1.0 **Phase 6 — Quality & Hardening** work and bug fixes, on top of 1.0.0
 - **Accessibility (6.1):** `aria-label`s on the table/card action icon buttons, a
   skip-to-content link, and `header` / `main` landmarks for keyboard and
   screen-reader navigation.
-- **UI test foundation (6.2):** React Testing Library + jsdom component tests for
+- **UI test coverage (6.2):** React Testing Library + jsdom component tests for
   the loan/investment tables, the add/edit forms, and the DataManager import
-  preview/undo flow, running alongside the math suite in Vitest (the 100% line+
-  branch coverage gate stays scoped to the math core).
+  preview/undo flow, plus a Playwright end-to-end smoke test that drives the full
+  add-positions → optimize → view-as-scenario path in a real browser (run as a CI
+  job). The component suite runs alongside the math suite in Vitest; the 100%
+  line+branch coverage gate stays scoped to the math core.
 - **DataManager safety (6.3):** a pre-merge "what changed" preview listing which
   loans, investments, and scenarios an import will _add_ vs. _overwrite_, plus a
   soft-undo that restores the exact pre-merge data. (#107)

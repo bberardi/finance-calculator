@@ -86,13 +86,9 @@ Declared once, up front, so future feature debates have a reference point. Every
 
 ---
 
-### Phase 6 — Quality & Hardening — _target v1.0.x (patch releases, parallelizable)_
+### Phase 6 — Quality & Hardening — _v1.0.x_ — ✅ Complete
 
-Pay down the UI/test/perf/correctness debt deferred through 1.0. Items are independent and slot in anywhere alongside the feature phases, but are grouped here so the phase has a defined "done."
-
-| #   | Work item                                                                                                                                                                          | Notes / acceptance                                                                                                                                                                                                     |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.2 | **UI test coverage**: component tests (React Testing Library + jsdom) for forms / tables / DataManager; a Playwright smoke test (add positions → run optimizer → view as scenario) | Component tests shipped — see the [CHANGELOG](./CHANGELOG.md). The Playwright smoke test is the one piece left, deferred only because the sandbox can’t reach `cdn.playwright.dev` to fetch a browser; it lands in CI. |
+Paid down the UI/test/perf/correctness debt deferred through 1.0: accessibility, UI test coverage (RTL + jsdom component tests _and_ a Playwright end-to-end smoke test), a CI performance budget, discoverability/SEO, and repo hygiene. Per-item detail lives in the [CHANGELOG](./CHANGELOG.md).
 
 ---
 
