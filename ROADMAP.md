@@ -1,6 +1,6 @@
 # PathWise Roadmap
 
-> **BLUF**: PathWise forecasts net worth from multiple loans and investments to answer one question most calculators can't: _"Where should my extra money go?"_ As of **v1.0.0** that question is answered — this roadmap now sequences what comes after.
+> **BLUF**: PathWise forecasts net worth from all your loans, investments, and assets to answer one question most calculators can't: _"Where should my extra money go?"_ That question was answered at **v1.0.0** — this roadmap now sequences what comes after.
 
 ---
 
@@ -8,21 +8,15 @@
 
 **The gap PathWise fills**: Free calculators handle one loan _or_ one investment at a time. Real decisions ("put $300/mo toward the mortgage, the car loan, or the brokerage account?") require seeing all positions together and comparing what-ifs across them.
 
-**The destination — reached at v1.0.0** (in priority order):
+**The destination — reached at v1.0.0, extended through v1.1**: PathWise already shows all of someone's loans, investments, and assets in one place, persists that data on-device, visualizes every position and overall net worth over time, overlays what-if scenarios on those projections, and — the founding question — ranks where an extra $X/month does the most good. The per-release record of how it got here is in the [CHANGELOG](./CHANGELOG.md).
 
-1. See all loans and investments in one place — _done_
-2. Persist data so it survives a refresh — _done (Phase 1, #20)_
-3. Visualize every position and overall net worth over time — _done (Phase 2, #18)_
-4. Overlay what-if scenarios on those projections — _done (Phase 4, #24)_
-5. **Answer the money question directly**: given $X extra per month, rank allocations — single targets _and_ splits across loans/investments — by long-term net-worth impact — _done (Phase 5, v1.0.0 — the original reason this app exists)_
-
-Everything past this point (Phases 6–11) is post-1.0 expansion, sequenced but revisitable.
+Everything past this point (Phases 8–11) is forward-looking expansion, sequenced but revisitable.
 
 ---
 
-## 2. Current State (June 2026, v1.0.0 — Phases 0–5 complete)
+## 2. Current State (v1.1 — Phases 0–7 shipped)
 
-PathWise is feature-complete against its founding vision (v1.0.0). The shipped, per-release history now lives in [CHANGELOG.md](./CHANGELOG.md), and the current feature list in [README.md](./README.md); what follows is the forward-looking plan.
+PathWise is feature-complete against its founding vision (v1.0.0) and now holds a whole-balance-sheet net worth (v1.1, Phase 7). The shipped, per-release history lives in [CHANGELOG.md](./CHANGELOG.md), and the current feature list in [README.md](./README.md); what follows is the forward-looking plan.
 
 ---
 
@@ -67,40 +61,16 @@ Each layer catches a class of error the others miss; all five are required for t
 
 ## 5. Phased Roadmap
 
-### Phases 0–5 — ✅ COMPLETE (shipped, v0.7.0 → v1.0.0)
-
-The founding vision is fully shipped (v0.7.0 → v1.0.0). The per-release record now lives in [CHANGELOG.md](./CHANGELOG.md); detailed acceptance criteria live in the merged PRs.
-
-Open math-quality follow-ups surfaced by this work are folded into **Phase 6** (items 6.9–6.10).
-
----
+Everything shipped through **v1.1 (Phase 7)** now lives in the [CHANGELOG](./CHANGELOG.md) — this section tracks only what is still planned. Phases keep their original numbers for continuity with the shipped history.
 
 ### Non-goals (identity guardrails for all phases below)
 
-Declared once, up front, so future feature debates have a reference point. Every Phase 6–11 item passes three filters: it serves the core question (forecasting net worth and deciding where money goes), it works with no backend (client-side, data stays on device), and it doesn't turn PathWise into a budgeting app.
+Declared once, up front, so future feature debates have a reference point. Every Phase 8–11 item passes three filters: it serves the core question (forecasting net worth and deciding where money goes), it works with no backend (client-side, data stays on device), and it doesn't turn PathWise into a budgeting app.
 
 - **No transaction/expense tracking, categorization, or budgets** — the BLUF says not a budgeting app; this is the line.
 - **No bank account linking** (Plaid etc.) — requires a backend and credentials; would destroy the privacy story.
 - **No real-time market data** — PathWise models average rates, not tickers; keeps results deterministic and avoids API keys. (The exploratory holdings/property context item in Phase 9 stays within this line: any news feed is user-supplied and opt-in, stored on device, never hosted by PathWise.)
 - **No tax advice** — computing someone's tax return is out of scope.
-
----
-
-### Phase 6 — Quality & Hardening — _v1.0.x_ — ✅ Complete
-
-Paid down the UI/test/perf/correctness debt deferred through 1.0: accessibility, UI test coverage (RTL + jsdom component tests _and_ a Playwright end-to-end smoke test), a CI performance budget, discoverability/SEO, and repo hygiene. Per-item detail lives in the [CHANGELOG](./CHANGELOG.md).
-
----
-
-### Phase 7 — Whole Net Worth — _v1.1_ — ✅ Complete
-
-Made the net-worth line _true_ by holding everything a person owns. Depends only on 1.0; leans on Phase 6.4 (table scale) and bumped the schema to v4 via the D8 ladder. Delivered through one simple **Asset** model (a balance + an annual growth/decline rate) with an `AssetType` discriminator; ordinary assets add to net worth, custom liabilities subtract. The asset math (`forecastAsset`, `forecastHomeEquity`) is charter-verified and the helpers stay at 100% coverage.
-
-| #   | Work item                            | Notes / acceptance                                                                                                                       |
-| --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 7.1 | **Cash accounts (HYSA/CD/checking)** | ✅ Simple asset (balance + APY); the biggest completeness win — net worth now holds cash. `AssetType.Cash`.                              |
-| 7.2 | **Property + mortgage pairing**      | ✅ Home value + appreciation rate, linked to its mortgage by `LinkedLoanId` → a **home-equity** figure. Net worth honest for homeowners. |
-| 7.3 | **Custom asset / liability**         | ✅ Catch-all with a simple growth/decline rate (car, private loan, collectibles). Custom liabilities subtract from net worth.            |
 
 ---
 
@@ -120,14 +90,14 @@ Sharpen the optimizer with the inputs that most change its rankings, and let use
 
 ### Phase 9 — Honest Uncertainty — _target v1.3_
 
-Stop overstating certainty on long horizons, and model the growth/decline of what Phase 7 added. Depends on Phase 7 (property) for 9.3–9.4.
+Stop overstating certainty on long horizons, and model the growth/decline of the assets Phase 7 added (shipped v1.1); 9.3–9.4 build on that property model.
 
-| #   | Work item                                                                  | Notes / acceptance                                                                                                                                                  |
-| --- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9.1 | **Monte Carlo mode**                                                       | Replace the single average-return line with volatility-driven percentile bands (fan chart). Runs in a Web Worker; seeded/reproducible. Biggest credibility upgrade. |
-| 9.2 | **Inflation toggle**                                                       | Real vs. nominal view of every chart and milestone. Engine post-processing.                                                                                         |
-| 9.3 | **Asset appreciation & enhancement** _(needs 7.2)_                         | Model an existing asset appreciating or being enhanced (add a pool/deck, renovation ROI); answers "is this improvement worth it?"                                   |
-| 9.4 | **Holdings & property context (news/research)** _(needs 7.2, exploratory)_ | User-supplied feed for investment-holding research **and area real-estate news**. Zero-backend: user pastes an RSS/news URL or their own API key, stored on device. |
+| #   | Work item                                                                      | Notes / acceptance                                                                                                                                                  |
+| --- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 9.1 | **Monte Carlo mode**                                                           | Replace the single average-return line with volatility-driven percentile bands (fan chart). Runs in a Web Worker; seeded/reproducible. Biggest credibility upgrade. |
+| 9.2 | **Inflation toggle**                                                           | Real vs. nominal view of every chart and milestone. Engine post-processing.                                                                                         |
+| 9.3 | **Asset appreciation & enhancement** _(builds on 7.2, shipped v1.1)_           | Model an existing asset appreciating or being enhanced (add a pool/deck, renovation ROI); answers "is this improvement worth it?"                                   |
+| 9.4 | **Holdings & property context (news/research)** _(builds on 7.2; exploratory)_ | User-supplied feed for investment-holding research **and area real-estate news**. Zero-backend: user pastes an RSS/news URL or their own API key, stored on device. |
 
 ---
 
@@ -159,23 +129,16 @@ Take PathWise off the single device without taking on a backend.
 
 ## 6. Sequencing at a Glance
 
+Phases 0–7 have shipped (v0.7.0 → v1.1); the per-release record is in the [CHANGELOG](./CHANGELOG.md). What remains:
+
 ```
-Phase 0  Foundations + UX overhaul        ✅ DONE   v0.7.0
-   ├── Phase 1  Persistence (#20)         ✅ DONE   v0.8.0
-   └── Phase 2  Charts (#18)              ✅ DONE   v0.9.0
-           └── Phase 3  Dashboard         ✅ DONE   v0.10.0
-                   └── Phase 4  Scenarios (#24)   ✅ DONE   v0.11.0
-                           └── Phase 5  Optimizer ✅ DONE   v1.0.0
-─────────────────────────────────────────────────────────── 1.0 ───
-Phase 6  Quality & Hardening              v1.0.x   (parallel, anytime)
-Phase 7  Whole Net Worth                  ✅ DONE   v1.1
 Phase 8  Better Answers                   v1.2
-Phase 9  Honest Uncertainty               v1.3     (needs Phase 7)
+Phase 9  Honest Uncertainty               v1.3   (builds on the Phase 7 property model)
 Phase 10 From Calculator to Plan          v1.4
 Phase 11 Beyond Personal                  v2.0
 ```
 
-Rationale for the order: completeness first (so the net-worth line is true), then answer quality, then statistical honesty, then planning, then distribution. Phase 6 runs in parallel as capacity allows.
+Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution.
 
 ---
 
