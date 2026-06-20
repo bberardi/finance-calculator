@@ -91,8 +91,8 @@ const DELETE_UNDO_DURATION_MS = 6000;
 // A bulk delete removes many rows at once, so give the undo a little longer.
 const BULK_DELETE_UNDO_DURATION_MS = 8000;
 
-// Command-bar primary actions ("Add Loan" / "Add Investment"): solid white
-// buttons with deep brand-green text. Styled explicitly rather than via
+// Command-bar primary actions ("Add Loan" / "Add Investment" / "Add Asset"):
+// solid white buttons with deep brand-green text. Styled explicitly rather than via
 // `color="inherit"` — a contained inherit button takes its TEXT color from the
 // AppBar (white) but its background from `grey[300]`, rendering white-on-light-
 // grey and unreadable in light mode. White surface + green text stays
@@ -422,6 +422,7 @@ export const Body = () => {
           <OnboardingEmptyState
             onAddLoan={() => onLoanAddEdit()}
             onAddInvestment={() => onInvestmentAddEdit()}
+            onAddAsset={() => onAssetAddEdit()}
             onLoadSampleData={onLoadSampleData}
           />
         </Paper>
