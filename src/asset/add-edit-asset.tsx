@@ -33,6 +33,9 @@ const COMPOUNDING_LABELS: Record<CompoundingFrequency, string> = {
   [CompoundingFrequency.Annually]: 'Annually',
 };
 
+// Every type, the default when an entry point doesn't constrain the selector.
+const ALL_ASSET_TYPES: AssetType[] = Object.values(AssetType);
+
 // The rate label tracks the asset type so the field reads naturally: an APY for
 // cash, an appreciation rate for property, a growth/decline rate otherwise.
 const rateLabel = (type: AssetType): string => {
@@ -46,7 +49,15 @@ const rateLabel = (type: AssetType): string => {
   }
 };
 
+// Shared form for every simple holding (Phase 7). The owning "Add Asset" /
+// "Add Liability" entry point decides which AssetType options the selector
+// offers (`allowedTypes`) and which type a new entity starts as (`initialType`);
+// a custom liability flows through here too, so the copy (title, balance label,
+// buttons) adapts to whether the current type is a liability.
 export const AddEditAsset = (props: AddEditAssetProps) => {
+  const allowedTypes = props.allowedTypes ?? ALL_ASSET_TYPES;
+  const seedType = props.initialType ?? allowedTypes[0] ?? AssetType.Cash;
+
   const [newAsset, setNewAsset] = useState<Asset>(emptyAsset);
 
   const validation = useMemo(() => validateAsset(newAsset), [newAsset]);
@@ -62,9 +73,11 @@ export const AddEditAsset = (props: AddEditAssetProps) => {
   } = useFieldTracking(validation);
 
   useEffect(() => {
-    setNewAsset(props.asset ?? emptyAsset);
+    // Edit reuses the passed entity; add seeds an empty entity of the type the
+    // entry point chose, so the form opens already on (say) "Custom liability".
+    setNewAsset(props.asset ?? { ...emptyAsset, AssetType: seedType });
     resetTracking();
-  }, [props.asset, props.open, resetTracking]);
+  }, [props.asset, props.open, seedType, resetTracking]);
 
   const onSave = () => {
     if (!isFormValid()) {
@@ -83,36 +96,42 @@ export const AddEditAsset = (props: AddEditAssetProps) => {
   };
 
   const isProperty = newAsset.AssetType === AssetType.Property;
+  const isLiability = newAsset.AssetType === AssetType.CustomLiability;
+  const noun = isLiability ? 'liability' : 'asset';
 
   return (
     <ResponsiveDialog open={props.open} onClose={props.onClose}>
       <DialogTitle sx={{ textAlign: 'center' }}>
-        {!props.asset ? 'Add new asset' : 'Edit asset'}
+        {!props.asset ? `Add new ${noun}` : `Edit ${noun}`}
       </DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          <TextField
-            select
-            label="Type"
-            value={newAsset.AssetType}
-            onChange={(e) =>
-              setNewAsset({
-                ...newAsset,
-                AssetType: e.target.value as AssetType,
-                // Dropping out of Property clears a now-meaningless link.
-                LinkedLoanId:
-                  (e.target.value as AssetType) === AssetType.Property
-                    ? newAsset.LinkedLoanId
-                    : undefined,
-              })
-            }
-          >
-            {Object.values(AssetType).map((type) => (
-              <MenuItem key={type} value={type}>
-                {ASSET_TYPE_LABELS[type]}
-              </MenuItem>
-            ))}
-          </TextField>
+          {/* The entry point's type selector. Hidden when it would offer a single
+              option (the type is fixed, e.g. a custom liability). */}
+          {allowedTypes.length > 1 && (
+            <TextField
+              select
+              label="Type"
+              value={newAsset.AssetType}
+              onChange={(e) =>
+                setNewAsset({
+                  ...newAsset,
+                  AssetType: e.target.value as AssetType,
+                  // Dropping out of Property clears a now-meaningless link.
+                  LinkedLoanId:
+                    (e.target.value as AssetType) === AssetType.Property
+                      ? newAsset.LinkedLoanId
+                      : undefined,
+                })
+              }
+            >
+              {allowedTypes.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {ASSET_TYPE_LABELS[type]}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField
             label="Name"
             value={newAsset.Name}
@@ -137,7 +156,7 @@ export const AddEditAsset = (props: AddEditAssetProps) => {
             required
           />
           <NumericFormat
-            label="Current Balance / Value"
+            label={isLiability ? 'Amount owed' : 'Current Balance / Value'}
             value={newAsset.Balance}
             thousandSeparator
             decimalScale={2}
@@ -233,7 +252,7 @@ export const AddEditAsset = (props: AddEditAssetProps) => {
           onClick={onSave}
           disabled={!isFormValid()}
         >
-          {!props.asset ? 'Add asset' : 'Save asset'}
+          {!props.asset ? `Add ${noun}` : `Save ${noun}`}
         </Button>
       </DialogActions>
     </ResponsiveDialog>
@@ -247,4 +266,10 @@ export interface AddEditAssetProps {
   asset?: Asset;
   // Loans available to pair with a property (7.2 entity linking).
   loans: Loan[];
+  // The AssetType options the in-dialog selector offers. When only one type is
+  // allowed the selector is hidden (the type is fixed by the entry point, e.g. a
+  // custom liability). Defaults to every type.
+  allowedTypes?: AssetType[];
+  // The type a brand-new (add-mode) entity starts as; ignored when editing.
+  initialType?: AssetType;
 }

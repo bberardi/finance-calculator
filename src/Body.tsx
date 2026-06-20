@@ -5,17 +5,20 @@ import {
   Button,
   Container,
   Divider,
+  Menu,
+  MenuItem,
   Paper,
   Skeleton,
   Snackbar,
   Toolbar,
 } from '@mui/material';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { lazy, Suspense, useState } from 'react';
 import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
-import { Asset } from './models/asset-model';
+import { Asset, AssetType } from './models/asset-model';
 import { AssetTable } from './asset/asset-table';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
@@ -91,7 +94,16 @@ const DELETE_UNDO_DURATION_MS = 6000;
 // A bulk delete removes many rows at once, so give the undo a little longer.
 const BULK_DELETE_UNDO_DURATION_MS = 8000;
 
-// Command-bar primary actions ("Add Loan" / "Add Investment" / "Add Asset"):
+// The non-liability asset types: the group the "Add Asset" entry point and an
+// asset (non-liability) edit offer in the in-dialog type selector.
+const ASSET_TYPE_GROUP: AssetType[] = [
+  AssetType.Cash,
+  AssetType.Property,
+  AssetType.CustomAsset,
+];
+
+// Command-bar primary actions: two menu buttons, "Add Asset" (Investment / Cash
+// / Property / Custom asset) and "Add Liability" (Loan / Custom liability) —
 // solid white buttons with deep brand-green text. Styled explicitly rather than via
 // `color="inherit"` — a contained inherit button takes its TEXT color from the
 // AppBar (white) but its background from `grey[300]`, rendering white-on-light-
@@ -141,6 +153,18 @@ export const Body = () => {
   const [editLoan, setEditLoan] = useState<Loan>();
   const [editInvestment, setEditInvestment] = useState<Investment>();
   const [editAsset, setEditAsset] = useState<Asset>();
+  // Which AssetType options the asset/liability dialog offers, and the type a new
+  // entity seeds with — set by the entry point that opened it.
+  const [assetAllowedTypes, setAssetAllowedTypes] =
+    useState<AssetType[]>(ASSET_TYPE_GROUP);
+  const [assetInitialType, setAssetInitialType] = useState<AssetType>();
+
+  // Anchors for the two command-bar (and onboarding) "Add" type menus.
+  const [assetMenuAnchor, setAssetMenuAnchor] = useState<null | HTMLElement>(
+    null
+  );
+  const [liabilityMenuAnchor, setLiabilityMenuAnchor] =
+    useState<null | HTMLElement>(null);
 
   // Delete confirmation + soft-undo state (roadmap 0.7).
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>();
@@ -216,9 +240,49 @@ export const Body = () => {
       Name: `${investment.Name} (copy)`,
     });
 
+  // Edit an existing asset/liability from its table row. The allowed-type group
+  // is derived from the entity so a liability can't be retyped into an asset (or
+  // vice versa) mid-edit.
   const onAssetAddEdit = (asset?: Asset) => {
     setEditAsset(asset);
+    setAssetInitialType(undefined);
+    setAssetAllowedTypes(
+      asset?.AssetType === AssetType.CustomLiability
+        ? [AssetType.CustomLiability]
+        : ASSET_TYPE_GROUP
+    );
     setIsAddAssetOpen(true);
+  };
+
+  // Add a new asset/liability of a chosen type (from a command-bar/onboarding
+  // menu). `allowedTypes` keeps the in-dialog selector to the right group.
+  const openAddAsset = (initialType: AssetType, allowedTypes: AssetType[]) => {
+    setEditAsset(undefined);
+    setAssetInitialType(initialType);
+    setAssetAllowedTypes(allowedTypes);
+    setIsAddAssetOpen(true);
+  };
+
+  // "Add Asset" menu: an investment opens its own rich form; the simple holdings
+  // open the shared asset form on the picked type.
+  const onAddAssetType = (type: 'investment' | AssetType) => {
+    setAssetMenuAnchor(null);
+    if (type === 'investment') {
+      onInvestmentAddEdit();
+    } else {
+      openAddAsset(type, ASSET_TYPE_GROUP);
+    }
+  };
+
+  // "Add Liability" menu: a loan opens its own form; a custom liability opens the
+  // shared asset form locked to the liability type.
+  const onAddLiabilityType = (type: 'loan' | AssetType) => {
+    setLiabilityMenuAnchor(null);
+    if (type === 'loan') {
+      onLoanAddEdit();
+    } else {
+      openAddAsset(AssetType.CustomLiability, [AssetType.CustomLiability]);
+    }
   };
 
   const onAssetAddEditClose = () => {
@@ -372,29 +436,60 @@ export const Body = () => {
           <Button
             variant="contained"
             sx={addActionSx}
-            onClick={() => onLoanAddEdit()}
-          >
-            Add Loan
-          </Button>
-          <Button
-            variant="contained"
-            sx={addActionSx}
-            onClick={() => onInvestmentAddEdit()}
-          >
-            Add Investment
-          </Button>
-          <Button
-            variant="contained"
-            sx={addActionSx}
-            onClick={() => onAssetAddEdit()}
+            endIcon={<ArrowDropDownIcon />}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(assetMenuAnchor)}
+            onClick={(e) => setAssetMenuAnchor(e.currentTarget)}
           >
             Add Asset
+          </Button>
+          <Button
+            variant="contained"
+            sx={addActionSx}
+            endIcon={<ArrowDropDownIcon />}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(liabilityMenuAnchor)}
+            onClick={(e) => setLiabilityMenuAnchor(e.currentTarget)}
+          >
+            Add Liability
           </Button>
           <DataManager />
           <PersistenceToggle />
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
+
+      {/* Type selectors for the two "Add" entry points (roadmap 7). The single
+          anchor state per menu means the command bar and the onboarding CTAs can
+          both open the same menu, anchored to whichever button was clicked. */}
+      <Menu
+        anchorEl={assetMenuAnchor}
+        open={Boolean(assetMenuAnchor)}
+        onClose={() => setAssetMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => onAddAssetType('investment')}>
+          Investment
+        </MenuItem>
+        <MenuItem onClick={() => onAddAssetType(AssetType.Cash)}>
+          Cash (HYSA / CD / checking)
+        </MenuItem>
+        <MenuItem onClick={() => onAddAssetType(AssetType.Property)}>
+          Property
+        </MenuItem>
+        <MenuItem onClick={() => onAddAssetType(AssetType.CustomAsset)}>
+          Custom asset
+        </MenuItem>
+      </Menu>
+      <Menu
+        anchorEl={liabilityMenuAnchor}
+        open={Boolean(liabilityMenuAnchor)}
+        onClose={() => setLiabilityMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => onAddLiabilityType('loan')}>Loan</MenuItem>
+        <MenuItem onClick={() => onAddLiabilityType(AssetType.CustomLiability)}>
+          Custom liability
+        </MenuItem>
+      </Menu>
 
       {/* First-visit privacy notice (roadmap 1.3): shown once, explains data
           stays on-device and points at the "Save on this device" toggle. */}
@@ -420,9 +515,8 @@ export const Body = () => {
       {allEmpty ? (
         <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
           <OnboardingEmptyState
-            onAddLoan={() => onLoanAddEdit()}
-            onAddInvestment={() => onInvestmentAddEdit()}
-            onAddAsset={() => onAssetAddEdit()}
+            onAddAsset={(e) => setAssetMenuAnchor(e.currentTarget)}
+            onAddLiability={(e) => setLiabilityMenuAnchor(e.currentTarget)}
             onLoadSampleData={onLoadSampleData}
           />
         </Paper>
@@ -585,6 +679,8 @@ export const Body = () => {
             onClose={onAssetAddEditClose}
             asset={editAsset}
             loans={loans}
+            allowedTypes={assetAllowedTypes}
+            initialType={assetInitialType}
           />
         )}
       </Suspense>

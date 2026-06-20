@@ -32,6 +32,9 @@ an `AssetType` discriminator covering all three Phase 7 items.
   the dashboard summary cards and milestones, the optimizer-adjacent dashboard,
   JSON import/export, and on-device persistence — with an Assets table and
   add/edit dialog in the UI.
+- **Two consolidated entry points** in the command bar (and onboarding): **Add
+  Asset** (Investment · Cash · Property · Custom asset) and **Add Liability**
+  (Loan · Custom liability), each a type menu that opens the matching form.
 - Export **schema v4** (the next D8 migration rung): a v3 file gains an empty
   `assets` list on import; older files keep migrating forward.
 
