@@ -19,6 +19,7 @@ import {
   Investment,
   StepUpType,
 } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 
 export interface ValidationResult<TField extends string> {
   errors: Partial<Record<TField, string>>;
@@ -260,3 +261,49 @@ export const validateInvestment = (
 
 export const isInvestmentValid = (investment: Investment): boolean =>
   Object.keys(validateInvestment(investment).errors).length === 0;
+
+// A growth/decline rate beyond this magnitude (in %/yr) is almost always a
+// data-entry slip for any of the asset types Phase 7 covers: a HYSA APY, a
+// home's appreciation, or a custom asset's drift. Warn (don't block) — a value
+// this large is type-valid and still forecasts.
+export const ASSET_GROWTH_WARNING_THRESHOLD = 25;
+
+export type AssetField = 'Name' | 'Provider' | 'Balance' | 'GrowthRate';
+
+export const validateAsset = (asset: Asset): ValidationResult<AssetField> => {
+  const errors: Partial<Record<AssetField, string>> = {};
+  const warnings: Partial<Record<AssetField, string>> = {};
+  const formErrors: string[] = [];
+
+  // --- Blocking errors ---
+  if (asset.Name.trim() === '') {
+    errors.Name = 'Name is required.';
+  }
+  if (asset.Provider.trim() === '') {
+    errors.Provider = 'Provider is required.';
+  }
+  // Balance is the current value (a liability's debt is stored positive too), so
+  // it must be non-negative — mirrors the JSON import boundary (data-helpers,
+  // >= 0) so a saved asset round-trips through export/import.
+  if (!(asset.Balance >= 0)) {
+    errors.Balance = 'Balance cannot be negative.';
+  }
+  // GrowthRate may be negative (a depreciating asset), so the only error is a
+  // non-finite value (NaN/Infinity), which the import boundary also rejects.
+  if (!Number.isFinite(asset.GrowthRate)) {
+    errors.GrowthRate = 'Growth rate must be a number.';
+  }
+
+  // --- Non-blocking sanity warnings ---
+  if (
+    Number.isFinite(asset.GrowthRate) &&
+    Math.abs(asset.GrowthRate) > ASSET_GROWTH_WARNING_THRESHOLD
+  ) {
+    warnings.GrowthRate = `A rate beyond ±${ASSET_GROWTH_WARNING_THRESHOLD}%/yr is unusual — double-check the value.`;
+  }
+
+  return { errors, warnings, formErrors };
+};
+
+export const isAssetValid = (asset: Asset): boolean =>
+  Object.keys(validateAsset(asset).errors).length === 0;

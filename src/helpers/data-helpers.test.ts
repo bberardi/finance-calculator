@@ -1137,7 +1137,7 @@ describe('scenario import/export (schema v3)', () => {
       },
     ];
     const json = exportToJson([], [], scenarios);
-    expect(JSON.parse(json).schemaVersion).toBe(3);
+    expect(JSON.parse(json).schemaVersion).toBe(4);
     expect(importFromJson(json).scenarios).toEqual(scenarios);
   });
 

@@ -4,12 +4,14 @@ import {
   CompoundingFrequency,
   StepUpType,
 } from '../models/investment-model';
+import { Asset, AssetType } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { CURRENT_SCHEMA_VERSION, RawData, migrate } from './migrate-helpers';
 import packageJson from '../../package.json';
 
-// Schema v3 (Phase 4.5): inputs only — loans, investments, and named scenarios.
-// v2 files (no scenarios) import forward via the D8 migration ladder; v1 and
+// Schema v4 (Phase 7): inputs only — loans, investments, named scenarios, and
+// simple assets (cash/property/custom). Older files import forward via the D8
+// migration ladder (v2 gains scenarios, v3 gains assets); v1 and
 // newer-than-current versions are rejected there.
 export const EXPORT_SCHEMA_VERSION = CURRENT_SCHEMA_VERSION;
 
@@ -23,11 +25,15 @@ export interface SerializedInvestment extends Omit<Investment, 'StartDate'> {
   StartDate: string;
 }
 
+// Assets carry no Date fields, so they serialize one-to-one.
+export type SerializedAsset = Asset;
+
 export interface ExportData {
   schemaVersion: number;
   loans: SerializedLoan[];
   investments: SerializedInvestment[];
   scenarios: Scenario[];
+  assets: SerializedAsset[];
   exportDate: string;
   version: string;
 }
@@ -132,6 +138,9 @@ const VALID_COMPOUNDING_FREQUENCIES: string[] =
 /** Valid StepUpType values derived from the enum */
 const VALID_STEP_UP_TYPES: string[] = Object.values(StepUpType);
 
+/** Valid AssetType values derived from the enum */
+const VALID_ASSET_TYPES: string[] = Object.values(AssetType);
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -202,13 +211,109 @@ const parseScenarios = (value: unknown): Scenario[] => {
 };
 
 /**
- * Serialize loans, investments, and scenarios to a JSON string (schema v3,
- * inputs only). Converts Date objects to ISO strings for JSON compatibility.
+ * Validate and normalize the assets array (schema v4, Phase 7). A missing array
+ * imports as no assets; malformed entries throw, matching the strictness of
+ * loan/investment validation. Picks fields explicitly so unknown properties are
+ * dropped at the import boundary.
+ */
+const parseAssets = (value: unknown): Asset[] => {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error('Invalid data format: assets must be an array.');
+  }
+  return value.map((raw, index) => {
+    if (!isPlainObject(raw)) {
+      throw new Error(`Invalid asset at index ${index}: expected an object.`);
+    }
+    if (!isValidId(raw.Id as string | undefined)) {
+      throw new Error(
+        `Invalid or missing ID in asset at index ${index}. All items must have a non-empty ID.`
+      );
+    }
+    if (typeof raw.Provider !== 'string' || raw.Provider.trim() === '') {
+      throw new Error(
+        `Required field 'Provider' cannot be empty in asset at index ${index}.`
+      );
+    }
+    if (typeof raw.Name !== 'string' || raw.Name.trim() === '') {
+      throw new Error(
+        `Required field 'Name' cannot be empty in asset at index ${index}.`
+      );
+    }
+    if (!VALID_ASSET_TYPES.includes(raw.AssetType as string)) {
+      throw new Error(
+        `Invalid value for 'AssetType' in asset at index ${index}: expected one of ${VALID_ASSET_TYPES.join(
+          ', '
+        )}, got ${JSON.stringify(raw.AssetType)}.`
+      );
+    }
+    // Balance must be a non-negative finite number (a liability's debt is still
+    // stored as a positive balance).
+    validateNumericField(
+      raw.Balance,
+      'Balance',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
+    // GrowthRate must be finite but MAY be negative (a depreciating asset).
+    validateNumericField(
+      raw.GrowthRate,
+      'GrowthRate',
+      'asset',
+      index,
+      () => true,
+      'a finite number'
+    );
+    // Optional CompoundingPeriod, validated against the shared frequency enum.
+    if (
+      raw.CompoundingPeriod !== undefined &&
+      raw.CompoundingPeriod !== null &&
+      !VALID_COMPOUNDING_FREQUENCIES.includes(raw.CompoundingPeriod as string)
+    ) {
+      throw new Error(
+        `Invalid value for 'CompoundingPeriod' in asset at index ${index}: expected one of ${VALID_COMPOUNDING_FREQUENCIES.join(
+          ', '
+        )}, got ${JSON.stringify(raw.CompoundingPeriod)}.`
+      );
+    }
+    // Optional LinkedLoanId (7.2): a non-empty string when present.
+    if (
+      raw.LinkedLoanId !== undefined &&
+      raw.LinkedLoanId !== null &&
+      (typeof raw.LinkedLoanId !== 'string' || raw.LinkedLoanId.trim() === '')
+    ) {
+      throw new Error(
+        `Invalid value for 'LinkedLoanId' in asset at index ${index}: expected a non-empty string.`
+      );
+    }
+
+    return {
+      Id: raw.Id as string,
+      Provider: raw.Provider,
+      Name: raw.Name,
+      AssetType: raw.AssetType as AssetType,
+      Balance: raw.Balance as number,
+      GrowthRate: raw.GrowthRate as number,
+      LinkedLoanId: raw.LinkedLoanId as string | undefined,
+      CompoundingPeriod: raw.CompoundingPeriod as
+        | CompoundingFrequency
+        | undefined,
+    };
+  });
+};
+
+/**
+ * Serialize loans, investments, scenarios, and assets to a JSON string (schema
+ * v4, inputs only). Converts Date objects to ISO strings for JSON
+ * compatibility; assets carry no dates and serialize one-to-one.
  */
 export const exportToJson = (
   loans: Loan[],
   investments: Investment[],
-  scenarios: Scenario[] = []
+  scenarios: Scenario[] = [],
+  assets: Asset[] = []
 ): string => {
   const serializedLoans: SerializedLoan[] = loans.map((loan) => ({
     ...loan,
@@ -228,6 +333,7 @@ export const exportToJson = (
     loans: serializedLoans,
     investments: serializedInvestments,
     scenarios,
+    assets,
     exportDate: new Date().toISOString(),
     version: packageJson.version,
   };
@@ -244,7 +350,12 @@ export const exportToJson = (
  */
 export const importFromJson = (
   jsonString: string
-): { loans: Loan[]; investments: Investment[]; scenarios: Scenario[] } => {
+): {
+  loans: Loan[];
+  investments: Investment[];
+  scenarios: Scenario[];
+  assets: Asset[];
+} => {
   try {
     const raw = JSON.parse(jsonString) as ExportData;
 
@@ -531,8 +642,9 @@ export const importFromJson = (
     });
 
     const scenarios = parseScenarios(data.scenarios);
+    const assets = parseAssets(data.assets);
 
-    return { loans, investments, scenarios };
+    return { loans, investments, scenarios, assets };
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error('Invalid JSON format: unable to parse file', {

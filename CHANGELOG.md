@@ -9,6 +9,44 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.1.0] — Phase 7: Whole Net Worth
+
+Made the net-worth line _true_ by letting PathWise hold everything a person owns,
+via one simple **Asset** type (a balance plus an annual growth/decline rate) with
+an `AssetType` discriminator covering all three Phase 7 items.
+
+### Added
+
+- **Cash accounts (7.1):** HYSA / CD / checking — a balance plus an APY, the
+  simplest new asset type and the biggest completeness win.
+- **Property + mortgage pairing (7.2):** a home value with an appreciation rate,
+  optionally linked to its mortgage by `LinkedLoanId`, so the app derives a
+  **home-equity** figure (property value − loan balance) and net worth is honest
+  for homeowners.
+- **Custom asset / liability (7.3):** a catch-all with a simple growth/decline
+  rate (a depreciating car, a private loan, collectibles) — the escape hatch so
+  no net worth is blocked on a missing type. Custom liabilities subtract from net
+  worth; everything else adds.
+- Assets flow through the whole stack: the forecast engine (`forecastAsset`,
+  `forecastHomeEquity`), the net-worth roll-up, the chart (one line per asset),
+  the dashboard summary cards and milestones, the optimizer-adjacent dashboard,
+  JSON import/export, and on-device persistence — with an Assets table and
+  add/edit dialog in the UI.
+- **Two consolidated entry points** in the command bar (and onboarding): **Add
+  Asset** (Investment · Cash · Property · Custom asset) and **Add Liability**
+  (Loan · Custom liability), each a type menu that opens the matching form. The
+  positions display mirrors this: a **Liabilities** section groups loans and
+  custom liabilities together (loans keep their amortization/payoff/PIT table),
+  alongside the Investments and Assets sections.
+- Export **schema v4** (the next D8 migration rung): a v3 file gains an empty
+  `assets` list on import; older files keep migrating forward.
+
+Per the Math Correctness Charter, the new asset math ships with reference,
+property, and edge-case tests and keeps `src/helpers/**` at 100% line+branch
+coverage.
+
+## [1.0.x] — Phase 6: Quality & Hardening
+
 Post-1.0 **Phase 6 — Quality & Hardening** work and bug fixes, on top of 1.0.0.
 
 ### Added

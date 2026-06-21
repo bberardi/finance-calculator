@@ -5,16 +5,22 @@ import {
   Button,
   Container,
   Divider,
+  Menu,
+  MenuItem,
   Paper,
   Skeleton,
   Snackbar,
   Toolbar,
+  Typography,
 } from '@mui/material';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { lazy, Suspense, useState } from 'react';
 import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
+import { Asset, AssetType } from './models/asset-model';
+import { AssetTable } from './asset/asset-table';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
@@ -33,7 +39,11 @@ import {
   SectionEmptyState,
 } from './components/empty-state';
 import { DialogFallback } from './components/dialog-fallback';
-import { sampleLoans, sampleInvestments } from './state/sample-data';
+import {
+  sampleLoans,
+  sampleInvestments,
+  sampleAssets,
+} from './state/sample-data';
 
 // Code-split the heaviest, non-critical-path chunks (roadmap 6.6): the forecast
 // chart (@mui/x-charts) and the add/edit forms (@mui/x-date-pickers) are kept
@@ -50,23 +60,29 @@ const AddEditInvestment = lazy(() =>
     default: m.AddEditInvestment,
   }))
 );
+const AddEditAsset = lazy(() =>
+  import('./asset/add-edit-asset').then((m) => ({ default: m.AddEditAsset }))
+);
 
 // A delete pending confirmation: which kind of entity, and the entity itself
 // (we need its name for the prompt).
 type PendingDelete =
   | { kind: 'loan'; entity: Loan }
-  | { kind: 'investment'; entity: Investment };
+  | { kind: 'investment'; entity: Investment }
+  | { kind: 'asset'; entity: Asset };
 
 // A delete that just happened and can still be undone: the removed entity plus
 // the index it occupied, so undo can restore it exactly where it was.
 type UndoableDelete =
   | { kind: 'loan'; entity: Loan; index: number }
-  | { kind: 'investment'; entity: Investment; index: number };
+  | { kind: 'investment'; entity: Investment; index: number }
+  | { kind: 'asset'; entity: Asset; index: number };
 
 // A bulk delete pending confirmation: which kind, and the selected entities.
 type PendingBulkDelete =
   | { kind: 'loan'; entities: Loan[] }
-  | { kind: 'investment'; entities: Investment[] };
+  | { kind: 'investment'; entities: Investment[] }
+  | { kind: 'asset'; entities: Asset[] };
 
 // A committed bulk delete that can still be undone: the pre-delete data
 // snapshot (restored wholesale) plus the snackbar message.
@@ -79,8 +95,17 @@ const DELETE_UNDO_DURATION_MS = 6000;
 // A bulk delete removes many rows at once, so give the undo a little longer.
 const BULK_DELETE_UNDO_DURATION_MS = 8000;
 
-// Command-bar primary actions ("Add Loan" / "Add Investment"): solid white
-// buttons with deep brand-green text. Styled explicitly rather than via
+// The non-liability asset types: the group the "Add Asset" entry point and an
+// asset (non-liability) edit offer in the in-dialog type selector.
+const ASSET_TYPE_GROUP: AssetType[] = [
+  AssetType.Cash,
+  AssetType.Property,
+  AssetType.CustomAsset,
+];
+
+// Command-bar primary actions: two menu buttons, "Add Asset" (Investment / Cash
+// / Property / Custom asset) and "Add Liability" (Loan / Custom liability) —
+// solid white buttons with deep brand-green text. Styled explicitly rather than via
 // `color="inherit"` — a contained inherit button takes its TEXT color from the
 // AppBar (white) but its background from `grey[300]`, rendering white-on-light-
 // grey and unreadable in light mode. White surface + green text stays
@@ -96,9 +121,11 @@ export const Body = () => {
     state: {
       loans,
       investments,
+      assets,
       sampleDataLoaded,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
       scenarios,
       activeScenarioId,
     },
@@ -110,6 +137,10 @@ export const Body = () => {
     updateInvestment,
     deleteInvestment,
     insertInvestmentAt,
+    addAsset,
+    updateAsset,
+    deleteAsset,
+    insertAssetAt,
     restoreData,
     loadSampleData,
     clearSampleData,
@@ -119,8 +150,22 @@ export const Body = () => {
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
   const [isAddInvestmentOpen, setIsAddInvestmentOpen] =
     useState<boolean>(false);
+  const [isAddAssetOpen, setIsAddAssetOpen] = useState<boolean>(false);
   const [editLoan, setEditLoan] = useState<Loan>();
   const [editInvestment, setEditInvestment] = useState<Investment>();
+  const [editAsset, setEditAsset] = useState<Asset>();
+  // Which AssetType options the asset/liability dialog offers, and the type a new
+  // entity seeds with — set by the entry point that opened it.
+  const [assetAllowedTypes, setAssetAllowedTypes] =
+    useState<AssetType[]>(ASSET_TYPE_GROUP);
+  const [assetInitialType, setAssetInitialType] = useState<AssetType>();
+
+  // Anchors for the two command-bar (and onboarding) "Add" type menus.
+  const [assetMenuAnchor, setAssetMenuAnchor] = useState<null | HTMLElement>(
+    null
+  );
+  const [liabilityMenuAnchor, setLiabilityMenuAnchor] =
+    useState<null | HTMLElement>(null);
 
   // Delete confirmation + soft-undo state (roadmap 0.7).
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>();
@@ -131,7 +176,8 @@ export const Body = () => {
     useState<PendingBulkDelete>();
   const [bulkUndo, setBulkUndo] = useState<BulkUndo>();
 
-  const onLoadSampleData = () => loadSampleData(sampleLoans, sampleInvestments);
+  const onLoadSampleData = () =>
+    loadSampleData(sampleLoans, sampleInvestments, sampleAssets);
 
   const onLoanAddEdit = (loan?: Loan) => {
     setEditLoan(loan);
@@ -195,6 +241,71 @@ export const Body = () => {
       Name: `${investment.Name} (copy)`,
     });
 
+  // Edit an existing asset/liability from its table row. The allowed-type group
+  // is derived from the entity so a liability can't be retyped into an asset (or
+  // vice versa) mid-edit.
+  const onAssetAddEdit = (asset?: Asset) => {
+    setEditAsset(asset);
+    setAssetInitialType(undefined);
+    setAssetAllowedTypes(
+      asset?.AssetType === AssetType.CustomLiability
+        ? [AssetType.CustomLiability]
+        : ASSET_TYPE_GROUP
+    );
+    setIsAddAssetOpen(true);
+  };
+
+  // Add a new asset/liability of a chosen type (from a command-bar/onboarding
+  // menu). `allowedTypes` keeps the in-dialog selector to the right group.
+  const openAddAsset = (initialType: AssetType, allowedTypes: AssetType[]) => {
+    setEditAsset(undefined);
+    setAssetInitialType(initialType);
+    setAssetAllowedTypes(allowedTypes);
+    setIsAddAssetOpen(true);
+  };
+
+  // "Add Asset" menu: an investment opens its own rich form; the simple holdings
+  // open the shared asset form on the picked type.
+  const onAddAssetType = (type: 'investment' | AssetType) => {
+    setAssetMenuAnchor(null);
+    if (type === 'investment') {
+      onInvestmentAddEdit();
+    } else {
+      openAddAsset(type, ASSET_TYPE_GROUP);
+    }
+  };
+
+  // "Add Liability" menu: a loan opens its own form; a custom liability opens the
+  // shared asset form locked to the liability type.
+  const onAddLiabilityType = (type: 'loan' | AssetType) => {
+    setLiabilityMenuAnchor(null);
+    if (type === 'loan') {
+      onLoanAddEdit();
+    } else {
+      openAddAsset(AssetType.CustomLiability, [AssetType.CustomLiability]);
+    }
+  };
+
+  const onAssetAddEditClose = () => {
+    setIsAddAssetOpen(false);
+    setEditAsset(undefined);
+  };
+
+  const onAssetAddEditSave = (newAsset: Asset, oldAsset?: Asset) => {
+    if (!oldAsset) {
+      addAsset(newAsset);
+    } else {
+      updateAsset(newAsset);
+    }
+  };
+
+  const onAssetDelete = (asset: Asset) => {
+    setPendingDelete({ kind: 'asset', entity: asset });
+  };
+
+  const onAssetClone = (asset: Asset) =>
+    addAsset({ ...asset, Id: '', Name: `${asset.Name} (copy)` });
+
   // Step 2: confirmation accepted — actually delete, remembering the original
   // index so the snackbar can offer an exact-position undo.
   const onConfirmDelete = () => {
@@ -205,13 +316,21 @@ export const Body = () => {
       const index = loans.findIndex((l) => l.Id === pendingDelete.entity.Id);
       deleteLoan(pendingDelete.entity.Id);
       setUndoableDelete({ kind: 'loan', entity: pendingDelete.entity, index });
-    } else {
+    } else if (pendingDelete.kind === 'investment') {
       const index = investments.findIndex(
         (i) => i.Id === pendingDelete.entity.Id
       );
       deleteInvestment(pendingDelete.entity.Id);
       setUndoableDelete({
         kind: 'investment',
+        entity: pendingDelete.entity,
+        index,
+      });
+    } else {
+      const index = assets.findIndex((a) => a.Id === pendingDelete.entity.Id);
+      deleteAsset(pendingDelete.entity.Id);
+      setUndoableDelete({
+        kind: 'asset',
         entity: pendingDelete.entity,
         index,
       });
@@ -226,8 +345,10 @@ export const Body = () => {
     }
     if (undoableDelete.kind === 'loan') {
       insertLoanAt(undoableDelete.entity, undoableDelete.index);
-    } else {
+    } else if (undoableDelete.kind === 'investment') {
       insertInvestmentAt(undoableDelete.entity, undoableDelete.index);
+    } else {
+      insertAssetAt(undoableDelete.entity, undoableDelete.index);
     }
     setUndoableDelete(undefined);
   };
@@ -247,9 +368,14 @@ export const Body = () => {
     }
   };
 
+  const onAssetBulkDelete = (selected: Asset[]) => {
+    if (selected.length > 0) {
+      setPendingBulkDelete({ kind: 'asset', entities: selected });
+    }
+  };
+
   const bulkDeleteCount = pendingBulkDelete?.entities.length ?? 0;
-  const bulkDeleteNoun =
-    pendingBulkDelete?.kind === 'investment' ? 'investment' : 'loan';
+  const bulkDeleteNoun = pendingBulkDelete?.kind ?? 'loan';
   const pluralize = (count: number, noun: string) =>
     `${count} ${noun}${count === 1 ? '' : 's'}`;
 
@@ -261,14 +387,18 @@ export const Body = () => {
     const snapshot: DataSnapshot = {
       loans,
       investments,
+      assets,
       scenarios,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
     };
     if (pendingBulkDelete.kind === 'loan') {
       pendingBulkDelete.entities.forEach((loan) => deleteLoan(loan.Id));
-    } else {
+    } else if (pendingBulkDelete.kind === 'investment') {
       pendingBulkDelete.entities.forEach((inv) => deleteInvestment(inv.Id));
+    } else {
+      pendingBulkDelete.entities.forEach((asset) => deleteAsset(asset.Id));
     }
     setBulkUndo({
       snapshot,
@@ -289,7 +419,17 @@ export const Body = () => {
   };
 
   const deletedName = undoableDelete?.entity.Name ?? '';
-  const bothEmpty = loans.length === 0 && investments.length === 0;
+  // Split assets for display: custom liabilities live in the Liabilities section
+  // (next to loans); everything else is a true asset. They remain one collection
+  // in state — this is purely a presentation split.
+  const liabilityAssets = assets.filter(
+    (a) => a.AssetType === AssetType.CustomLiability
+  );
+  const assetHoldings = assets.filter(
+    (a) => a.AssetType !== AssetType.CustomLiability
+  );
+  const allEmpty =
+    loans.length === 0 && investments.length === 0 && assets.length === 0;
   const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
 
   return (
@@ -306,22 +446,60 @@ export const Body = () => {
           <Button
             variant="contained"
             sx={addActionSx}
-            onClick={() => onLoanAddEdit()}
+            endIcon={<ArrowDropDownIcon />}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(assetMenuAnchor)}
+            onClick={(e) => setAssetMenuAnchor(e.currentTarget)}
           >
-            Add Loan
+            Add Asset
           </Button>
           <Button
             variant="contained"
             sx={addActionSx}
-            onClick={() => onInvestmentAddEdit()}
+            endIcon={<ArrowDropDownIcon />}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(liabilityMenuAnchor)}
+            onClick={(e) => setLiabilityMenuAnchor(e.currentTarget)}
           >
-            Add Investment
+            Add Liability
           </Button>
           <DataManager />
           <PersistenceToggle />
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
+
+      {/* Type selectors for the two "Add" entry points (roadmap 7). The single
+          anchor state per menu means the command bar and the onboarding CTAs can
+          both open the same menu, anchored to whichever button was clicked. */}
+      <Menu
+        anchorEl={assetMenuAnchor}
+        open={Boolean(assetMenuAnchor)}
+        onClose={() => setAssetMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => onAddAssetType('investment')}>
+          Investment
+        </MenuItem>
+        <MenuItem onClick={() => onAddAssetType(AssetType.Cash)}>
+          Cash (HYSA / CD / checking)
+        </MenuItem>
+        <MenuItem onClick={() => onAddAssetType(AssetType.Property)}>
+          Property
+        </MenuItem>
+        <MenuItem onClick={() => onAddAssetType(AssetType.CustomAsset)}>
+          Custom asset
+        </MenuItem>
+      </Menu>
+      <Menu
+        anchorEl={liabilityMenuAnchor}
+        open={Boolean(liabilityMenuAnchor)}
+        onClose={() => setLiabilityMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => onAddLiabilityType('loan')}>Loan</MenuItem>
+        <MenuItem onClick={() => onAddLiabilityType(AssetType.CustomLiability)}>
+          Custom liability
+        </MenuItem>
+      </Menu>
 
       {/* First-visit privacy notice (roadmap 1.3): shown once, explains data
           stays on-device and points at the "Save on this device" toggle. */}
@@ -344,11 +522,11 @@ export const Body = () => {
         </Alert>
       )}
 
-      {bothEmpty ? (
+      {allEmpty ? (
         <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
           <OnboardingEmptyState
-            onAddLoan={() => onLoanAddEdit()}
-            onAddInvestment={() => onInvestmentAddEdit()}
+            onAddAsset={(e) => setAssetMenuAnchor(e.currentTarget)}
+            onAddLiability={(e) => setLiabilityMenuAnchor(e.currentTarget)}
             onLoadSampleData={onLoadSampleData}
           />
         </Paper>
@@ -356,34 +534,23 @@ export const Body = () => {
         <>
           {/* Net-worth dashboard summary cards (roadmap 3.1): lead the content
               with today's totals — the same anchor the forecast chart starts
-              from. */}
+              from. Assets (Phase 7) roll into the totals. */}
           <Box sx={{ marginBottom: SECTION_GAP }}>
-            <NetWorthSummary loans={loans} investments={investments} />
+            <NetWorthSummary
+              loans={loans}
+              investments={investments}
+              assets={assets}
+            />
             {/* Milestone callouts (roadmap 3.2): debt-free date + net worth at
                 +5y/+10y/+30y, cheap reads off the same engine series. */}
             <Box sx={{ marginTop: 2 }}>
-              <MilestoneCallouts loans={loans} investments={investments} />
+              <MilestoneCallouts
+                loans={loans}
+                investments={investments}
+                assets={assets}
+              />
             </Box>
           </Box>
-
-          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
-            <Divider>Loans</Divider>
-            {loans.length > 0 ? (
-              <LoanTable
-                loans={loans}
-                onLoanEdit={onLoanAddEdit}
-                onLoanDelete={onLoanDelete}
-                onLoanClone={onLoanClone}
-                onLoanBulkDelete={onLoanBulkDelete}
-              />
-            ) : (
-              <SectionEmptyState
-                message="No loans yet."
-                actionLabel="Add your first loan"
-                onAction={() => onLoanAddEdit()}
-              />
-            )}
-          </Paper>
 
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Investments</Divider>
@@ -404,9 +571,98 @@ export const Body = () => {
             )}
           </Paper>
 
-          {/* Forecast chart (roadmap 2.2): per-loan, per-investment, and overall
-              net-worth lines from the shared engine. Shown whenever there is at
-              least one position (the enclosing branch already guarantees it). */}
+          {/* Assets section (roadmap 7.1–7.3): cash, property, and custom
+              assets that complete the net-worth picture. Custom liabilities are
+              shown under Liabilities instead. */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Assets</Divider>
+            {assetHoldings.length > 0 ? (
+              <AssetTable
+                assets={assetHoldings}
+                loans={loans}
+                onAssetEdit={onAssetAddEdit}
+                onAssetDelete={onAssetDelete}
+                onAssetClone={onAssetClone}
+                onAssetBulkDelete={onAssetBulkDelete}
+              />
+            ) : (
+              <SectionEmptyState
+                message="No assets yet."
+                actionLabel="Add your first asset"
+                onAction={() => onAssetAddEdit()}
+              />
+            )}
+          </Paper>
+
+          {/* Liabilities section: loans and custom liabilities together, matching
+              the "Add Liability" entry point. Loans keep their rich table
+              (amortization, payoff, PIT); custom liabilities use the shared asset
+              table with liability-framed labels. */}
+          <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
+            <Divider>Liabilities</Divider>
+            {loans.length === 0 && liabilityAssets.length === 0 ? (
+              <SectionEmptyState
+                message="No liabilities yet."
+                actionLabel="Add your first liability"
+                onAction={(e) => setLiabilityMenuAnchor(e.currentTarget)}
+              />
+            ) : (
+              <>
+                {loans.length > 0 && (
+                  <Box>
+                    {liabilityAssets.length > 0 && (
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        Loans
+                      </Typography>
+                    )}
+                    <LoanTable
+                      loans={loans}
+                      onLoanEdit={onLoanAddEdit}
+                      onLoanDelete={onLoanDelete}
+                      onLoanClone={onLoanClone}
+                      onLoanBulkDelete={onLoanBulkDelete}
+                    />
+                  </Box>
+                )}
+                {liabilityAssets.length > 0 && (
+                  <Box sx={{ mt: loans.length > 0 ? 3 : 0 }}>
+                    {loans.length > 0 && (
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        Other liabilities
+                      </Typography>
+                    )}
+                    <AssetTable
+                      assets={liabilityAssets}
+                      loans={loans}
+                      onAssetEdit={onAssetAddEdit}
+                      onAssetDelete={onAssetDelete}
+                      onAssetClone={onAssetClone}
+                      onAssetBulkDelete={onAssetBulkDelete}
+                      showTypeColumn={false}
+                      showEquityColumn={false}
+                      searchLabel="Search liabilities"
+                      itemLabel="liability"
+                      itemLabelPlural="liabilities"
+                      balanceHeader="Owed"
+                    />
+                  </Box>
+                )}
+              </>
+            )}
+          </Paper>
+
+          {/* Forecast chart (roadmap 2.2): per-loan, per-investment, per-asset,
+              and overall net-worth lines from the shared engine. Shown whenever
+              there is at least one position (the enclosing branch guarantees
+              it). */}
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Forecast</Divider>
             {/* Scenario controls (roadmap 4.2): create/select/delete what-if
@@ -420,6 +676,7 @@ export const Body = () => {
               <ForecastChart
                 loans={loans}
                 investments={investments}
+                assets={assets}
                 scenario={activeScenario}
               />
             </Suspense>
@@ -469,6 +726,18 @@ export const Body = () => {
             onSave={onInvestmentAddEditSave}
             onClose={onInvestmentAddEditClose}
             investment={editInvestment}
+          />
+        )}
+
+        {isAddAssetOpen && (
+          <AddEditAsset
+            open
+            onSave={onAssetAddEditSave}
+            onClose={onAssetAddEditClose}
+            asset={editAsset}
+            loans={loans}
+            allowedTypes={assetAllowedTypes}
+            initialType={assetInitialType}
           />
         )}
       </Suspense>

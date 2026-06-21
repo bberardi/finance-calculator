@@ -14,9 +14,12 @@ export const AppErrorBoundary = ({ children }: { children: ReactNode }) => {
     state: {
       loans,
       investments,
+      assets,
+      scenarios,
       sampleDataLoaded,
       stashedLoans,
       stashedInvestments,
+      stashedAssets,
     },
   } = useFinanceData();
 
@@ -25,7 +28,9 @@ export const AppErrorBoundary = ({ children }: { children: ReactNode }) => {
   const realInvestments = sampleDataLoaded
     ? (stashedInvestments ?? [])
     : investments;
-  const canExport = realLoans.length > 0 || realInvestments.length > 0;
+  const realAssets = sampleDataLoaded ? (stashedAssets ?? []) : assets;
+  const canExport =
+    realLoans.length > 0 || realInvestments.length > 0 || realAssets.length > 0;
 
   return (
     <ErrorBoundary
@@ -33,7 +38,14 @@ export const AppErrorBoundary = ({ children }: { children: ReactNode }) => {
         <AppErrorFallback
           error={error}
           onReload={() => window.location.reload()}
-          onExport={() => downloadJsonExport(realLoans, realInvestments)}
+          onExport={() =>
+            downloadJsonExport(
+              realLoans,
+              realInvestments,
+              scenarios,
+              realAssets
+            )
+          }
           canExport={canExport}
         />
       )}
