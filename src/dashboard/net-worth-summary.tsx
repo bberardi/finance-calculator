@@ -2,25 +2,29 @@ import { useMemo } from 'react';
 import { Box, Card, CardContent, Typography } from '@mui/material';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { summarizePositions } from '../helpers/summary-helpers';
 import { formatCurrency } from '../helpers/format-helpers';
 
 interface NetWorthSummaryProps {
   loans: Loan[];
   investments: Investment[];
+  assets: Asset[];
 }
 
 // Net-worth dashboard summary cards (Phase 3.1). Total assets, total debt, net
 // worth, and monthly commitments at today's anchor — the same numbers the
-// forecast chart starts from (via summarizePositions). Net worth is colored by
-// sign so an underwater position reads at a glance.
+// forecast chart starts from (via summarizePositions). Assets (cash/property/
+// custom, Phase 7) roll into the totals. Net worth is colored by sign so an
+// underwater position reads at a glance.
 export const NetWorthSummary = ({
   loans,
   investments,
+  assets,
 }: NetWorthSummaryProps) => {
   const summary = useMemo(
-    () => summarizePositions(loans, investments),
-    [loans, investments]
+    () => summarizePositions(loans, investments, undefined, assets),
+    [loans, investments, assets]
   );
 
   const cards: {

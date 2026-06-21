@@ -1,11 +1,14 @@
+import { MouseEvent } from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 // Onboarding & empty states (roadmap 0.9).
 //
 // Two flavors:
-//  - <OnboardingEmptyState>: shown when there are NO loans AND NO investments.
-//    Explains what PathWise does and offers all three first-run CTAs (add a
-//    loan, add an investment, load sample data).
+//  - <OnboardingEmptyState>: shown when there are NO loans, investments, OR
+//    assets. Explains what PathWise does and offers the first-run CTAs, which
+//    open the same "Add Asset" / "Add Liability" type menus as the command bar
+//    (anchored to the clicked button), or load sample data.
 //  - <SectionEmptyState>: a lighter per-section empty state shown when only ONE
 //    collection is empty (e.g. loans exist but investments don't), with that
 //    section's single "Add" CTA.
@@ -14,14 +17,15 @@ import { Box, Button, Stack, Typography } from '@mui/material';
 // read correctly in light and dark mode.
 
 export interface OnboardingEmptyStateProps {
-  onAddLoan: () => void;
-  onAddInvestment: () => void;
+  // Receive the click event so the caller can anchor its type menu to the button.
+  onAddAsset: (event: MouseEvent<HTMLElement>) => void;
+  onAddLiability: (event: MouseEvent<HTMLElement>) => void;
   onLoadSampleData: () => void;
 }
 
 export const OnboardingEmptyState = ({
-  onAddLoan,
-  onAddInvestment,
+  onAddAsset,
+  onAddLiability,
   onLoadSampleData,
 }: OnboardingEmptyStateProps) => (
   <Box sx={{ textAlign: 'center', paddingY: 5, paddingX: 2 }}>
@@ -33,21 +37,32 @@ export const OnboardingEmptyState = ({
       color="text.secondary"
       sx={{ maxWidth: 560, marginX: 'auto', marginBottom: 3 }}
     >
-      PathWise forecasts your net worth across all of your loans and investments
-      at once, so you can see your whole financial position and decide where
-      your extra money should go. Add your first entry, or load some sample data
-      to explore.
+      PathWise forecasts your net worth across all of your assets and
+      liabilities at once — investments, cash, property, loans, and more — so
+      you can see your whole financial position and decide where your extra
+      money should go. Add your first entry, or load some sample data to
+      explore.
     </Typography>
     <Stack
       direction={{ xs: 'column', sm: 'row' }}
       spacing={1.5}
-      sx={{ justifyContent: 'center', alignItems: 'center' }}
+      sx={{ justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}
     >
-      <Button variant="contained" onClick={onAddLoan}>
-        Add your first loan
+      <Button
+        variant="contained"
+        endIcon={<ArrowDropDownIcon />}
+        aria-haspopup="menu"
+        onClick={onAddAsset}
+      >
+        Add an asset
       </Button>
-      <Button variant="contained" onClick={onAddInvestment}>
-        Add your first investment
+      <Button
+        variant="contained"
+        endIcon={<ArrowDropDownIcon />}
+        aria-haspopup="menu"
+        onClick={onAddLiability}
+      >
+        Add a liability
       </Button>
       <Button variant="outlined" onClick={onLoadSampleData}>
         Load sample data
@@ -59,7 +74,9 @@ export const OnboardingEmptyState = ({
 export interface SectionEmptyStateProps {
   message: string;
   actionLabel: string;
-  onAction: () => void;
+  // Receives the click event so an action can anchor a menu to the button
+  // (callers that just open a dialog can ignore it).
+  onAction: (event: MouseEvent<HTMLElement>) => void;
 }
 
 export const SectionEmptyState = ({

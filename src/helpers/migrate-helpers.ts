@@ -9,7 +9,7 @@
 
 // The current schema version. data-helpers re-exports this as
 // EXPORT_SCHEMA_VERSION; kept here so the ladder owns the "current" definition.
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 // A parsed payload: a numeric schemaVersion plus arbitrary other fields the
 // individual migration steps and the downstream validator interpret.
@@ -19,12 +19,19 @@ export type RawData = { schemaVersion: number } & Record<string, unknown>;
 type MigrationStep = (data: RawData) => RawData;
 
 // Keyed by the version each step upgrades FROM. v2 → v3 introduces the
-// `scenarios` array (Phase 4.5); a v2 file simply gains an empty list.
+// `scenarios` array (Phase 4.5); a v2 file simply gains an empty list. v3 → v4
+// introduces the `assets` array (Phase 7, Whole Net Worth); a v3 file simply
+// gains an empty list, so an older file with no assets migrates cleanly.
 const MIGRATIONS: Record<number, MigrationStep> = {
   2: (data) => ({
     ...data,
     schemaVersion: 3,
     scenarios: Array.isArray(data.scenarios) ? data.scenarios : [],
+  }),
+  3: (data) => ({
+    ...data,
+    schemaVersion: 4,
+    assets: Array.isArray(data.assets) ? data.assets : [],
   }),
 };
 

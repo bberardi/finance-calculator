@@ -24,13 +24,15 @@ src/
 ├── Footer.tsx           # App footer
 ├── models/              # TypeScript interfaces and types
 │   ├── loan-model.ts
-│   └── investment-model.ts
+│   ├── investment-model.ts
+│   └── asset-model.ts           # Asset interface + AssetType enum (Cash, Property, CustomAsset, CustomLiability)
 ├── helpers/             # Pure business logic and calculations (the math core)
 │   ├── loan-helpers.ts
 │   ├── investment-helpers.ts
 │   ├── forecast-helpers.ts
+│   ├── asset-helpers.ts         # forecastAsset, isAssetLiability, assetNetWorthSign, getAssetValueToday
 │   ├── storage-helpers.ts       # On-device persistence I/O (save/load/clear, issue #20)
-│   ├── migrate-helpers.ts       # D8 versioned schema-migration ladder
+│   ├── migrate-helpers.ts       # D8 versioned schema-migration ladder (current: v4)
 │   ├── *.test.ts             # Co-located unit tests
 │   ├── math-reference.test.ts    # Charter layer 1: oracle tests (Excel/hand-derived)
 │   ├── forecast-consistency.test.ts # Charter layer 2: engine-vs-schedule
@@ -50,11 +52,14 @@ src/
 │   ├── add-edit-loan.tsx
 │   ├── amortization-popout.tsx
 │   └── pit-popout.tsx
-└── investment/          # Investment-related components
-    ├── investment-table.tsx
-    ├── add-edit-investment.tsx
-    ├── growth-schedule-popout.tsx
-    └── pit-popout.tsx
+├── investment/          # Investment-related components
+│   ├── investment-table.tsx
+│   ├── add-edit-investment.tsx
+│   ├── growth-schedule-popout.tsx
+│   └── pit-popout.tsx
+└── asset/               # Asset-related components (Phase 7)
+    ├── asset-table.tsx
+    └── add-edit-asset.tsx
 ```
 
 ## Code Style and Conventions
@@ -139,12 +144,23 @@ npm run deploy     # Deploy to GitHub Pages
 - Support for regular contributions/withdrawals
 - Date-based calculations for accurate projections
 
+### Asset Calculations (Phase 7)
+
+- The `Asset` type covers cash accounts (HYSA/CD/checking), property, and custom assets or liabilities
+- `Balance` is the asset's current value (always positive); `GrowthRate` is an annual % that may be negative (depreciation)
+- `forecastAsset` in `asset-helpers.ts` produces a monthly-axis compound-growth series anchored to today's balance
+- `forecastHomeEquity` in `forecast-helpers.ts` computes property value minus its linked mortgage balance (pointwise), using `LinkedLoanId` to pair an asset to a loan
+- Ordinary assets (`Cash`, `Property`, `CustomAsset`) add to net worth; `CustomLiability` subtracts
+- Assets are included in the `forecastNetWorth` roll-up and appear as individual lines (kind `'asset'`) in the forecast chart
+
 ## Important Notes
 
 - The app is deployed to GitHub Pages with base path `/finance-calculator/`
 - No backend or database; all data is managed in client-side state
-- Models are input-only: derived data (amortization schedules, growth projections, forecasts) is computed on demand by helpers and never stored on models or serialized into exports
+- Models are input-only: derived data (amortization schedules, growth projections, asset forecasts) is computed on demand by helpers and never stored on models or serialized into exports
 - **Core/UI boundary (decision D7)**: `src/helpers/**` and `src/models/**` are a pure, framework-free layer (TypeScript + dayjs only). An ESLint rule forbids them from importing React, MUI, emotion, or any UI component (`*.tsx`). UI depends on the core, never the reverse — put React hooks in `src/hooks/`, not `src/helpers/`.
+- The `Asset` model (`src/models/asset-model.ts`) follows the same input-only convention; the `AssetType` enum values are `Cash`, `Property`, `CustomAsset`, and `CustomLiability`
+- Export/persistence schema is at **v4** (`CURRENT_SCHEMA_VERSION = 4`); importing a v3 file adds an empty `assets` list via the migration ladder in `migrate-helpers.ts`
 - Future plans include file upload/export for data persistence
 - Test data can be toggled in the UI for development purposes
 

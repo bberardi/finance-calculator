@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import {
   forecastLoan,
   forecastNetWorth,
@@ -28,7 +29,8 @@ export interface Milestones {
 export const computeMilestones = (
   loans: Loan[],
   investments: Investment[],
-  today: Date = new Date()
+  today: Date = new Date(),
+  assets: Asset[] = []
 ): Milestones => {
   // Extend the horizon to at least 30 years so the +30y milestone always exists,
   // while still covering a longer loan schedule for the debt-free date.
@@ -38,12 +40,16 @@ export const computeMilestones = (
     ? defaultHorizon
     : thirtyYears;
 
+  // Assets (cash/property/custom) flow into the net-worth milestones; the
+  // debt-free date below stays loan-only (a custom liability has no payoff
+  // schedule — it just decays at its rate).
   const netWorth = forecastNetWorth(
     loans,
     investments,
     horizon,
     undefined,
-    today
+    today,
+    assets
   );
 
   const netWorthAt = MILESTONE_YEARS.map((years) => ({

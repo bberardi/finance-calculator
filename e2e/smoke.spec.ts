@@ -46,8 +46,11 @@ test('add positions, optimize, and view the top plan as a scenario', async ({
   await startClean(page);
   await page.goto(APP_URL);
 
-  // --- Add a loan (the command bar's "Add Loan", not the onboarding CTA) ---
-  await page.getByRole('button', { name: 'Add Loan', exact: true }).click();
+  // --- Add a loan via the "Add Liability" command-bar menu → "Loan" ---
+  await page
+    .getByRole('button', { name: 'Add Liability', exact: true })
+    .click();
+  await page.getByRole('menuitem', { name: 'Loan', exact: true }).click();
   const loanDialog = page.getByRole('dialog');
   await expect(
     loanDialog.getByRole('heading', { name: 'Add new loan' })
@@ -76,11 +79,11 @@ test('add positions, optimize, and view the top plan as a scenario', async ({
   await addLoan.click();
   await expect(loanDialog).toBeHidden();
 
-  // --- Add an investment (scope the submit to the dialog: the command bar has a
-  // same-named "Add Investment" button) ---
-  await page
-    .getByRole('button', { name: 'Add Investment', exact: true })
-    .click();
+  // --- Add an investment via the "Add Asset" command-bar menu → "Investment".
+  // Scope the submit to the dialog: its own submit button is also "Add
+  // Investment". ---
+  await page.getByRole('button', { name: 'Add Asset', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Investment', exact: true }).click();
   const invDialog = page.getByRole('dialog');
   await expect(
     invDialog.getByRole('heading', { name: 'Add Investment' })

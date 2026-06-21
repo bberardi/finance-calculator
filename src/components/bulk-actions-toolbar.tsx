@@ -9,6 +9,9 @@ export interface BulkActionsToolbarProps {
   count: number;
   // Singular noun for the entity kind, e.g. "loan" / "investment".
   itemLabel: string;
+  // Plural noun, when simple "+s" is wrong (e.g. "liability" → "liabilities").
+  // Defaults to `${itemLabel}s`.
+  itemLabelPlural?: string;
   onDuplicate: () => void;
   onDelete: () => void;
   onClear: () => void;
@@ -17,6 +20,7 @@ export interface BulkActionsToolbarProps {
 export const BulkActionsToolbar = ({
   count,
   itemLabel,
+  itemLabelPlural,
   onDuplicate,
   onDelete,
   onClear,
@@ -24,7 +28,7 @@ export const BulkActionsToolbar = ({
   if (count === 0) {
     return null;
   }
-  const noun = count === 1 ? itemLabel : `${itemLabel}s`;
+  const noun = count === 1 ? itemLabel : (itemLabelPlural ?? `${itemLabel}s`);
   return (
     <Toolbar
       disableGutters

@@ -1,9 +1,16 @@
 name: Deploy to GitHub Pages
 
+# A docs-only change to main doesn't alter the built app, so skip the redeploy.
+# Same rule as CI: paths-ignore only skips when every changed file matches.
 on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
 
 permissions:
   contents: read
