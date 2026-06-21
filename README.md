@@ -134,7 +134,7 @@ PathWise reached its headline goal at **v1.0** — a **"next dollar" optimizer**
 
 6. **Whole net worth (Phase 7)** — cash accounts (HYSA/CD/checking with APY), property (appreciation rate + home-equity from a linked mortgage), and custom assets/liabilities fill out the net-worth picture; export schema bumped to v4 ✅
 
-Post-1.1 work (balance check-ins, Monte Carlo, and more) is sequenced in the full [**ROADMAP.md**](./ROADMAP.md), alongside phases, technical decisions, and the future horizon.
+Post-1.1 work (employer match, Monte Carlo, and more) is sequenced in the full [**ROADMAP.md**](./ROADMAP.md), alongside phases, technical decisions, and the future horizon.
 
 ## Contributing
 
