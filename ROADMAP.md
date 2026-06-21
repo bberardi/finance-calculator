@@ -111,6 +111,7 @@ Move from "what is" to "what happens," and make the math legible.
 | 10.2 | **Payoff strategies (avalanche/snowball)** | Ordered-payoff modes with freed-payment redirection after each payoff — the "snowball" API slot reserved in 5.1.                                   |
 | 10.3 | **Retirement / FI mode**                   | Annual-spending input → FI number, projected FI date, coast-FI date. Introduces a lightweight spending-drawdown model over the engine.             |
 | 10.4 | **"Show the math" mode**                   | Step-by-step calculation breakdowns behind any number (popover) + a filled-in glossary. Serves the founding "no math done by the user" ethos.      |
+| 10.5 | **Contextual field help & inline glossary** | Short helper text / info tooltips on inputs (Current Value vs. Starting Balance, compounding frequency, step-up) linked to the README glossary. Complements 10.4 by guiding _inputs_ rather than explaining outputs; reduces input errors and mis-anchored forecasts. |
 
 ---
 
@@ -124,74 +125,39 @@ Take PathWise off the single device without taking on a backend.
 | 11.2 | **PWA / offline install**                   | Installable app, works offline — a natural fit since there's no backend to lose. Uses the Phase 6.7 icons.                                     |
 | 11.3 | **Printable / PDF report**                  | One-page position summary (holdings, net-worth chart, milestones, active plan) — the artifact for a financial conversation.                    |
 | 11.4 | **Publish the engine** (`@pathwise/engine`) | Release the charter-verified forecast/optimizer core as an open-source npm package — the D7 graduation trigger; core moves to `packages/core`. |
+| 11.5 | **CSV export of schedules & positions**     | CSV alongside the existing JSON for the amortization/growth schedules and the position list — lets users take the numbers into the spreadsheets and accountants' tools they already use. |
+| 11.6 | **Forecast chart image export (PNG/SVG)**   | One-click download of the current chart — a lightweight, immediate version of the 11.3 PDF report, sharable with no backend. |
 
 ---
 
-### Candidate additions (proposed, unsequenced) — review queue
+### Phase 12 — Accessibility & Interaction Polish — _target v2.1_
 
-Suggestions surfaced by a UX/codebase review (June 2026), kept separate from the
-curated phases above until triaged into one. Each passes the §5 non-goal filters
-(serves the core question, works with no backend, isn't budgeting) and is grouped
-by category. Status is **proposed** unless noted.
+Close the accessibility gaps left after Phase 6 and make the multi-position
+workflow fast for power users. Surfaced by a June 2026 UX/codebase review; each
+item passes the §5 non-goal filters.
 
-#### UX & accessibility (extends Phase 6)
+| #    | Work item                                | Notes / acceptance                                                                                                                                                                                                                |
+| ---- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 12.1 | **Live-region announcements**            | `aria-live`/`role="alert"` so screen readers hear dynamic results — optimizer re-rank, snackbar undo offers, sort and data-load changes. Phase 6.1 shipped labels/landmarks/skip-link but no announcements, leaving the most dynamic surfaces silent to assistive tech. |
+| 12.2 | **`prefers-reduced-motion` support**     | Gate dialog/alert/chart transitions on the OS "reduce motion" preference — a WCAG 2.3.3 expectation currently unhandled; cheap to add and removes a vestibular trigger.                                                            |
+| 12.3 | **Keyboard shortcuts & command palette** | App-level accelerators (add loan, add investment, undo, toggle persistence) plus a `Ctrl/Cmd-K` palette and a discoverable shortcut help sheet. Navigation today is native tabbing only; speeds up the power-user workflow.        |
+| 12.4 | **General edit-level undo**              | Extend the existing soft-undo (today scoped to delete and import merges) to cover form edits — saving an edit over a good value currently has no recovery path, unlike every other mutation in the app.                            |
 
-- **C1 — Live-region announcements.** Add `aria-live`/`role="alert"` so screen
-  readers hear dynamic results — optimizer re-rank, snackbar undo offers, sort and
-  data-load changes. _Phase 6.1 added labels, landmarks, and a skip link but no
-  announcements, so the app's most dynamic surfaces (optimizer, chart) are silent
-  to assistive tech._
-- **C2 — `prefers-reduced-motion` support.** Gate dialog/alert/chart transitions on
-  the OS "reduce motion" preference. _A WCAG 2.3.3 expectation that's currently
-  unhandled; cheap to add and removes a real discomfort/vestibular trigger._
-- **C3 — Keyboard shortcuts & command palette.** App-level accelerators (add loan,
-  add investment, undo, toggle persistence) and a `Ctrl/Cmd-K` palette, with a
-  discoverable shortcut help sheet. _Navigation today is native tabbing only;
-  shortcuts make the multi-position workflow fast for the power users most likely
-  to track many loans and investments._
-- **C4 — General edit-level undo.** Extend the existing soft-undo (today scoped to
-  delete and import merges) to cover form edits, since saving an edit is currently
-  destructive. _Editing a wrong value over a good one has no recovery path, unlike
-  every other mutation in the app._
-- **C5 — Contextual field help & inline glossary.** Short helper text / info
-  tooltips on inputs (e.g. "Current Value vs. Starting Balance", compounding
-  frequency, step-up) linked to the README glossary. _Reduces input errors and
-  mis-anchored forecasts; complements but is narrower than 10.4 "show the math,"
-  which explains outputs rather than guiding inputs._
+---
 
-#### Internationalization
+### Considered but not currently planned
 
-- **I1 — Locale & multi-currency display.** Make `format-helpers.ts` (today
-  hardcoded to `en-US`/`USD`) honor a user-selected or browser-detected locale and
-  currency symbol, with matching Day.js date locale. _Numbers and dates are the
-  app's entire output; a non-US user can't read their own net worth in their own
-  currency/format today. Pure presentation — no FX conversion or market data, so it
-  stays within the "no real-time market data" non-goal._
+Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
+the decision is explicit and these aren't re-proposed without new justification.
 
-#### Data portability & sharing
-
-- **P1 — CSV export of schedules & positions.** Offer CSV alongside JSON for the
-  amortization/growth schedules and the position list. _JSON round-trips the app's
-  own state; CSV lets users take the numbers into the spreadsheets and accountants'
-  tools they already use — serving the "stop doing this by hand in a spreadsheet"
-  ethos in reverse._
-- **P2 — Export the forecast chart as an image (PNG/SVG).** One-click download of
-  the current chart. _A lightweight, immediate version of the 11.3 PDF report — the
-  shareable artifact for a quick financial conversation, with no backend._
-
-#### Forecast honesty (new feature)
-
-- **F1 — Balance check-ins.** A periodic, low-friction prompt to update each
-  position's real current balance (`Loan.CurrentAmount` / `Investment.CurrentValue`),
-  keeping the today-anchor — and therefore every projection and the optimizer —
-  tied to reality over time. _The README already advertises "balance check-ins" as
-  post-1.0 work, but no phase actually defines it (see doc note below); it directly
-  addresses the live `CurrentValue` drift bugs (#110, #125) and is the natural
-  recurring-use loop for an app people return to as their finances change._
-
-> **Doc note:** README.md's roadmap blurb lists "balance check-ins" as sequenced
-> "in the full ROADMAP.md," but no phase currently defines it. Triaging **F1**
-> into a phase (or amending the README) resolves that inconsistency.
+- **Locale & multi-currency display** — making `format-helpers.ts` (today hardcoded
+  to `en-US`/`USD`) honor a selected/detected locale and currency symbol. A real
+  gap for non-US users, but **not currently planned support**; revisit only on
+  demonstrated demand.
+- **Balance check-ins** — a periodic prompt to refresh each position's real current
+  balance (`Loan.CurrentAmount` / `Investment.CurrentValue`) to keep the
+  today-anchor tied to reality. **Not currently planned support.** The underlying
+  `CurrentValue` drift is tracked directly as bugs #110 and #125.
 
 ---
 
@@ -204,9 +170,10 @@ Phase 8  Better Answers                   v1.2
 Phase 9  Honest Uncertainty               v1.3   (builds on the Phase 7 property model)
 Phase 10 From Calculator to Plan          v1.4
 Phase 11 Beyond Personal                  v2.0
+Phase 12 Accessibility & Interaction Polish  v2.1
 ```
 
-Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution.
+Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface.
 
 ---
 
