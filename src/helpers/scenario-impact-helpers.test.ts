@@ -7,6 +7,7 @@ import {
 } from './scenario-impact-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { Asset, AssetType } from '../models/asset-model';
 
 const TODAY = new Date(2025, 0, 1);
 
@@ -95,6 +96,50 @@ describe('computeScenarioImpact', () => {
     );
     expect(impact.payoffMonthsEarlier).toBe(0);
     expect(impact.interestSaved).toBe(0);
+  });
+
+  it('folds assets into the baseline net worth without changing the delta', () => {
+    const cash: Asset = {
+      Id: 'asset-1',
+      Provider: 'Bank',
+      Name: 'Savings',
+      AssetType: AssetType.Cash,
+      Balance: 50000,
+      GrowthRate: 0,
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    };
+    const scenario = { ExtraLoanPayments: { 'loan-1': 300 } };
+
+    // The absolute baseline net worth at the horizon rises by the asset's value.
+    const withoutAssets = computeScenarioBaseline([loan], [investment], TODAY);
+    const withAssets = computeScenarioBaseline(
+      [loan],
+      [investment],
+      TODAY,
+      undefined,
+      [cash]
+    );
+    expect(
+      withAssets.netWorthAtHorizon - withoutAssets.netWorthAtHorizon
+    ).toBeCloseTo(50000, 2);
+
+    // ...but the scenario delta is asset-invariant (a passive holding cancels
+    // between the baseline and the scenario net worth).
+    const deltaNoAssets = computeScenarioImpact(
+      [loan],
+      [investment],
+      scenario,
+      TODAY
+    );
+    const deltaWithAssets = computeScenarioImpact(
+      [loan],
+      [investment],
+      scenario,
+      TODAY,
+      undefined,
+      [cash]
+    );
+    expect(deltaWithAssets).toEqual(deltaNoAssets);
   });
 });
 

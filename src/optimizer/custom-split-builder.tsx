@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Paper, Slider, Stack, Typography } from '@mui/material';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import {
   AllocationPlan,
   evaluatePlan,
@@ -14,6 +15,7 @@ import { formatPayoffSooner } from './optimizer-utils';
 interface CustomSplitBuilderProps {
   loans: Loan[];
   investments: Investment[];
+  assets: Asset[];
   monthlyExtra: number;
   today: Date;
   horizon: Date;
@@ -46,6 +48,7 @@ const evenSplit = (ids: string[], total: number): Record<string, number> => {
 export const CustomSplitBuilder = ({
   loans,
   investments,
+  assets,
   monthlyExtra,
   today,
   horizon,
@@ -86,8 +89,8 @@ export const CustomSplitBuilder = ({
   );
 
   const evaluation = useMemo(
-    () => evaluatePlan(loans, investments, plan, today, horizon),
-    [loans, investments, plan, today, horizon]
+    () => evaluatePlan(loans, investments, plan, today, horizon, assets),
+    [loans, investments, plan, today, horizon, assets]
   );
 
   const handleSlider = (id: string, next: number) => {

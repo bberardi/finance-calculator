@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import {
   PlanEvaluation,
   SuggestOptions,
@@ -23,6 +24,9 @@ export interface OptimizerRequest {
   options?: SuggestOptions;
   today: Date;
   horizon?: Date;
+  // Passive holdings (Phase 7); folded into the net-worth anchor the search
+  // scores against. Plain data with no Date fields, so structured-clone-safe.
+  assets: Asset[];
 }
 
 export interface OptimizerResponse {
@@ -41,6 +45,7 @@ ctx.onmessage = (event: MessageEvent<OptimizerRequest>) => {
     options,
     today,
     horizon,
+    assets,
   } = event.data;
   const plans = suggestPlans(
     loans,
@@ -48,7 +53,8 @@ ctx.onmessage = (event: MessageEvent<OptimizerRequest>) => {
     monthlyExtra,
     options,
     today,
-    horizon
+    horizon,
+    assets
   );
   const response: OptimizerResponse = { requestId, plans };
   ctx.postMessage(response);
