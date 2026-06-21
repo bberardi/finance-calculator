@@ -105,12 +105,12 @@ Stop overstating certainty on long horizons, and model the growth/decline of the
 
 Move from "what is" to "what happens," and make the math legible.
 
-| #    | Work item                                  | Notes / acceptance                                                                                                                                 |
-| ---- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 10.1 | **Life-event timeline**                    | Dated one-time events that modify the forecast (buy a house, tuition, windfall, sell a car). Generalizes scenarios from "extra $/month" to events. |
-| 10.2 | **Payoff strategies (avalanche/snowball)** | Ordered-payoff modes with freed-payment redirection after each payoff — the "snowball" API slot reserved in 5.1.                                   |
-| 10.3 | **Retirement / FI mode**                   | Annual-spending input → FI number, projected FI date, coast-FI date. Introduces a lightweight spending-drawdown model over the engine.             |
-| 10.4 | **"Show the math" mode**                   | Step-by-step calculation breakdowns behind any number (popover) + a filled-in glossary. Serves the founding "no math done by the user" ethos.      |
+| #    | Work item                                   | Notes / acceptance                                                                                                                                                                                                                                                    |
+| ---- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 10.1 | **Life-event timeline**                     | Dated one-time events that modify the forecast (buy a house, tuition, windfall, sell a car). Generalizes scenarios from "extra $/month" to events.                                                                                                                    |
+| 10.2 | **Payoff strategies (avalanche/snowball)**  | Ordered-payoff modes with freed-payment redirection after each payoff — the "snowball" API slot reserved in 5.1.                                                                                                                                                      |
+| 10.3 | **Retirement / FI mode**                    | Annual-spending input → FI number, projected FI date, coast-FI date. Introduces a lightweight spending-drawdown model over the engine.                                                                                                                                |
+| 10.4 | **"Show the math" mode**                    | Step-by-step calculation breakdowns behind any number (popover) + a filled-in glossary. Serves the founding "no math done by the user" ethos.                                                                                                                         |
 | 10.5 | **Contextual field help & inline glossary** | Short helper text / info tooltips on inputs (Current Value vs. Starting Balance, compounding frequency, step-up) linked to the README glossary. Complements 10.4 by guiding _inputs_ rather than explaining outputs; reduces input errors and mis-anchored forecasts. |
 
 ---
@@ -119,14 +119,14 @@ Move from "what is" to "what happens," and make the math legible.
 
 Take PathWise off the single device without taking on a backend.
 
-| #    | Work item                                   | Notes / acceptance                                                                                                                             |
-| ---- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 11.1 | **Shareable links**                         | Compressed state in the URL fragment — share a scenario with zero backend; also doubles as a backup. Serialization (D5).                       |
-| 11.2 | **PWA / offline install**                   | Installable app, works offline — a natural fit since there's no backend to lose. Uses the Phase 6.7 icons.                                     |
-| 11.3 | **Printable / PDF report**                  | One-page position summary (holdings, net-worth chart, milestones, active plan) — the artifact for a financial conversation.                    |
-| 11.4 | **Publish the engine** (`@pathwise/engine`) | Release the charter-verified forecast/optimizer core as an open-source npm package — the D7 graduation trigger; core moves to `packages/core`. |
+| #    | Work item                                   | Notes / acceptance                                                                                                                                                                       |
+| ---- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 11.1 | **Shareable links**                         | Compressed state in the URL fragment — share a scenario with zero backend; also doubles as a backup. Serialization (D5).                                                                 |
+| 11.2 | **PWA / offline install**                   | Installable app, works offline — a natural fit since there's no backend to lose. Uses the Phase 6.7 icons.                                                                               |
+| 11.3 | **Printable / PDF report**                  | One-page position summary (holdings, net-worth chart, milestones, active plan) — the artifact for a financial conversation.                                                              |
+| 11.4 | **Publish the engine** (`@pathwise/engine`) | Release the charter-verified forecast/optimizer core as an open-source npm package — the D7 graduation trigger; core moves to `packages/core`.                                           |
 | 11.5 | **CSV export of schedules & positions**     | CSV alongside the existing JSON for the amortization/growth schedules and the position list — lets users take the numbers into the spreadsheets and accountants' tools they already use. |
-| 11.6 | **Forecast chart image export (PNG/SVG)**   | One-click download of the current chart — a lightweight, immediate version of the 11.3 PDF report, sharable with no backend. |
+| 11.6 | **Forecast chart image export (PNG/SVG)**   | One-click download of the current chart — a lightweight, immediate version of the 11.3 PDF report, sharable with no backend.                                                             |
 
 ---
 
@@ -136,12 +136,12 @@ Close the accessibility gaps left after Phase 6 and make the multi-position
 workflow fast for power users. Surfaced by a June 2026 UX/codebase review; each
 item passes the §5 non-goal filters.
 
-| #    | Work item                                | Notes / acceptance                                                                                                                                                                                                                |
-| ---- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #    | Work item                                | Notes / acceptance                                                                                                                                                                                                                                                      |
+| ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 12.1 | **Live-region announcements**            | `aria-live`/`role="alert"` so screen readers hear dynamic results — optimizer re-rank, snackbar undo offers, sort and data-load changes. Phase 6.1 shipped labels/landmarks/skip-link but no announcements, leaving the most dynamic surfaces silent to assistive tech. |
-| 12.2 | **`prefers-reduced-motion` support**     | Gate dialog/alert/chart transitions on the OS "reduce motion" preference — a WCAG 2.3.3 expectation currently unhandled; cheap to add and removes a vestibular trigger.                                                            |
-| 12.3 | **Keyboard shortcuts & command palette** | App-level accelerators (add loan, add investment, undo, toggle persistence) plus a `Ctrl/Cmd-K` palette and a discoverable shortcut help sheet. Navigation today is native tabbing only; speeds up the power-user workflow.        |
-| 12.4 | **General edit-level undo**              | Extend the existing soft-undo (today scoped to delete and import merges) to cover form edits — saving an edit over a good value currently has no recovery path, unlike every other mutation in the app.                            |
+| 12.2 | **`prefers-reduced-motion` support**     | Gate dialog/alert/chart transitions on the OS "reduce motion" preference — a WCAG 2.3.3 expectation currently unhandled; cheap to add and removes a vestibular trigger.                                                                                                 |
+| 12.3 | **Keyboard shortcuts & command palette** | App-level accelerators (add loan, add investment, undo, toggle persistence) plus a `Ctrl/Cmd-K` palette and a discoverable shortcut help sheet. Navigation today is native tabbing only; speeds up the power-user workflow.                                             |
+| 12.4 | **General edit-level undo**              | Extend the existing soft-undo (today scoped to delete and import merges) to cover form edits — saving an edit over a good value currently has no recovery path, unlike every other mutation in the app.                                                                 |
 
 ---
 
