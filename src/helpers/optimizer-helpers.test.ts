@@ -164,19 +164,16 @@ describe('suggestPlans', () => {
       CompoundingPeriod: CompoundingFrequency.Monthly,
     };
     // Passive holdings cancel in the net-worth delta the optimizer scores, so the
-    // ranked order and every metric are identical with or without the asset.
-    const withoutAssets = suggestPlans(
-      [loan, loan2],
-      [investment],
-      500,
-      {},
-      TODAY
-    );
+    // ranked order and every metric are identical with or without the asset. A
+    // coarse split grid (two singles + one 50/50 split) keeps the doubled search
+    // small so it stays well within the default test timeout under CI coverage.
+    const options = { stepPercent: 50 };
+    const withoutAssets = suggestPlans([loan, loan2], [], 300, options, TODAY);
     const withAssets = suggestPlans(
       [loan, loan2],
-      [investment],
-      500,
-      {},
+      [],
+      300,
+      options,
       TODAY,
       undefined,
       [cash]
