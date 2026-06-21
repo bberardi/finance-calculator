@@ -136,6 +136,30 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
             )}
             required
           />
+          <NumericFormat
+            label="Current Value (Optional)"
+            value={newInvestment.CurrentValue ?? ''}
+            thousandSeparator
+            decimalScale={2}
+            prefix={'$'}
+            customInput={TextField}
+            onValueChange={(vs) => {
+              // Leave undefined when blank so the forecast falls back to the
+              // value projected to today (preserving prior behavior); set it to
+              // anchor the forecast to today's actual value, like a loan's
+              // Current Amount. (#110)
+              setNewInvestment({
+                ...newInvestment,
+                CurrentValue: vs.value ? Number(vs.value) : undefined,
+              });
+            }}
+            onBlur={() => touch('CurrentValue')}
+            error={Boolean(errorFor('CurrentValue'))}
+            helperText={fieldHelperText(
+              errorFor('CurrentValue'),
+              warningFor('CurrentValue')
+            )}
+          />
           <DatePicker
             label="Start Date"
             value={dayjs(newInvestment.StartDate)}

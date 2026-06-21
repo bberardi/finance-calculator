@@ -303,6 +303,17 @@ export const forecastInvestment = (
   return points;
 };
 
+// Best-known value of an investment as of `today`: the explicit CurrentValue
+// anchor when set, otherwise the value the engine projects to today from the
+// investment's historical inputs. This is exactly forecastInvestment's index-0
+// anchor, exposed as a single source of truth so the investment table's
+// "Current Value" column/totals and the dashboard's "Total assets" never show
+// two different figures for the same position. (#125)
+export const currentInvestmentValue = (
+  investment: Investment,
+  today: Date = new Date()
+): number => forecastInvestment(investment, today, 0, today)[0].Value;
+
 // Forecast overall net worth on a shared monthly axis from today to the
 // horizon: total investment value, plus simple assets (cash/property/custom,
 // Phase 7), minus total loan balance and any custom-liability assets. Scenario

@@ -2,7 +2,7 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import {
-  forecastInvestment,
+  currentInvestmentValue,
   forecastLoan,
   getEffectiveMonthlyPayment,
 } from './forecast-helpers';
@@ -53,8 +53,7 @@ export const summarizePositions = (
   );
   const totalAssets = roundToCents(
     investments.reduce(
-      (sum, investment) =>
-        sum + forecastInvestment(investment, today, 0, today)[0].Value,
+      (sum, investment) => sum + currentInvestmentValue(investment, today),
       0
     ) + assetHoldings.reduce((sum, asset) => sum + getAssetValueToday(asset), 0)
   );

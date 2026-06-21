@@ -23,6 +23,7 @@ import {
   StepUpType,
 } from '../models/investment-model';
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
+import { currentInvestmentValue } from '../helpers/forecast-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
 import { filterBySearch } from '../helpers/filter-helpers';
@@ -61,10 +62,12 @@ interface InvestmentRowHandlers {
   onDelete: (investment: Investment) => void;
 }
 
-// Best-known current value: the explicit CurrentValue when set, else the
-// starting balance as a stand-in for the table/totals.
+// Best-known current value for the table column and totals: the explicit
+// CurrentValue when set, else the value the engine projects to today. Reuses
+// the same anchor the dashboard's "Total assets" reads so the two never
+// disagree for a past-dated investment with CurrentValue unset. (#125)
 const currentValue = (investment: Investment): number =>
-  investment.CurrentValue ?? investment.StartingBalance;
+  currentInvestmentValue(investment);
 
 const investmentActions = (
   investment: Investment,
