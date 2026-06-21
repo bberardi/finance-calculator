@@ -56,4 +56,50 @@ describe('AddEditInvestment (form)', () => {
     );
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('edits an investment’s Current Value and saves it as the forecast anchor (#110)', async () => {
+    const onSave = vi.fn();
+    renderWithProviders(
+      <AddEditInvestment
+        open
+        investment={validInvestment}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+
+    const currentValue = screen.getByLabelText(/Current Value/);
+    await userEvent.type(currentValue, '12500');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Save Investment' })
+    );
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ Id: 'edit-1', CurrentValue: 12500 }),
+      expect.objectContaining({ Id: 'edit-1' })
+    );
+  });
+
+  it('blocks saving when Current Value is negative (#99 rule, now reachable)', async () => {
+    const onSave = vi.fn();
+    renderWithProviders(
+      <AddEditInvestment
+        open
+        investment={validInvestment}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+
+    const currentValue = screen.getByLabelText(/Current Value/);
+    await userEvent.type(currentValue, '-100');
+
+    // The #99 negative-CurrentValue rule blocks Save (button disabled), and the
+    // per-field error is revealed once the field is touched.
+    expect(
+      screen.getByRole('button', { name: 'Save Investment' })
+    ).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });

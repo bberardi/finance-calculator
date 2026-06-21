@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { summarizePositions } from './summary-helpers';
-import { forecastNetWorth } from './forecast-helpers';
+import { currentInvestmentValue, forecastNetWorth } from './forecast-helpers';
 import { getMonthlyPayment } from './loan-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
@@ -121,6 +121,28 @@ describe('summarizePositions', () => {
     expect(
       summarizePositions([zeroPayment], [], TODAY).monthlyCommitments
     ).toBeCloseTo(derived, 2);
+  });
+
+  it('totalAssets uses the same anchor as the table column for a past-dated investment with CurrentValue unset (#125)', () => {
+    // The investment table's "Current Value" column/totals and this dashboard
+    // total must read one figure. Previously the table fell back to
+    // StartingBalance while the dashboard projected to today, so the two
+    // disagreed for any past-dated investment with CurrentValue unset.
+    const pastDated: Investment = {
+      Id: 'inv-past',
+      Provider: 'Brokerage',
+      Name: 'Old Fund',
+      StartDate: new Date(2016, 5, 20),
+      StartingBalance: 10000,
+      AverageReturnRate: 7,
+      CompoundingPeriod: CompoundingFrequency.Annually,
+    };
+
+    const anchor = currentInvestmentValue(pastDated, TODAY);
+    // The projected-to-today value has grown well past the starting balance.
+    expect(anchor).toBeGreaterThan(pastDated.StartingBalance);
+    // The dashboard total reads exactly that same anchor.
+    expect(summarizePositions([], [pastDated], TODAY).totalAssets).toBe(anchor);
   });
 
   it('is all zeros with no positions', () => {
