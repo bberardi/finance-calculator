@@ -1,10 +1,25 @@
 name: CI
 
+# Skip CI when a change touches ONLY docs/meta files that can't affect the
+# lint/format/test/build gates. A mixed change (any code file alongside docs)
+# still runs the full pipeline, because paths-ignore only skips when EVERY
+# changed file matches. Keep this list to files that genuinely have no build/
+# test impact — e.g. never ignore .prettierignore, .npmrc, or the workflows.
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
 
 permissions:
   contents: read
