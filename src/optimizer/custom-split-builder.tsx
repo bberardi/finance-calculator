@@ -8,7 +8,7 @@ import {
   rebalanceAllocation,
   roundToCents,
 } from '../helpers/optimizer-helpers';
-import { formatCurrency } from '../helpers/format-helpers';
+import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 import { formatPayoffSooner } from './optimizer-utils';
 
 interface CustomSplitBuilderProps {
@@ -96,8 +96,8 @@ export const CustomSplitBuilder = ({
 
   const metrics = [
     {
-      label: 'Net worth at horizon',
-      value: `${evaluation.netWorthDelta >= 0 ? '+' : ''}${formatCurrency(evaluation.netWorthDelta)}`,
+      label: 'Net worth added at horizon',
+      value: formatNetWorthDelta(evaluation.netWorthDelta),
     },
     {
       label: 'Interest saved',

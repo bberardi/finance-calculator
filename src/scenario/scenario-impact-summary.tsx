@@ -4,7 +4,7 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Scenario } from '../models/scenario-model';
 import { computeScenarioImpact } from '../helpers/scenario-impact-helpers';
-import { formatCurrency } from '../helpers/format-helpers';
+import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 
 interface ScenarioImpactSummaryProps {
   loans: Loan[];
@@ -37,8 +37,8 @@ export const ScenarioImpactSummary = ({
 
   const metrics: { label: string; value: string }[] = [
     {
-      label: 'Net worth at horizon',
-      value: `${impact.netWorthDelta >= 0 ? '+' : ''}${formatCurrency(impact.netWorthDelta)}`,
+      label: 'Net worth added at horizon',
+      value: formatNetWorthDelta(impact.netWorthDelta),
     },
     {
       label: 'Lifetime interest saved',

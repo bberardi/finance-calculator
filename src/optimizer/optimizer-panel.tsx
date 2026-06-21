@@ -21,7 +21,7 @@ import { NumericFormat } from 'react-number-format';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { AllocationPlan } from '../helpers/optimizer-helpers';
-import { formatCurrency } from '../helpers/format-helpers';
+import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 import { useFinanceData } from '../state/use-finance-data';
 import { useOptimizer } from './use-optimizer';
 import { CustomSplitBuilder } from './custom-split-builder';
@@ -41,9 +41,6 @@ interface OptimizerPanelProps {
 // How many ranked plans to surface (the search produces far more across the
 // split grid; the top handful is what's actionable).
 const MAX_ROWS = 8;
-
-const signedCurrency = (value: number): string =>
-  `${value >= 0 ? '+' : ''}${formatCurrency(value)}`;
 
 // A stable, collision-proof React key for a plan row. Two positions can share a
 // Name (so the human-readable label isn't unique), but a plan's id→amount
@@ -143,7 +140,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
             <TableHead>
               <TableRow>
                 <TableCell>Plan</TableCell>
-                <TableCell align="right">Net worth at horizon</TableCell>
+                <TableCell align="right">Net worth added at horizon</TableCell>
                 <TableCell align="right">Interest saved</TableCell>
                 <TableCell align="right">Debt-free</TableCell>
                 <TableCell />
@@ -165,7 +162,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
                     </Stack>
                   </TableCell>
                   <TableCell align="right">
-                    {signedCurrency(evaluation.netWorthDelta)}
+                    {formatNetWorthDelta(evaluation.netWorthDelta)}
                   </TableCell>
                   <TableCell align="right">
                     {formatCurrency(evaluation.interestSaved)}

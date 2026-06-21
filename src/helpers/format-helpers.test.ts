@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatCurrency,
   formatCurrencyCompact,
+  formatNetWorthDelta,
   formatPercent,
 } from './format-helpers';
 
@@ -104,5 +105,19 @@ describe('formatPercent', () => {
       });
       expect(formatPercent(value)).toBe(expected);
     }
+  });
+});
+
+describe('formatNetWorthDelta', () => {
+  it('reads "No change" for a zero delta (e.g. a debt-paydown that does not move net worth at the horizon)', () => {
+    expect(formatNetWorthDelta(0)).toBe('No change');
+  });
+
+  it('prefixes a gain with a plus sign', () => {
+    expect(formatNetWorthDelta(1234.5)).toBe('+$1,234.50');
+  });
+
+  it('keeps the native minus sign for a loss', () => {
+    expect(formatNetWorthDelta(-1234.5)).toBe('-$1,234.50');
   });
 });
