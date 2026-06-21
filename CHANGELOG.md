@@ -9,6 +9,17 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+### Quality (Phase 6 correctness backlog)
+
+- **Date-math rollover (6.9) — resolved.** The month-end overflow bug
+  (`Jan 31 + 1 month` → `Mar 3` via `Date.setMonth`) is fixed by clamping each
+  month/year step to the last valid day of the target month (`addMonthsClamped`
+  / `getNextCompoundingDate` in `investment-helpers.ts`, #93). This native-`Date`
+  clamping supersedes the originally-planned dayjs migration — same correctness,
+  without adding dayjs to the hot forecast/growth loops. Covered by the
+  Charter's edge-case catalog: `Jan 31 + 1mo → Feb 28`, `Feb-29` leap/non-leap
+  anniversaries, and the 2100 century rule.
+
 ## [1.1.0] — Phase 7: Whole Net Worth
 
 Made the net-worth line _true_ by letting PathWise hold everything a person owns,
