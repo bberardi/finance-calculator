@@ -28,7 +28,20 @@ const importFile = () =>
   });
 
 const fileInput = (container: HTMLElement) =>
-  container.querySelector('input[type="file"]') as HTMLInputElement;
+  container.querySelector('input[accept=".json"]') as HTMLInputElement;
+
+// A Monarch "account balance history" CSV for one account.
+const monarchFile = () =>
+  new File(
+    [
+      'Date,Amount,Account Name\n2024-01-01,1000,Chase Checking\n2024-02-01,1500,Chase Checking\n',
+    ],
+    'balances.csv',
+    { type: 'text/csv' }
+  );
+
+const monarchInput = (container: HTMLElement) =>
+  container.querySelector('input[accept=".csv"]') as HTMLInputElement;
 
 describe('DataManager import preview + undo (roadmap 6.3)', () => {
   it('previews the merge and only commits on confirm, then offers undo', async () => {
@@ -63,5 +76,24 @@ describe('DataManager import preview + undo (roadmap 6.3)', () => {
     // The dialog closes via an exit transition, so wait for it to leave the DOM.
     await waitForElementToBeRemoved(() => screen.queryByText('Review import'));
     expect(screen.queryByText(/Imported/)).not.toBeInTheDocument();
+  });
+});
+
+describe('DataManager Monarch CSV import', () => {
+  it('previews a Monarch balance CSV as an asset and commits on confirm', async () => {
+    const { container } = renderWithProviders(<DataManager />);
+
+    await userEvent.upload(monarchInput(container), monarchFile());
+
+    // The shared review dialog lists the imported account; nothing merged yet.
+    expect(await screen.findByText('Review import')).toBeInTheDocument();
+    expect(screen.getByText('Chase Checking')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'UNDO' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Imported 1 item/)).toBeInTheDocument();
   });
 });

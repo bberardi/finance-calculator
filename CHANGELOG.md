@@ -9,6 +9,24 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.2.0] — Monarch import
+
+### Added
+
+- **Import from Monarch (account balances):** a command-bar action that turns
+  Monarch Money's "account balance history" CSV exports into PathWise assets and
+  liabilities. Select one or more files (Monarch exports one per account); each
+  account's most recent balance becomes a **custom asset** (positive amount) or a
+  **custom liability** (negative amount, stored as the amount owed), with the
+  account name taken from the CSV's `Account Name` column or the file name and the
+  growth rate left at 0 for you to fill in. There is no account-type column in the
+  export, so asset-vs-liability is inferred from the balance's sign (Monarch
+  negates debt). The import reuses the existing review-before-merge preview and
+  soft-undo, and — because each account gets a stable, name-derived ID —
+  re-importing later **updates the same entries in place** instead of duplicating
+  them. Parsing/mapping lives in a new pure `monarch-helpers.ts` held to the same
+  100% coverage gate as the rest of `src/helpers/**`.
+
 ## [1.1.0] — Phase 7: Whole Net Worth
 
 Made the net-worth line _true_ by letting PathWise hold everything a person owns,
