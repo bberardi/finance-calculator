@@ -9,6 +9,18 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.2.1]
+
+### Fixed
+
+- **Monarch import now imports every account from an all-accounts export.** The
+  importer assumed one account per file and kept only the single most-recent row,
+  so a single all-accounts CSV collapsed to one asset. It now groups rows by the
+  `Account Name` column and creates one asset (or custom liability, by balance
+  sign) per distinct account, each anchored to that account's latest balance, and
+  also accepts a bare `Name` header for the account column. Per-account files and
+  the review/merge/undo flow are unchanged.
+
 ## [1.2.0] — Monarch import
 
 ### Added
