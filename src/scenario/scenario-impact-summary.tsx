@@ -2,13 +2,15 @@ import { useMemo } from 'react';
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { computeScenarioImpact } from '../helpers/scenario-impact-helpers';
-import { formatCurrency } from '../helpers/format-helpers';
+import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 
 interface ScenarioImpactSummaryProps {
   loans: Loan[];
   investments: Investment[];
+  assets: Asset[];
   scenario: Scenario;
 }
 
@@ -28,17 +30,26 @@ const formatMonths = (months: number): string => {
 export const ScenarioImpactSummary = ({
   loans,
   investments,
+  assets,
   scenario,
 }: ScenarioImpactSummaryProps) => {
   const impact = useMemo(
-    () => computeScenarioImpact(loans, investments, scenario, new Date()),
-    [loans, investments, scenario]
+    () =>
+      computeScenarioImpact(
+        loans,
+        investments,
+        scenario,
+        new Date(),
+        undefined,
+        assets
+      ),
+    [loans, investments, scenario, assets]
   );
 
   const metrics: { label: string; value: string }[] = [
     {
-      label: 'Net worth at horizon',
-      value: `${impact.netWorthDelta >= 0 ? '+' : ''}${formatCurrency(impact.netWorthDelta)}`,
+      label: 'Net worth added at horizon',
+      value: formatNetWorthDelta(impact.netWorthDelta),
     },
     {
       label: 'Lifetime interest saved',

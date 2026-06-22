@@ -1,5 +1,6 @@
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { ScenarioInput } from '../models/forecast-model';
 import {
   ScenarioBaseline,
@@ -93,7 +94,8 @@ export const evaluatePlan = (
   investments: Investment[],
   plan: AllocationPlan,
   today: Date = new Date(),
-  horizon?: Date
+  horizon?: Date,
+  assets: Asset[] = []
 ): PlanEvaluation => {
   const scenario = splitAllocations(loans, plan.allocations);
   const impact = computeScenarioImpact(
@@ -101,7 +103,8 @@ export const evaluatePlan = (
     investments,
     scenario,
     today,
-    horizon
+    horizon,
+    assets
   );
   return toEvaluation(plan, impact);
 };
@@ -195,7 +198,8 @@ export const suggestPlans = (
   monthlyExtra: number,
   options: SuggestOptions = {},
   today: Date = new Date(),
-  horizon?: Date
+  horizon?: Date,
+  assets: Asset[] = []
 ): PlanEvaluation[] => {
   if (!(monthlyExtra > 0)) return [];
 
@@ -217,7 +221,8 @@ export const suggestPlans = (
     loans,
     investments,
     today,
-    horizon
+    horizon,
+    assets
   );
 
   const evaluate = (plan: AllocationPlan): PlanEvaluation => {
@@ -227,7 +232,8 @@ export const suggestPlans = (
       investments,
       scenario,
       baseline,
-      today
+      today,
+      assets
     );
     return toEvaluation(plan, impact);
   };

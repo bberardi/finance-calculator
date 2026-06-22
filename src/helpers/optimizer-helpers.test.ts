@@ -8,6 +8,7 @@ import {
 } from './optimizer-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { Asset, AssetType } from '../models/asset-model';
 
 const TODAY = new Date(2025, 0, 1);
 
@@ -150,6 +151,34 @@ describe('suggestPlans', () => {
     expect(plans).toHaveLength(1);
     expect(plans[0].plan.label).toBe('All to Car Loan');
     expect(plans[0].plan.allocations).toEqual({ 'loan-1': 500 });
+  });
+
+  it('threads assets through without changing plan ranking or metrics', () => {
+    const cash: Asset = {
+      Id: 'asset-1',
+      Provider: 'Bank',
+      Name: 'Savings',
+      AssetType: AssetType.Cash,
+      Balance: 50000,
+      GrowthRate: 0,
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    };
+    // Passive holdings cancel in the net-worth delta the optimizer scores, so the
+    // ranked order and every metric are identical with or without the asset. A
+    // coarse split grid (two singles + one 50/50 split) keeps the doubled search
+    // small so it stays well within the default test timeout under CI coverage.
+    const options = { stepPercent: 50 };
+    const withoutAssets = suggestPlans([loan, loan2], [], 300, options, TODAY);
+    const withAssets = suggestPlans(
+      [loan, loan2],
+      [],
+      300,
+      options,
+      TODAY,
+      undefined,
+      [cash]
+    );
+    expect(withAssets).toEqual(withoutAssets);
   });
 
   it('ranks singles plus splits, best score first, each summing to the budget', () => {
