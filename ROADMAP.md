@@ -145,6 +145,40 @@ item passes the §5 non-goal filters.
 
 ---
 
+### Phase 13 — Data Safety & Goal-Setting — _target v2.2_
+
+Surfaced by a June 2026 follow-up UX/codebase review. These close a data-loss
+gap, turn the read-only milestones into something users can aim at, and finish
+the spreadsheet round-trip. Each item passes the §5 non-goal filters
+(client-side, data stays on device, not a budgeting app). Items are grouped by
+category; the rationale column says why each earns a slot.
+
+**Data safety (UX)**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                            |
+| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13.1 | **Unsaved-changes guard**          | A `beforeunload` warning when positions exist but on-device persistence is **off**, so an accidental refresh or tab-close can't silently wipe everything the user just entered. There is no such guard today (no `beforeunload` listener anywhere), and the opt-in persistence toggle is the only safety net — a user who hasn't opted in loses all data on reload. Cheap, no backend, prevents the worst first-run experience. |
+
+**New features**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                            |
+| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13.2 | **Net-worth / savings goal**       | A user-set target (e.g. "$1M by 2040" or "debt-free by 2030") drawn as a reference line on the forecast chart, with a projected hit/miss and ETA against the current plan. The milestone callouts today are read-only _projections_ (`milestone-helpers.ts`); a goal turns them into something the optimizer and scenarios can be aimed at — directly serving the founding "where should my money go?" question. Pairs with the Phase 10 FI mode (10.3). |
+
+**Portability**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                            |
+| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13.3 | **CSV import (round-trip with 11.5)** | Pair the planned CSV _export_ (11.5) with CSV _import_ of positions, so users can bulk-add loans/investments/assets from the spreadsheets they already keep instead of one dialog at a time. Import is JSON-only today (`data-manager.tsx` accepts `.json` only); CSV is the format most users' existing position data actually lives in. Reuses the D8 validation/migration boundary on the parsed rows. |
+
+**Power-user UX**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                            |
+| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13.4 | **Quick filters by type & status** | Filtering today is a name/provider substring match only (`filter-helpers.ts`); add quick toggles to filter the positions view by type (loan / investment / cash / property / custom) and by active-scenario membership. Helps users with many positions find a row fast — a small, purely-derived UI addition with no engine impact. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -171,9 +205,10 @@ Phase 9  Honest Uncertainty               v1.3   (builds on the Phase 7 property
 Phase 10 From Calculator to Plan          v1.4
 Phase 11 Beyond Personal                  v2.0
 Phase 12 Accessibility & Interaction Polish  v2.1
+Phase 13 Data Safety & Goal-Setting       v2.2
 ```
 
-Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface.
+Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review.
 
 ---
 
