@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MONARCH_PROVIDER,
-  importAssetFromMonarchBalanceCsv,
+  importAssetsFromMonarchBalanceCsv,
   importAssetsFromMonarchBalanceCsvFiles,
   parseCsv,
   parseMonarchAmount,
@@ -103,15 +103,48 @@ describe('parseMonarchAmount', () => {
 // A compact builder for a Monarch balance-history CSV body.
 const csv = (lines: string[]): string => lines.join('\n');
 
-describe('importAssetFromMonarchBalanceCsv', () => {
-  it('maps a positive account to a custom asset with the latest balance', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
+// The single account a one-account file is expected to yield.
+const only = (assets: ReturnType<typeof importAssetsFromMonarchBalanceCsv>) => {
+  expect(assets).toHaveLength(1);
+  return assets[0];
+};
+
+describe('importAssetsFromMonarchBalanceCsv', () => {
+  it('imports every account in an all-accounts export', () => {
+    const assets = importAssetsFromMonarchBalanceCsv(
       csv([
         'Date,Amount,Account Name',
         '2024-01-01,1000,Chase Checking',
         '2024-02-01,1500,Chase Checking',
+        '2024-01-01,-500,Visa',
+        '2024-02-01,-450,Visa',
+        '2024-02-01,20000,Brokerage',
       ]),
-      'balances.csv'
+      'all-accounts.csv'
+    );
+    // One asset per distinct account, in first-seen order, each at its latest row.
+    expect(assets.map((a) => [a.Name, a.AssetType, a.Balance])).toEqual([
+      ['Chase Checking', AssetType.CustomAsset, 1500],
+      ['Visa', AssetType.CustomLiability, 450],
+      ['Brokerage', AssetType.CustomAsset, 20000],
+    ]);
+    expect(assets.map((a) => a.Id)).toEqual([
+      'monarch:chase-checking',
+      'monarch:visa',
+      'monarch:brokerage',
+    ]);
+  });
+
+  it('maps a single positive account to a custom asset with the latest balance', () => {
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv([
+          'Date,Amount,Account Name',
+          '2024-01-01,1000,Chase Checking',
+          '2024-02-01,1500,Chase Checking',
+        ]),
+        'balances.csv'
+      )
     );
     expect(asset).toEqual({
       Id: 'monarch:chase-checking',
@@ -125,9 +158,11 @@ describe('importAssetFromMonarchBalanceCsv', () => {
   });
 
   it('maps a negative account to a custom liability with a positive amount owed', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount,Account Name', '2024-02-01,-4200.50,Visa Card']),
-      'visa.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Account Name', '2024-02-01,-4200.50,Visa Card']),
+        'visa.csv'
+      )
     );
     expect(asset.AssetType).toBe(AssetType.CustomLiability);
     expect(asset.Balance).toBe(4200.5);
@@ -136,136 +171,170 @@ describe('importAssetFromMonarchBalanceCsv', () => {
   });
 
   it('accepts a bare "Account" header as the name column', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount,Account', '2024-01-01,1000,Fidelity 401k']),
-      'acct.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Account', '2024-01-01,1000,Fidelity 401k']),
+        'acct.csv'
+      )
     );
     expect(asset.Name).toBe('Fidelity 401k');
   });
 
+  it('accepts a "Name" header as the name column', () => {
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Name', '2024-01-01,1000,Ally Savings']),
+        'acct.csv'
+      )
+    );
+    expect(asset.Name).toBe('Ally Savings');
+  });
+
   it('accepts a "Balance" header as an alias for "Amount"', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Balance', '2024-01-01,2500']),
-      'savings.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Balance', '2024-01-01,2500']),
+        'savings.csv'
+      )
     );
     expect(asset.Balance).toBe(2500);
   });
 
   it('picks the most recent row even when the file is not date-sorted', () => {
-    // Newer row first, older row second: the older row must hit the `< bestTime`
-    // branch and be ignored.
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount', '2024-03-01,3000', '2024-01-01,1000']),
-      'acct.csv'
+    // Newer row first, older row second: the older row must hit the
+    // `< latestTime` branch and be ignored.
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount', '2024-03-01,3000', '2024-01-01,1000']),
+        'acct.csv'
+      )
     );
     expect(asset.Balance).toBe(3000);
   });
 
   it('falls back to the file name (sans extension) when there is no name column', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount', '2024-01-01,1000']),
-      'Chase Checking.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount', '2024-01-01,1000']),
+        'Chase Checking.csv'
+      )
     );
     expect(asset.Name).toBe('Chase Checking');
     expect(asset.Id).toBe('monarch:chase-checking');
   });
 
   it('falls back to the file name when the name column is present but blank', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount,Account Name', '2024-01-01,1000,']),
-      'Ally Savings.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Account Name', '2024-01-01,1000,']),
+        'Ally Savings.csv'
+      )
     );
     expect(asset.Name).toBe('Ally Savings');
   });
 
   it('uses a generic name when the file name is only an extension', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount', '2024-01-01,1000']),
-      '.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount', '2024-01-01,1000']),
+        '.csv'
+      )
     );
     expect(asset.Name).toBe('Monarch account');
     expect(asset.Id).toBe('monarch:monarch-account');
   });
 
   it('slugifies a name made only of punctuation to a stable fallback id', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount,Account Name', '2024-01-01,1000,!!!']),
-      'weird.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Account Name', '2024-01-01,1000,!!!']),
+        'weird.csv'
+      )
     );
     expect(asset.Name).toBe('!!!');
     expect(asset.Id).toBe('monarch:account');
   });
 
   it('trims surrounding punctuation when building the id slug', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount,Account Name', '2024-01-01,1000,[Chase!]']),
-      'weird.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Account Name', '2024-01-01,1000,[Chase!]']),
+        'weird.csv'
+      )
     );
     expect(asset.Id).toBe('monarch:chase');
   });
 
   it('ignores rows with non-numeric amounts', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount', '2024-01-01,pending', '2024-02-01,1500']),
-      'acct.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount', '2024-01-01,pending', '2024-02-01,1500']),
+        'acct.csv'
+      )
     );
     expect(asset.Balance).toBe(1500);
   });
 
   it('tolerates a row shorter than the header (missing amount cell)', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount,Account Name', '2024-01-01', '2024-02-01,1500,Acct']),
-      'acct.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount,Account Name', '2024-01-01', '2024-02-01,1500,Acct']),
+        'acct.csv'
+      )
     );
     expect(asset.Balance).toBe(1500);
     expect(asset.Name).toBe('Acct');
   });
 
-  it('uses the last numeric row when every date is unparseable', () => {
-    // No row updates `best` (all dates invalid), so `fallback` is used.
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount', 'not-a-date,1000', 'also-bad,2000']),
-      'acct.csv'
+  it('uses an account’s last numeric row when its dates are all unparseable', () => {
+    // No row updates `latest` (all dates invalid), so `fallback` is used.
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount', 'not-a-date,1000', 'also-bad,2000']),
+        'acct.csv'
+      )
     );
     expect(asset.Balance).toBe(2000);
   });
 
   it('treats a blank date cell as undated and uses the numeric fallback', () => {
-    const asset = importAssetFromMonarchBalanceCsv(
-      csv(['Date,Amount', ',1000']),
-      'acct.csv'
+    const asset = only(
+      importAssetsFromMonarchBalanceCsv(
+        csv(['Date,Amount', ',1000']),
+        'acct.csv'
+      )
     );
     expect(asset.Balance).toBe(1000);
   });
 
   it('throws for an empty file', () => {
     expect(() =>
-      importAssetFromMonarchBalanceCsv('\n  \n', 'empty.csv')
+      importAssetsFromMonarchBalanceCsv('\n  \n', 'empty.csv')
     ).toThrow(/empty/i);
   });
 
   it('rejects a Monarch transactions export with a helpful message', () => {
-    const asset = () =>
-      importAssetFromMonarchBalanceCsv(
+    expect(() =>
+      importAssetsFromMonarchBalanceCsv(
         csv([
           'Date,Merchant,Category,Account,Original Statement,Notes,Amount,Tags',
-          '2024-01-01,Coffee,Dining,Checking,POS,,−5,',
+          '2024-01-01,Coffee,Dining,Checking,POS,,-5,',
         ]),
         'transactions.csv'
-      );
-    expect(asset).toThrow(/Transactions export/i);
+      )
+    ).toThrow(/Transactions export/i);
   });
 
   it('throws when the Date column is missing', () => {
     expect(() =>
-      importAssetFromMonarchBalanceCsv(csv(['Foo,Amount', '1,2']), 'bad.csv')
+      importAssetsFromMonarchBalanceCsv(csv(['Foo,Amount', '1,2']), 'bad.csv')
     ).toThrow(/not a recognized/i);
   });
 
   it('throws when the Amount/Balance column is missing', () => {
     // Date present, amount absent: exercises the second half of the `||` guard.
     expect(() =>
-      importAssetFromMonarchBalanceCsv(
+      importAssetsFromMonarchBalanceCsv(
         csv(['Date,Foo', '2024-01-01,2']),
         'bad.csv'
       )
@@ -274,7 +343,7 @@ describe('importAssetFromMonarchBalanceCsv', () => {
 
   it('throws when there are no numeric rows', () => {
     expect(() =>
-      importAssetFromMonarchBalanceCsv(
+      importAssetsFromMonarchBalanceCsv(
         csv(['Date,Amount', '2024-01-01,pending', '2024-02-01,n/a']),
         'acct.csv'
       )
@@ -283,15 +352,19 @@ describe('importAssetFromMonarchBalanceCsv', () => {
 });
 
 describe('importAssetsFromMonarchBalanceCsvFiles', () => {
-  it('maps several per-account files into a list of assets', () => {
+  it('flattens accounts across several files', () => {
     const assets = importAssetsFromMonarchBalanceCsvFiles([
       { text: csv(['Date,Amount', '2024-01-01,1000']), name: 'Checking.csv' },
-      { text: csv(['Date,Amount', '2024-01-01,-500']), name: 'Visa.csv' },
+      {
+        text: csv([
+          'Date,Amount,Account Name',
+          '2024-01-01,-500,Visa',
+          '2024-01-01,2000,Savings',
+        ]),
+        name: 'rest.csv',
+      },
     ]);
-    expect(assets).toHaveLength(2);
-    expect(assets[0].Name).toBe('Checking');
-    expect(assets[0].AssetType).toBe(AssetType.CustomAsset);
-    expect(assets[1].Name).toBe('Visa');
+    expect(assets.map((a) => a.Name)).toEqual(['Checking', 'Visa', 'Savings']);
     expect(assets[1].AssetType).toBe(AssetType.CustomLiability);
     expect(assets[1].Balance).toBe(500);
   });

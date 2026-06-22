@@ -3,18 +3,20 @@ import { Asset, AssetType } from '../models/asset-model';
 import { CompoundingFrequency } from '../models/investment-model';
 
 // Import Monarch Money "account balance history" CSV exports into PathWise
-// Assets. Monarch has no single "all accounts" export; the only file that
-// carries balances is the per-account balance history (one CSV per account),
-// whose columns are `Date,Amount` with an optional trailing `Account Name`.
-// Debt accounts are exported with a negated amount, so the *sign* of the latest
-// balance is the only reliable asset-vs-liability signal — there is no account
-// type/institution column anywhere in the export.
+// Assets. The balance export is long-format — `Date,Amount` with an optional
+// `Account Name` column — and a single file may hold ONE account (the per-account
+// export) or MANY (the all-accounts export), with the Account Name column
+// distinguishing them. We group rows by account and emit one Asset per account.
+// Debt accounts are exported with a negated amount, so the *sign* of an account's
+// latest balance is the only reliable asset-vs-liability signal — there is no
+// account type/institution column anywhere in the export.
 //
-// Mapping (one account per file):
-//   - latest row (by date) → today's Balance
+// Mapping (per distinct account in the file):
+//   - that account's latest row (by date) → today's Balance
 //   - amount >= 0 → AssetType.CustomAsset
 //   - amount <  0 → AssetType.CustomLiability, Balance = |amount| (owed)
-//   - Name  → the Account Name column, else the file name (sans extension)
+//   - Name  → the Account Name column, else the file name (sans extension) when
+//     the file carries no name column at all
 //   - Provider → "Monarch" (no institution is exported; the user can refine it)
 //   - GrowthRate → 0 (Monarch exports no growth rate; the user fills it in)
 //
@@ -42,11 +44,15 @@ export interface MonarchCsvFile {
   name: string;
 }
 
-// The latest usable row distilled from a file: the signed balance and, when the
-// CSV carries it, the account's display name.
-interface BalanceCandidate {
-  amount: number;
+// Running state for one account while scanning a file's rows: its display name
+// (undefined → fall back to the file name), the signed balance of its
+// latest-dated row so far, and a fallback balance (its last numeric row) for
+// when no row carries a valid date.
+interface AccountGroup {
   name?: string;
+  latest?: number;
+  latestTime: number;
+  fallback: number;
 }
 
 /**
@@ -176,15 +182,30 @@ const slugify = (name: string): string => {
   return slug === '' ? 'account' : slug;
 };
 
+// One account's latest signed balance → an Asset. Sign decides asset vs.
+// liability; the balance is always stored positive (a liability holds its debt
+// as the amount owed, like the rest of the Asset model).
+const buildAsset = (accountName: string, amount: number): Asset => ({
+  Id: `monarch:${slugify(accountName)}`,
+  Provider: MONARCH_PROVIDER,
+  Name: accountName,
+  AssetType: amount < 0 ? AssetType.CustomLiability : AssetType.CustomAsset,
+  Balance: Math.abs(amount),
+  GrowthRate: 0,
+  CompoundingPeriod: CompoundingFrequency.Monthly,
+});
+
 /**
- * Parse one Monarch "account balance history" CSV into a single Asset. Throws a
- * descriptive, file-named error when the text is empty, is actually a
- * transactions export, lacks the Date/Amount columns, or has no numeric rows.
+ * Parse a Monarch "account balance history" CSV into Assets — one per distinct
+ * account in the file (a per-account export yields one; an all-accounts export
+ * yields many). Throws a descriptive, file-named error when the text is empty,
+ * is actually a transactions export, lacks the Date/Amount columns, or has no
+ * numeric rows.
  */
-export const importAssetFromMonarchBalanceCsv = (
+export const importAssetsFromMonarchBalanceCsv = (
   csvText: string,
   filename: string
-): Asset => {
+): Asset[] => {
   // Drop fully-blank rows (e.g. a stray blank line) so they never count as data.
   const rows = parseCsv(csvText).filter((cells) =>
     cells.some((cell) => cell.trim() !== '')
@@ -207,63 +228,65 @@ export const importAssetFromMonarchBalanceCsv = (
       `"${filename}" is not a recognized Monarch balance history CSV (expected "Date" and "Amount" columns).`
     );
   }
+  // The account column distinguishes accounts in an all-accounts export. Accept
+  // the labels Monarch and its tooling use; -1 means a single-account file.
   const nameIdx = header.findIndex(
-    (h) => h === 'account name' || h === 'account'
+    (h) => h === 'account name' || h === 'account' || h === 'name'
   );
 
-  // Pick the most recent row with a parseable amount. Don't assume the file is
-  // date-sorted; tie-break to the later row in file order. If no row has a valid
-  // date, fall back to the last row that had a numeric amount.
-  let best: BalanceCandidate | undefined;
-  let bestTime = -Infinity;
-  let fallback: BalanceCandidate | undefined;
+  // Group rows by account, keeping each account's latest-dated balance (with a
+  // last-numeric-row fallback when dates are unparseable). Insertion-ordered so
+  // the imported assets follow the file's first-seen account order. A file with
+  // no name column collapses to a single group keyed by '' (named from the file).
+  const groups = new Map<string, AccountGroup>();
   for (const cells of rows.slice(1)) {
     const amount = parseMonarchAmount(cellAt(cells, amountIdx));
     if (Number.isNaN(amount)) {
       continue;
     }
     const rawName = nameIdx === -1 ? '' : cellAt(cells, nameIdx).trim();
-    const candidate: BalanceCandidate = {
-      amount,
-      name: rawName === '' ? undefined : rawName,
-    };
-    fallback = candidate;
+    let group = groups.get(rawName);
+    if (!group) {
+      group = {
+        name: rawName === '' ? undefined : rawName,
+        latestTime: -Infinity,
+        fallback: amount,
+      };
+      groups.set(rawName, group);
+    } else {
+      group.fallback = amount;
+    }
 
     const rawDate = cellAt(cells, dateIdx).trim();
     const parsed = rawDate === '' ? undefined : dayjs(rawDate);
-    if (parsed && parsed.isValid() && parsed.valueOf() >= bestTime) {
-      bestTime = parsed.valueOf();
-      best = candidate;
+    if (parsed && parsed.isValid() && parsed.valueOf() >= group.latestTime) {
+      group.latestTime = parsed.valueOf();
+      group.latest = amount;
     }
   }
 
-  const chosen = best ?? fallback;
-  if (!chosen) {
+  if (groups.size === 0) {
     throw new Error(
       `"${filename}" has no usable balance rows (no numeric amounts found).`
     );
   }
 
-  const accountName = chosen.name ?? nameFromFilename(filename);
-  const isLiability = chosen.amount < 0;
-  return {
-    Id: `monarch:${slugify(accountName)}`,
-    Provider: MONARCH_PROVIDER,
-    Name: accountName,
-    AssetType: isLiability ? AssetType.CustomLiability : AssetType.CustomAsset,
-    // Always a positive balance — a liability stores its debt as a positive
-    // amount owed, exactly like the rest of the Asset model.
-    Balance: Math.abs(chosen.amount),
-    GrowthRate: 0,
-    CompoundingPeriod: CompoundingFrequency.Monthly,
-  };
+  return Array.from(groups.values()).map((group) =>
+    buildAsset(
+      group.name ?? nameFromFilename(filename),
+      group.latest ?? group.fallback
+    )
+  );
 };
 
 /**
- * Parse several Monarch balance CSVs (one account per file) into Assets. Throws
- * on the first malformed file, naming it, so nothing is half-imported.
+ * Parse several Monarch balance CSVs into Assets, flattening across files (each
+ * file may itself hold several accounts). Throws on the first malformed file,
+ * naming it, so nothing is half-imported.
  */
 export const importAssetsFromMonarchBalanceCsvFiles = (
   files: MonarchCsvFile[]
 ): Asset[] =>
-  files.map((file) => importAssetFromMonarchBalanceCsv(file.text, file.name));
+  files.flatMap((file) =>
+    importAssetsFromMonarchBalanceCsv(file.text, file.name)
+  );
