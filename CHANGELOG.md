@@ -9,6 +9,24 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.3.0] — Convert holding types
+
+### Added
+
+- **Convert the type of a holding.** Editing any asset or liability now offers
+  the full type list, so a holding can be retyped freely — including flipping an
+  **asset to a liability** or back (e.g. a credit card that imported as an asset).
+- **Convert a custom liability into a Loan (mortgage).** A "Convert to loan" row
+  action on the Liabilities table opens the loan form pre-filled with the name,
+  provider, and balance (as both principal and current amount); finish the rate
+  and term and the original custom liability is replaced by the loan. Seeding
+  lives in a pure `convert-helpers.ts` (100% covered).
+- **Set account types at Monarch import.** A per-account type picker now appears
+  when importing Monarch CSVs, so each account can be promoted from the catch-all
+  custom asset/liability to an explicit Cash / Property (or kept custom) before it
+  lands. The picker shows how many accounts are new vs. will update an existing
+  entry, and the import stays undoable.
+
 ## [1.2.1]
 
 ### Fixed

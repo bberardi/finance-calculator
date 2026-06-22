@@ -76,12 +76,14 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   const skipNextPaymentRecompute = useRef(false);
 
   useEffect(() => {
-    setNewLoan(props.loan ?? emptyLoan);
+    // Edit reuses the passed loan; a conversion (Add Liability → "Convert to
+    // loan") seeds add-mode from `initialValues`; a plain add starts empty.
+    setNewLoan(props.loan ?? props.initialValues ?? emptyLoan);
     resetTracking();
     skipNextPaymentRecompute.current =
       typeof props.loan?.MonthlyPayment === 'number' &&
       props.loan.MonthlyPayment > 0;
-  }, [props.loan, props.open, resetTracking]);
+  }, [props.loan, props.initialValues, props.open, resetTracking]);
 
   useEffect(() => {
     if (skipNextPaymentRecompute.current) {
@@ -377,4 +379,8 @@ export interface AddEditLoanProps {
   onSave: (newLoan: Loan, oldLoan?: Loan) => void;
   onClose: () => void;
   loan?: Loan;
+  // Add-mode prefill (e.g. converting a custom liability into a loan). Ignored
+  // when `loan` is set (edit mode). The form still treats this as an add, so
+  // onSave receives no `oldLoan` and the entity gets a fresh Id.
+  initialValues?: Loan;
 }

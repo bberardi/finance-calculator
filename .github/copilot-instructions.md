@@ -32,6 +32,7 @@ src/
 │   ├── forecast-helpers.ts
 │   ├── asset-helpers.ts         # forecastAsset, isAssetLiability, assetNetWorthSign, getAssetValueToday
 │   ├── monarch-helpers.ts       # Parse Monarch "account balance history" CSV exports into Assets (importAssetsFromMonarchBalanceCsvFiles)
+│   ├── convert-helpers.ts       # buildLoanSeedFromAsset: seed a Loan from a custom-liability asset (convert to mortgage)
 │   ├── storage-helpers.ts       # On-device persistence I/O (save/load/clear, issue #20)
 │   ├── migrate-helpers.ts       # D8 versioned schema-migration ladder (current: v4)
 │   ├── *.test.ts             # Co-located unit tests
@@ -46,7 +47,7 @@ src/
 ├── scenario/            # Scenario builder dialog, bar, impact summary (Phase 4)
 ├── optimizer/           # "Next dollar" optimizer panel, custom split builder, Web Worker (Phase 5)
 ├── persistence/         # "Save on this device" toggle + usePersistence hook (Phase 1)
-├── data-manager/        # JSON import/export + Monarch balance-CSV import command-bar actions
+├── data-manager/        # JSON import/export + Monarch balance-CSV import (with per-account type picker) command-bar actions
 ├── state/               # Finance-data context + reducer (D2)
 ├── loan/                # Loan-related components
 │   ├── loan-table.tsx
