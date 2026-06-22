@@ -61,6 +61,20 @@ describe('Forecast Helpers', () => {
       expect(horizon.getTime()).toBe(new Date(2040, 0, 1).getTime());
     });
 
+    it('selects the latest loan end even when it is not first in the list', () => {
+      // Mutation guard: the reduce uses `!latest || end.isAfter(latest)`. With
+      // the max loan first, flipping `||`→`&&` still returns it, so the previous
+      // test can't catch that mutant. Put the latest end in the MIDDLE so the
+      // operator actually has to keep scanning to find it.
+      const loans = [
+        makeLoan({ Id: 'a', EndDate: new Date(2035, 0, 1) }),
+        makeLoan({ Id: 'b', EndDate: new Date(2045, 0, 1) }), // latest, not first
+        makeLoan({ Id: 'c', EndDate: new Date(2040, 0, 1) }),
+      ];
+      const horizon = getDefaultHorizon(loans, [], today);
+      expect(horizon.getTime()).toBe(new Date(2045, 0, 1).getTime());
+    });
+
     it('should extend to 30 years from today when investments exist', () => {
       const loans = [makeLoan({ EndDate: new Date(2030, 0, 1) })];
       const horizon = getDefaultHorizon(loans, [makeInvestment()], today);
@@ -327,6 +341,31 @@ describe('Forecast Helpers', () => {
         today
       );
       expect(series[12].Value).toBe(1000 + 4 * 100);
+    });
+
+    it('holds flat on non-boundary months for a quarterly contribution', () => {
+      // Mutation guard: the previous test only checks month 12, so any mutant
+      // that leaks contributions into off-cadence months (e.g. weakening the
+      // `elapsedMonths % contributionInterval === 0` gate) goes undetected.
+      // With 0% return and StartDate = today, quarter boundaries land exactly on
+      // months 3/6/9/12, so the months between must hold flat at the anchor.
+      const investment = makeInvestment({
+        CurrentValue: 1000,
+        RecurringContribution: 100,
+        ContributionFrequency: CompoundingFrequency.Quarterly,
+      });
+      const series = forecastInvestment(
+        investment,
+        monthsFromToday(12),
+        0,
+        today
+      );
+      expect(series[1].Value).toBe(1000);
+      expect(series[2].Value).toBe(1000);
+      expect(series[3].Value).toBe(1100);
+      expect(series[4].Value).toBe(1100);
+      expect(series[5].Value).toBe(1100);
+      expect(series[6].Value).toBe(1200);
     });
 
     it('should not apply contributions when ContributionFrequency is missing', () => {

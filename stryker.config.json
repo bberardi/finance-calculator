@@ -8,10 +8,10 @@
   "htmlReporter": {
     "fileName": "reports/mutation/index.html"
   },
-  "_thresholds_comment": "Baseline refreshed 2026-06-14 (ROADMAP §8.3 ratchet): overall mutation score 85.04% (924 killed / 165 survived / 14 timeout, 0 no-coverage). Per file: id-helpers 100, loan-helpers 88.2, data-helpers 86.3, forecast-helpers 84.9, investment-helpers 83.9, validation-helpers 83.7, format-helpers 73.3. break ratcheted 80 -> 83 (just below baseline, with headroom for run-to-run timeout variance) so the weekly run fails on a regression (giving the layer teeth per §4) without flaking; keep ratcheting break upward toward the Charter's zero-survivors target as survivors are triaged (open-ended triage tracked in ROADMAP §8.3). format-helpers' 4 survivors are the Intl.NumberFormat caching layer (cache-hit branch / .set call) — equivalent mutants that change performance, not output, so no test can kill them; left as a documented waiver.",
+  "_thresholds_comment": "Baseline refreshed 2026-06-21 (Phase 6.10 ratchet): overall mutation score 86.99% (1661 killed / 24 timeout / 252 survived / 0 no-coverage, of 1937 covered mutants). The mutant count grew from ~1103 to 1937 as Phase 7 (assets) and #127 (investment Current Value) added helper code. Per file: id/filter/migrate/schedule-totals/summary-helpers 100, sort 95, asset 93.3, storage 93.0, milestone 92.6, forecast-series 89.6, format 88.9, loan 88.2, investment 88.1, forecast 86.6, data 86.2, optimizer 83.5, validation 83.2, scenario-impact 81.7. break ratcheted 83 -> 85 (about two points below baseline, preserving headroom for run-to-run timeout variance) so the weekly run fails on a regression without flaking. Keep ratcheting break upward toward the Charter's zero-survivors target as survivors are triaged. Recently killed: forecast-helpers getDefaultHorizon reduce operator (||/&&). Remaining survivors are dominated by equivalent mutants — boundary operators on guards whose two sides yield identical rounded output (e.g. balance > 0 vs >= 0 where balance never goes negative, today <= startDate vs <, boundary === today early-returns), dayjs unit string literals that are no-ops, and format-helpers' Intl.NumberFormat caching layer (1 survivor) — none of which any test can kill; the rest are an open-ended triage backlog.",
   "thresholds": {
     "high": 90,
     "low": 80,
-    "break": 83
+    "break": 85
   }
 }

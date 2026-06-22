@@ -27,6 +27,41 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
   them. Parsing/mapping lives in a new pure `monarch-helpers.ts` held to the same
   100% coverage gate as the rest of `src/helpers/**`.
 
+### Quality (Phase 6 correctness backlog)
+
+- **Date-math rollover (6.9) — resolved.** The month-end overflow bug
+  (`Jan 31 + 1 month` → `Mar 3` via `Date.setMonth`) is fixed by clamping each
+  month/year step to the last valid day of the target month (`addMonthsClamped`
+  / `getNextCompoundingDate` in `investment-helpers.ts`, #93). This native-`Date`
+  clamping supersedes the originally-planned dayjs migration — same correctness,
+  without adding dayjs to the hot forecast/growth loops. Covered by the
+  Charter's edge-case catalog: `Jan 31 + 1mo → Feb 28`, `Feb-29` leap/non-leap
+  anniversaries, and the 2100 century rule.
+- **Mutation-score ratchet (6.10).** Refreshed the Stryker baseline on the
+  post-Phase-7 codebase: overall mutation score **86.99%** over 1,937 covered
+  mutants (up from the pre-Phase-7 85.04% / ~1,103). Added mutation-guard tests
+  that kill the `getDefaultHorizon` reduce-operator survivor and close the
+  quarterly-contribution non-boundary coverage gap, and **ratcheted
+  `thresholds.break` 83 → 85** (about two points below the score, preserving
+  headroom for run-to-run timeout variance) so the weekly run fails on a
+  regression without flaking. Remaining survivors are dominated by equivalent
+  mutants (boundary operators on guards that yield identical rounded output);
+  driving them to zero is an open-ended triage tracked in the config comment.
+
+## [1.1.1]
+
+### Fixed
+
+- Clarified the scenario and optimizer **"Net worth at horizon"** readout — it
+  reports the _change vs. baseline_, not absolute net worth. Relabelled it
+  **"Net worth added at horizon"** and show **"No change"** instead of `$0` for a
+  debt-paydown that doesn't move net worth at the horizon (the gain shows as
+  interest saved / earlier debt-free).
+- Threaded assets (cash/property/custom) through the scenario-impact and
+  optimizer net-worth engine, completing the Phase 7 wiring so their net-worth
+  anchor matches the chart, dashboard, and milestones. Passive holdings cancel in
+  the delta, so the displayed impact and plan rankings are unchanged.
+
 ## [1.1.0] — Phase 7: Whole Net Worth
 
 Made the net-worth line _true_ by letting PathWise hold everything a person owns,

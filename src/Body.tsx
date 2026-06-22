@@ -686,6 +686,7 @@ export const Body = () => {
               <ScenarioImpactSummary
                 loans={loans}
                 investments={investments}
+                assets={assets}
                 scenario={activeScenario}
               />
             )}
@@ -701,7 +702,11 @@ export const Body = () => {
           <Paper sx={{ marginBottom: SECTION_GAP, padding: PAPER_PADDING }}>
             <Divider>Where should my next dollar go?</Divider>
             <Box sx={{ marginTop: 2 }}>
-              <OptimizerPanel loans={loans} investments={investments} />
+              <OptimizerPanel
+                loans={loans}
+                investments={investments}
+                assets={assets}
+              />
             </Box>
           </Paper>
         </>
