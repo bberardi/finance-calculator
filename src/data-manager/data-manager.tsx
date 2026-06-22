@@ -1,9 +1,11 @@
 import { Button, Alert, Snackbar, Tooltip } from '@mui/material';
 import { useState, useRef } from 'react';
 import { importFromJson, previewMerge } from '../helpers/data-helpers';
+import { importAssetsFromMonarchBalanceCsvFiles } from '../helpers/monarch-helpers';
 import { downloadJsonExport } from './export-download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { useFinanceData } from '../state/use-finance-data';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
@@ -34,6 +36,16 @@ interface ImportUndo {
 
 const IMPORT_UNDO_DURATION_MS = 8000;
 
+// Read a File's text via FileReader (Promise-wrapped). Used for the multi-file
+// Monarch import; the JSON path keeps its single-file FileReader inline.
+const readFileAsText = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve((e.target?.result as string) ?? '');
+    reader.onerror = () => reject(new Error(`Failed to read "${file.name}".`));
+    reader.readAsText(file);
+  });
+
 export const DataManager = () => {
   const {
     state: {
@@ -56,6 +68,7 @@ export const DataManager = () => {
   );
   const [importUndo, setImportUndo] = useState<ImportUndo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const monarchInputRef = useRef<HTMLInputElement>(null);
 
   // While sample data is displayed, the user's real data is parked in the
   // stash. Import/Export must act on that real data, not the visible samples —
@@ -159,6 +172,53 @@ export const DataManager = () => {
     }
   };
 
+  const handleMonarchClick = () => {
+    monarchInputRef.current?.click();
+  };
+
+  // Import Monarch "account balance history" CSV exports (one per account; the
+  // input accepts several at once) as assets/liabilities. Reuses the same
+  // preview → confirm → undo pipeline as the JSON import — only the parse step
+  // differs — so a Monarch import is reviewed and reversible just like a restore.
+  const handleMonarchUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+    // Reset the input up front so re-selecting the same file(s) re-triggers it.
+    if (event.target) {
+      event.target.value = '';
+    }
+    if (files.length === 0) return;
+
+    const nonCsv = files.find((f) => !f.name.toLowerCase().endsWith('.csv'));
+    if (nonCsv) {
+      setErrorMessage('Please upload Monarch CSV files (.csv).');
+      return;
+    }
+
+    try {
+      const texts = await Promise.all(files.map(readFileAsText));
+      const importedAssets = importAssetsFromMonarchBalanceCsvFiles(
+        files.map((file, i) => ({ text: texts[i], name: file.name }))
+      );
+      // A Monarch import only touches assets/liabilities; the other entity lists
+      // are empty so the merge leaves loans, investments, and scenarios alone.
+      const assetPreview = previewMerge(realAssets, importedAssets);
+      setPendingImport({
+        loans: [],
+        investments: [],
+        scenarios: [],
+        assets: importedAssets,
+        sections: [{ label: 'Assets & liabilities', ...assetPreview }],
+      });
+    } catch (error) {
+      console.error('Error importing Monarch data:', error);
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to import Monarch data'
+      );
+    }
+  };
+
   const handleConfirmImport = () => {
     if (!pendingImport) return;
 
@@ -235,12 +295,30 @@ export const DataManager = () => {
           </Button>
         </span>
       </Tooltip>
+      <Tooltip title="Import assets & liabilities from Monarch account balance CSV exports">
+        <Button
+          variant="text"
+          color="inherit"
+          onClick={handleMonarchClick}
+          startIcon={<AccountBalanceIcon />}
+        >
+          Import from Monarch
+        </Button>
+      </Tooltip>
       <input
         ref={fileInputRef}
         type="file"
         accept=".json"
         style={{ display: 'none' }}
         onChange={handleFileUpload}
+      />
+      <input
+        ref={monarchInputRef}
+        type="file"
+        accept=".csv"
+        multiple
+        style={{ display: 'none' }}
+        onChange={handleMonarchUpload}
       />
 
       {/* Pre-merge "what changed" preview (roadmap 6.3): merges only run after
