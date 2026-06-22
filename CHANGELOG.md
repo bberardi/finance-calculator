@@ -30,6 +30,20 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
   mutants (boundary operators on guards that yield identical rounded output);
   driving them to zero is an open-ended triage tracked in the config comment.
 
+## [1.1.1]
+
+### Fixed
+
+- Clarified the scenario and optimizer **"Net worth at horizon"** readout — it
+  reports the _change vs. baseline_, not absolute net worth. Relabelled it
+  **"Net worth added at horizon"** and show **"No change"** instead of `$0` for a
+  debt-paydown that doesn't move net worth at the horizon (the gain shows as
+  interest saved / earlier debt-free).
+- Threaded assets (cash/property/custom) through the scenario-impact and
+  optimizer net-worth engine, completing the Phase 7 wiring so their net-worth
+  anchor matches the chart, dashboard, and milestones. Passive holdings cancel in
+  the delta, so the displayed impact and plan rankings are unchanged.
+
 ## [1.1.0] — Phase 7: Whole Net Worth
 
 Made the net-worth line _true_ by letting PathWise hold everything a person owns,

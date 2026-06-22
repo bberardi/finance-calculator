@@ -21,6 +21,13 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Generous per-test timeout. The suite runs under v8 coverage instrumentation
+    // with the jsdom component tests sharing CI workers, where the slowest tests
+    // (and the multi-forecast optimizer search) sit close to Vitest's 5s default
+    // on the slow shared runner — a flaky-timeout source seen twice on #129. 20s
+    // removes the flake without hiding a real hang: every test is a bounded
+    // computation, so a genuine stall still fails well inside the job timeout.
+    testTimeout: 20000,
     // Default environment for the pure math/helper/reducer tests. UI component
     // tests opt into jsdom per-file with a `// @vitest-environment jsdom`
     // docblock, so the fast node default stays in force for src/helpers/**.

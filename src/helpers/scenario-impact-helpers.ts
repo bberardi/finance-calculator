@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { ScenarioInput } from '../models/forecast-model';
 import {
   forecastLoan,
@@ -94,7 +95,12 @@ export const computeScenarioBaseline = (
   loans: Loan[],
   investments: Investment[],
   today: Date = new Date(),
-  horizon?: Date
+  horizon?: Date,
+  // Passive holdings (cash/property/custom, Phase 7) included in the absolute
+  // net-worth anchor so baseline.netWorthAtHorizon is a true net worth. They
+  // cancel out of the scenario delta — an asset is identical with or without the
+  // what-if — so the change the panels show is unchanged.
+  assets: Asset[] = []
 ): ScenarioBaseline => {
   // Net worth compared at the requested (or chart default) horizon.
   const nwHorizon = horizon ?? getDefaultHorizon(loans, investments, today);
@@ -103,7 +109,8 @@ export const computeScenarioBaseline = (
     investments,
     nwHorizon,
     undefined,
-    today
+    today,
+    assets
   );
 
   // Interest and payoff over a long horizon so full loan lifetimes are captured.
@@ -142,14 +149,18 @@ export const computeScenarioImpactWithBaseline = (
   investments: Investment[],
   scenario: ScenarioInput,
   baseline: ScenarioBaseline,
-  today: Date = new Date()
+  today: Date = new Date(),
+  // Must be the same assets the baseline was computed with, so passive holdings
+  // cancel exactly between the scenario and baseline net worth.
+  assets: Asset[] = []
 ): ScenarioImpact => {
   const scenarioNet = forecastNetWorth(
     loans,
     investments,
     baseline.nwHorizon,
     scenario,
-    today
+    today,
+    assets
   );
   const netWorthDelta = roundToCents(
     scenarioNet[scenarioNet.length - 1].Value - baseline.netWorthAtHorizon
@@ -192,14 +203,24 @@ export const computeScenarioImpact = (
   // chart's default horizon (Phase 4); the Phase 5 optimizer passes the user's
   // chosen horizon so "net worth at horizon" reflects the picker. Interest and
   // payoff are always measured over a full 50-year lifetime regardless.
-  horizon?: Date
+  horizon?: Date,
+  // Passive holdings included in the net-worth anchor (Phase 7); they cancel out
+  // of the returned delta. See computeScenarioBaseline.
+  assets: Asset[] = []
 ): ScenarioImpact => {
-  const baseline = computeScenarioBaseline(loans, investments, today, horizon);
+  const baseline = computeScenarioBaseline(
+    loans,
+    investments,
+    today,
+    horizon,
+    assets
+  );
   return computeScenarioImpactWithBaseline(
     loans,
     investments,
     scenario,
     baseline,
-    today
+    today,
+    assets
   );
 };

@@ -20,8 +20,9 @@ import {
 import { NumericFormat } from 'react-number-format';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { AllocationPlan } from '../helpers/optimizer-helpers';
-import { formatCurrency } from '../helpers/format-helpers';
+import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 import { useFinanceData } from '../state/use-finance-data';
 import { useOptimizer } from './use-optimizer';
 import { CustomSplitBuilder } from './custom-split-builder';
@@ -36,14 +37,12 @@ import {
 interface OptimizerPanelProps {
   loans: Loan[];
   investments: Investment[];
+  assets: Asset[];
 }
 
 // How many ranked plans to surface (the search produces far more across the
 // split grid; the top handful is what's actionable).
 const MAX_ROWS = 8;
-
-const signedCurrency = (value: number): string =>
-  `${value >= 0 ? '+' : ''}${formatCurrency(value)}`;
 
 // A stable, collision-proof React key for a plan row. Two positions can share a
 // Name (so the human-readable label isn't unique), but a plan's id→amount
@@ -59,7 +58,11 @@ const planKey = (plan: AllocationPlan): string =>
 // split allocation plans by long-term impact; one click turns any plan into a
 // chart overlay (the Phase 4 scenario machinery). A custom split builder (5.4)
 // lets users pit their own intuition against the suggestions.
-export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
+export const OptimizerPanel = ({
+  loans,
+  investments,
+  assets,
+}: OptimizerPanelProps) => {
   const { addScenario, setActiveScenario } = useFinanceData();
 
   const [monthlyExtra, setMonthlyExtra] = useState(0);
@@ -79,6 +82,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
     monthlyExtra,
     today,
     horizon,
+    assets,
   });
 
   const topPlans = plans.slice(0, MAX_ROWS);
@@ -143,7 +147,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
             <TableHead>
               <TableRow>
                 <TableCell>Plan</TableCell>
-                <TableCell align="right">Net worth at horizon</TableCell>
+                <TableCell align="right">Net worth added at horizon</TableCell>
                 <TableCell align="right">Interest saved</TableCell>
                 <TableCell align="right">Debt-free</TableCell>
                 <TableCell />
@@ -165,7 +169,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
                     </Stack>
                   </TableCell>
                   <TableCell align="right">
-                    {signedCurrency(evaluation.netWorthDelta)}
+                    {formatNetWorthDelta(evaluation.netWorthDelta)}
                   </TableCell>
                   <TableCell align="right">
                     {formatCurrency(evaluation.interestSaved)}
@@ -199,6 +203,7 @@ export const OptimizerPanel = ({ loans, investments }: OptimizerPanelProps) => {
             <CustomSplitBuilder
               loans={loans}
               investments={investments}
+              assets={assets}
               monthlyExtra={monthlyExtra}
               today={today}
               horizon={horizon}

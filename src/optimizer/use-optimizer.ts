@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
 import { PlanEvaluation } from '../helpers/optimizer-helpers';
 import type { OptimizerRequest, OptimizerResponse } from './optimizer.worker';
 
@@ -10,6 +11,7 @@ interface UseOptimizerArgs {
   monthlyExtra: number;
   today: Date;
   horizon: Date;
+  assets: Asset[];
 }
 
 interface OptimizerResult {
@@ -30,6 +32,7 @@ export const useOptimizer = ({
   monthlyExtra,
   today,
   horizon,
+  assets,
 }: UseOptimizerArgs): OptimizerResult => {
   const [plans, setPlans] = useState<PlanEvaluation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,12 +81,13 @@ export const useOptimizer = ({
         monthlyExtra,
         today,
         horizon,
+        assets,
       };
       worker.postMessage(request);
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
-  }, [loans, investments, monthlyExtra, today, horizon]);
+  }, [loans, investments, monthlyExtra, today, horizon, assets]);
 
   return { plans, loading };
 };
