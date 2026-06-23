@@ -32,6 +32,7 @@
     "@mui/x-date-pickers": "^9.6.0",
     "@tanstack/react-virtual": "^3.14.3",
     "dayjs": "^1.11.21",
+    "ponytail": "^1.0.57",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-number-format": "^5.4.5"
