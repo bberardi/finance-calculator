@@ -35,6 +35,7 @@ import { useRowSelection } from '../hooks/use-row-selection';
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   [AssetType.Cash]: 'Cash',
   [AssetType.Property]: 'Property',
+  [AssetType.Investment]: 'Investment',
   [AssetType.CustomAsset]: 'Custom asset',
   [AssetType.CustomLiability]: 'Custom liability',
 };

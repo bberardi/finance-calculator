@@ -23,6 +23,7 @@ import { useFieldTracking } from '../hooks/use-field-tracking';
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   [AssetType.Cash]: 'Cash (HYSA / CD / checking)',
   [AssetType.Property]: 'Property (home / real estate)',
+  [AssetType.Investment]: 'Investment',
   [AssetType.CustomAsset]: 'Custom asset',
   [AssetType.CustomLiability]: 'Custom liability',
 };
