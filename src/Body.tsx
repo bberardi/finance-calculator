@@ -32,6 +32,7 @@ import { ScenarioImpactSummary } from './scenario/scenario-impact-summary';
 import { OptimizerPanel } from './optimizer/optimizer-panel';
 import { useFinanceData } from './state/use-finance-data';
 import { DataSnapshot } from './state/finance-reducer';
+import { buildLoanSeedFromAsset } from './helpers/convert-helpers';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
 import {
@@ -95,12 +96,23 @@ const DELETE_UNDO_DURATION_MS = 6000;
 // A bulk delete removes many rows at once, so give the undo a little longer.
 const BULK_DELETE_UNDO_DURATION_MS = 8000;
 
-// The non-liability asset types: the group the "Add Asset" entry point and an
-// asset (non-liability) edit offer in the in-dialog type selector.
+// The non-liability asset types: the group the "Add Asset" entry point offers in
+// the in-dialog type selector.
 const ASSET_TYPE_GROUP: AssetType[] = [
   AssetType.Cash,
   AssetType.Property,
   AssetType.CustomAsset,
+];
+
+// Every asset type. Editing an existing holding offers the full set so it can be
+// retyped freely — including flipping an asset to a liability or back (e.g. a
+// credit card that imported as an asset). Add flows stay in their entry-point
+// group; conversion to a Loan (mortgage) is a separate row action.
+const ALL_ASSET_TYPES: AssetType[] = [
+  AssetType.Cash,
+  AssetType.Property,
+  AssetType.CustomAsset,
+  AssetType.CustomLiability,
 ];
 
 // Command-bar primary actions: two menu buttons, "Add Asset" (Investment / Cash
@@ -154,6 +166,11 @@ export const Body = () => {
   const [editLoan, setEditLoan] = useState<Loan>();
   const [editInvestment, setEditInvestment] = useState<Investment>();
   const [editAsset, setEditAsset] = useState<Asset>();
+  // Cross-model conversion (custom liability → loan): the loan form opens in
+  // add-mode seeded from the asset; on save we add the loan and remove the
+  // original asset. `convertFromAssetId` marks the in-flight conversion.
+  const [convertSeedLoan, setConvertSeedLoan] = useState<Loan>();
+  const [convertFromAssetId, setConvertFromAssetId] = useState<string>();
   // Which AssetType options the asset/liability dialog offers, and the type a new
   // entity seeds with — set by the entry point that opened it.
   const [assetAllowedTypes, setAssetAllowedTypes] =
@@ -187,11 +204,18 @@ export const Body = () => {
   const onLoanAddEditClose = () => {
     setIsAddLoanOpen(false);
     setEditLoan(undefined);
+    setConvertSeedLoan(undefined);
+    setConvertFromAssetId(undefined);
   };
 
   const onLoanAddEditSave = (newLoan: Loan, oldLoan?: Loan) => {
     if (!oldLoan) {
       addLoan(newLoan);
+      // Converting a custom liability into a loan: the loan now exists, so drop
+      // the original asset. Only runs for the conversion flow (id set).
+      if (convertFromAssetId) {
+        deleteAsset(convertFromAssetId);
+      }
     } else {
       updateLoan(newLoan);
     }
@@ -241,18 +265,25 @@ export const Body = () => {
       Name: `${investment.Name} (copy)`,
     });
 
-  // Edit an existing asset/liability from its table row. The allowed-type group
-  // is derived from the entity so a liability can't be retyped into an asset (or
-  // vice versa) mid-edit.
+  // Edit an existing asset/liability from its table row. Editing offers every
+  // asset type so a holding can be retyped freely — including flipping an asset
+  // to a liability or back (e.g. a credit card that imported as an asset). The
+  // empty-state "add your first asset" path (no entity) stays in the asset group.
   const onAssetAddEdit = (asset?: Asset) => {
     setEditAsset(asset);
     setAssetInitialType(undefined);
-    setAssetAllowedTypes(
-      asset?.AssetType === AssetType.CustomLiability
-        ? [AssetType.CustomLiability]
-        : ASSET_TYPE_GROUP
-    );
+    setAssetAllowedTypes(asset ? ALL_ASSET_TYPES : ASSET_TYPE_GROUP);
     setIsAddAssetOpen(true);
+  };
+
+  // Convert a custom liability into a Loan (mortgage). Opens the loan form in
+  // add-mode seeded from the asset; onLoanAddEditSave removes the asset once the
+  // loan is saved (cancelling leaves the asset untouched).
+  const onAssetConvertToLoan = (asset: Asset) => {
+    setEditLoan(undefined);
+    setConvertSeedLoan(buildLoanSeedFromAsset(asset));
+    setConvertFromAssetId(asset.Id);
+    setIsAddLoanOpen(true);
   };
 
   // Add a new asset/liability of a chosen type (from a command-bar/onboarding
@@ -646,6 +677,7 @@ export const Body = () => {
                       onAssetDelete={onAssetDelete}
                       onAssetClone={onAssetClone}
                       onAssetBulkDelete={onAssetBulkDelete}
+                      onAssetConvertToLoan={onAssetConvertToLoan}
                       showTypeColumn={false}
                       showEquityColumn={false}
                       searchLabel="Search liabilities"
@@ -722,6 +754,7 @@ export const Body = () => {
             onSave={onLoanAddEditSave}
             onClose={onLoanAddEditClose}
             loan={editLoan}
+            initialValues={convertSeedLoan}
           />
         )}
 

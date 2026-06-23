@@ -16,6 +16,7 @@ import {
   ImportPreviewDialog,
   ImportPreviewSection,
 } from './import-preview-dialog';
+import { MonarchImportDialog } from './monarch-import-dialog';
 
 // A parsed import awaiting confirmation: the entities to merge plus the
 // precomputed add/overwrite preview shown to the user.
@@ -67,6 +68,8 @@ export const DataManager = () => {
     null
   );
   const [importUndo, setImportUndo] = useState<ImportUndo | null>(null);
+  // Parsed Monarch accounts awaiting the per-account type picker (null = closed).
+  const [monarchAccounts, setMonarchAccounts] = useState<Asset[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const monarchInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,9 +180,9 @@ export const DataManager = () => {
   };
 
   // Import Monarch "account balance history" CSV exports (one per account; the
-  // input accepts several at once) as assets/liabilities. Reuses the same
-  // preview → confirm → undo pipeline as the JSON import — only the parse step
-  // differs — so a Monarch import is reviewed and reversible just like a restore.
+  // input accepts several at once) as assets/liabilities. Parsing yields one
+  // account per row; the per-account type picker (MonarchImportDialog) then lets
+  // the user promote each from the catch-all custom type before the merge.
   const handleMonarchUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -201,16 +204,7 @@ export const DataManager = () => {
       const importedAssets = importAssetsFromMonarchBalanceCsvFiles(
         files.map((file, i) => ({ text: texts[i], name: file.name }))
       );
-      // A Monarch import only touches assets/liabilities; the other entity lists
-      // are empty so the merge leaves loans, investments, and scenarios alone.
-      const assetPreview = previewMerge(realAssets, importedAssets);
-      setPendingImport({
-        loans: [],
-        investments: [],
-        scenarios: [],
-        assets: importedAssets,
-        sections: [{ label: 'Assets & liabilities', ...assetPreview }],
-      });
+      setMonarchAccounts(importedAssets);
     } catch (error) {
       console.error('Error importing Monarch data:', error);
       setErrorMessage(
@@ -219,11 +213,20 @@ export const DataManager = () => {
     }
   };
 
-  const handleConfirmImport = () => {
-    if (!pendingImport) return;
-
-    // Capture the pre-merge data so the import can be undone. These are the
-    // raw state fields RestoreData replaces — not the derived `real*` views.
+  // Snapshot → merge → undo. Shared by the JSON confirm and the Monarch confirm
+  // so both land an undoable import the same way (one source of truth).
+  const commitImportMerge = (
+    parts: {
+      loans: Loan[];
+      investments: Investment[];
+      scenarios: Scenario[];
+      assets: Asset[];
+    },
+    added: number,
+    overwritten: number
+  ) => {
+    // Capture the pre-merge data so the import can be undone. These are the raw
+    // state fields RestoreData replaces — not the derived `real*` views.
     const snapshot: DataSnapshot = {
       loans,
       investments,
@@ -233,23 +236,7 @@ export const DataManager = () => {
       stashedInvestments,
       stashedAssets,
     };
-
-    const added = pendingImport.sections.reduce(
-      (sum, s) => sum + s.added.length,
-      0
-    );
-    const overwritten = pendingImport.sections.reduce(
-      (sum, s) => sum + s.overwritten.length,
-      0
-    );
-
-    importMerge(
-      pendingImport.loans,
-      pendingImport.investments,
-      pendingImport.scenarios,
-      pendingImport.assets
-    );
-    setPendingImport(null);
+    importMerge(parts.loans, parts.investments, parts.scenarios, parts.assets);
     setImportUndo({
       snapshot,
       message: `Imported ${added} item${added === 1 ? '' : 's'}${
@@ -258,11 +245,43 @@ export const DataManager = () => {
     });
   };
 
+  const handleConfirmImport = () => {
+    if (!pendingImport) return;
+    const added = pendingImport.sections.reduce(
+      (sum, s) => sum + s.added.length,
+      0
+    );
+    const overwritten = pendingImport.sections.reduce(
+      (sum, s) => sum + s.overwritten.length,
+      0
+    );
+    commitImportMerge(pendingImport, added, overwritten);
+    setPendingImport(null);
+  };
+
+  // Confirm a Monarch import with the user's chosen per-account types. Only the
+  // assets list is touched; loans/investments/scenarios stay put.
+  const handleMonarchConfirm = (typedAssets: Asset[]) => {
+    const { added, overwritten } = previewMerge(realAssets, typedAssets);
+    commitImportMerge(
+      { loans: [], investments: [], scenarios: [], assets: typedAssets },
+      added.length,
+      overwritten.length
+    );
+    setMonarchAccounts(null);
+  };
+
   const handleUndoImport = () => {
     if (!importUndo) return;
     restoreData(importUndo.snapshot);
     setImportUndo(null);
   };
+
+  // Add-vs-update counts for the Monarch dialog (by Id, so independent of the
+  // types the user picks). Computed against the real (merge-target) assets.
+  const monarchPreview = monarchAccounts
+    ? previewMerge(realAssets, monarchAccounts)
+    : null;
 
   return (
     <>
@@ -328,6 +347,17 @@ export const DataManager = () => {
         sections={pendingImport?.sections ?? []}
         onConfirm={handleConfirmImport}
         onCancel={() => setPendingImport(null)}
+      />
+
+      {/* Per-account type picker for a Monarch import: promote each account from
+          the catch-all custom type to an explicit one before merging. */}
+      <MonarchImportDialog
+        open={!!monarchAccounts}
+        accounts={monarchAccounts ?? []}
+        addedCount={monarchPreview?.added.length ?? 0}
+        updatedCount={monarchPreview?.overwritten.length ?? 0}
+        onConfirm={handleMonarchConfirm}
+        onCancel={() => setMonarchAccounts(null)}
       />
 
       <Snackbar

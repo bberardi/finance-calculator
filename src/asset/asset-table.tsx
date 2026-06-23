@@ -25,7 +25,7 @@ import { isAssetLiability } from '../helpers/asset-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
 import { filterBySearch } from '../helpers/filter-helpers';
-import { ContentCopy, Delete, Edit } from '@mui/icons-material';
+import { ContentCopy, Delete, Edit, SwapHoriz } from '@mui/icons-material';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { TableSearchField } from '../components/table-search-field';
 import { BulkActionsToolbar } from '../components/bulk-actions-toolbar';
@@ -43,6 +43,9 @@ interface AssetRowHandlers {
   onEdit: (asset: Asset) => void;
   onClone: (asset: Asset) => void;
   onDelete: (asset: Asset) => void;
+  // Cross-model conversion (custom liability → loan). Optional: only the
+  // Liabilities table wires it, so the action is hidden in the Assets table.
+  onConvertToLoan?: (asset: Asset) => void;
 }
 
 // An asset plus its engine-derived display value: today's home equity for a
@@ -55,24 +58,35 @@ interface AssetRow {
 const assetActions = (
   asset: Asset,
   handlers: AssetRowHandlers
-): RowAction[] => [
-  {
-    icon: <Edit />,
-    title: 'Edit',
-    onClick: () => handlers.onEdit(asset),
-  },
-  {
-    icon: <ContentCopy />,
-    title: 'Duplicate',
-    onClick: () => handlers.onClone(asset),
-  },
-  {
+): RowAction[] => {
+  const actions: RowAction[] = [
+    {
+      icon: <Edit />,
+      title: 'Edit',
+      onClick: () => handlers.onEdit(asset),
+    },
+    {
+      icon: <ContentCopy />,
+      title: 'Duplicate',
+      onClick: () => handlers.onClone(asset),
+    },
+  ];
+  const { onConvertToLoan } = handlers;
+  if (onConvertToLoan) {
+    actions.push({
+      icon: <SwapHoriz />,
+      title: 'Convert to loan',
+      onClick: () => onConvertToLoan(asset),
+    });
+  }
+  actions.push({
     icon: <Delete />,
     title: 'Delete',
     onClick: () => handlers.onDelete(asset),
     color: 'error',
-  },
-];
+  });
+  return actions;
+};
 
 type AssetColumnId =
   | 'Name'
@@ -190,6 +204,7 @@ export const AssetTable = (props: AssetTableProps) => {
     onEdit: props.onAssetEdit,
     onClone: props.onAssetClone,
     onDelete: props.onAssetDelete,
+    onConvertToLoan: props.onAssetConvertToLoan,
   };
 
   // Sortable data columns, built from props so the Type column can be dropped
@@ -445,6 +460,9 @@ export type AssetTableProps = {
   onAssetDelete: (a: Asset) => void;
   onAssetClone: (a: Asset) => void;
   onAssetBulkDelete: (assets: Asset[]) => void;
+  // Convert a custom liability into a loan (opens the loan form pre-filled).
+  // Only supplied for the Liabilities table, so it is hidden elsewhere.
+  onAssetConvertToLoan?: (a: Asset) => void;
   // Display tuning so the same table serves the Assets and Liabilities groups.
   showTypeColumn?: boolean;
   showEquityColumn?: boolean;

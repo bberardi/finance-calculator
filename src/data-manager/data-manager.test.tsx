@@ -80,20 +80,37 @@ describe('DataManager import preview + undo (roadmap 6.3)', () => {
 });
 
 describe('DataManager Monarch CSV import', () => {
-  it('previews a Monarch balance CSV as an asset and commits on confirm', async () => {
+  it('opens the per-account type picker and commits on import', async () => {
     const { container } = renderWithProviders(<DataManager />);
 
     await userEvent.upload(monarchInput(container), monarchFile());
 
-    // The shared review dialog lists the imported account; nothing merged yet.
-    expect(await screen.findByText('Review import')).toBeInTheDocument();
+    // The per-account type picker appears, listing the account; nothing merged.
+    expect(await screen.findByText(/account found/i)).toBeInTheDocument();
     expect(screen.getByText('Chase Checking')).toBeInTheDocument();
+    expect(screen.queryByText(/Imported 1 item/)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Import' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Import 1' }));
 
     expect(
       await screen.findByRole('button', { name: 'UNDO' })
     ).toBeInTheDocument();
     expect(screen.getByText(/Imported 1 item/)).toBeInTheDocument();
+  });
+
+  it('cancelling the type picker imports nothing', async () => {
+    const { container } = renderWithProviders(<DataManager />);
+
+    await userEvent.upload(monarchInput(container), monarchFile());
+    await screen.findByText(/account found/i);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // The dialog title (a heading, distinct from the command-bar button) persists
+    // through the exit transition, so wait for it to leave the DOM.
+    await waitForElementToBeRemoved(() =>
+      screen.queryByRole('heading', { name: 'Import from Monarch' })
+    );
+    expect(screen.queryByText(/Imported/)).not.toBeInTheDocument();
   });
 });
