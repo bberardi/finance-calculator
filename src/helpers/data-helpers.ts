@@ -321,6 +321,15 @@ const parseAssets = (value: unknown): Asset[] => {
         );
       }
     }
+    // An investment-type asset must carry a StartDate — the standalone
+    // Investment import required it, and without one `assetToInvestment` anchors
+    // the forecast to the epoch (1970), producing a wildly wrong projection.
+    // Other asset types legitimately omit it.
+    if (raw.AssetType === AssetType.Investment && startDate === undefined) {
+      throw new Error(
+        `Missing required field 'StartDate' for investment asset at index ${index}.`
+      );
+    }
     if (
       raw.ContributionFrequency !== undefined &&
       raw.ContributionFrequency !== null &&

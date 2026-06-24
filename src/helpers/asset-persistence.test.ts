@@ -325,7 +325,9 @@ describe('importFromJson — investment-type assets (parseAssets)', () => {
     expect(assets[0].StartDate).toBeInstanceOf(Date);
   });
 
-  it('imports an investment asset without its optional contribution fields', () => {
+  it('imports an investment asset with only its required fields, leaving the optional contribution fields undefined', () => {
+    // StartDate is the one investment essential the import requires; the
+    // recurring-contribution / step-up / current-value fields are all optional.
     const json = makeJson([
       {
         Id: 'inv1',
@@ -334,14 +336,34 @@ describe('importFromJson — investment-type assets (parseAssets)', () => {
         AssetType: AssetType.Investment,
         Balance: 10000,
         GrowthRate: 7,
+        StartDate: '2024-01-01T00:00:00.000Z',
       },
     ]);
     const { assets } = importFromJson(json);
-    expect(assets[0].StartDate).toBeUndefined();
+    expect(assets[0].StartDate).toBeInstanceOf(Date);
     expect(assets[0].RecurringContribution).toBeUndefined();
     expect(assets[0].ContributionFrequency).toBeUndefined();
     expect(assets[0].ContributionStepUpType).toBeUndefined();
     expect(assets[0].CurrentValue).toBeUndefined();
+  });
+
+  it('rejects an investment-type asset with no StartDate', () => {
+    // The standalone Investment import required a StartDate; folding into assets
+    // must keep that guarantee so a forecast never anchors to the epoch.
+    expect(() =>
+      importFromJson(
+        makeJson([
+          {
+            Id: 'inv1',
+            Provider: 'Brokerage',
+            Name: 'Index Fund',
+            AssetType: AssetType.Investment,
+            Balance: 10000,
+            GrowthRate: 7,
+          },
+        ])
+      )
+    ).toThrow("Missing required field 'StartDate' for investment asset");
   });
 
   it('rejects a malformed StartDate string', () => {
