@@ -34,9 +34,9 @@ import { useFinanceData } from './state/use-finance-data';
 import { DataSnapshot } from './state/finance-reducer';
 import { buildLoanSeedFromAsset } from './helpers/convert-helpers';
 import {
-  assetToInvestment,
   investmentToAsset,
   isInvestmentAsset,
+  investmentsFromAssets,
 } from './helpers/asset-investment-helpers';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
@@ -155,14 +155,7 @@ export const Body = () => {
   // table / engine consume from the investment-type assets, and the non-
   // investment assets that flow to the asset tables and the net-worth engine
   // (passing both `investments` and all assets would double-count).
-  const investmentAssets = useMemo(
-    () => assets.filter(isInvestmentAsset),
-    [assets]
-  );
-  const investments = useMemo(
-    () => investmentAssets.map(assetToInvestment),
-    [investmentAssets]
-  );
+  const investments = useMemo(() => investmentsFromAssets(assets), [assets]);
   const nonInvestmentAssets = useMemo(
     () => assets.filter((a) => !isInvestmentAsset(a)),
     [assets]

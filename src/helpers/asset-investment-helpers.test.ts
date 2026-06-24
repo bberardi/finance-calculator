@@ -3,6 +3,7 @@ import {
   assetToInvestment,
   investmentToAsset,
   isInvestmentAsset,
+  investmentsFromAssets,
 } from './asset-investment-helpers';
 import { Asset, AssetType } from '../models/asset-model';
 import {
@@ -94,5 +95,35 @@ describe('investmentToAsset / assetToInvestment', () => {
         GrowthRate: 0,
       })
     ).toBe(false);
+  });
+
+  it('derives investments from a mixed asset list, dropping non-investments', () => {
+    const cash: Asset = {
+      Id: 'c1',
+      Provider: 'Chase',
+      Name: 'Checking',
+      AssetType: AssetType.Cash,
+      Balance: 100,
+      GrowthRate: 0,
+    };
+    const investmentAsset = investmentToAsset(fullInvestment);
+    const result = investmentsFromAssets([cash, investmentAsset]);
+    // Only the investment-type asset survives, converted back to an Investment.
+    expect(result).toEqual([fullInvestment]);
+  });
+
+  it('returns an empty list when no asset is an investment', () => {
+    expect(
+      investmentsFromAssets([
+        {
+          Id: 'p1',
+          Provider: 'County',
+          Name: 'Home',
+          AssetType: AssetType.Property,
+          Balance: 400000,
+          GrowthRate: 3,
+        },
+      ])
+    ).toEqual([]);
   });
 });

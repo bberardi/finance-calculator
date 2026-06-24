@@ -3,10 +3,7 @@ import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Scenario } from '../models/scenario-model';
 import { useFinanceData } from '../state/use-finance-data';
-import {
-  assetToInvestment,
-  isInvestmentAsset,
-} from '../helpers/asset-investment-helpers';
+import { investmentsFromAssets } from '../helpers/asset-investment-helpers';
 import { ScenarioBuilderDialog } from './scenario-builder-dialog';
 
 // Scenario controls in the forecast section (Phase 4.2). Create a scenario,
@@ -22,10 +19,7 @@ export const ScenarioBar = () => {
 
   // Investments are folded into assets; derive the Investment[] the scenario
   // builder needs from the investment-type assets.
-  const investments = useMemo(
-    () => assets.filter(isInvestmentAsset).map(assetToInvestment),
-    [assets]
-  );
+  const investments = useMemo(() => investmentsFromAssets(assets), [assets]);
 
   const [builderOpen, setBuilderOpen] = useState(false);
 

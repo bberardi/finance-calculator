@@ -54,3 +54,12 @@ export const investmentToAsset = (investment: Investment): Asset => ({
 /** True for assets that are investments (folded from the standalone Investment). */
 export const isInvestmentAsset = (asset: Asset): boolean =>
   asset.AssetType === AssetType.Investment;
+
+/**
+ * Pull the investments out of a unified asset list: the investment-type assets,
+ * each converted to the Investment the engine/UI consume. The single home for
+ * this derivation, used by every consumer that still thinks in Investments (the
+ * investment table, the scenario builder, and the forecast engine inputs).
+ */
+export const investmentsFromAssets = (assets: Asset[]): Investment[] =>
+  assets.filter(isInvestmentAsset).map(assetToInvestment);
