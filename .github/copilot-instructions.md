@@ -24,13 +24,14 @@ src/
 ├── Footer.tsx           # App footer
 ├── models/              # TypeScript interfaces and types
 │   ├── loan-model.ts
-│   ├── investment-model.ts
-│   └── asset-model.ts           # Asset interface + AssetType enum (Cash, Property, CustomAsset, CustomLiability)
+│   ├── investment-model.ts     # Investment interface (derived from AssetType.Investment assets at the UI boundary)
+│   └── asset-model.ts           # Asset interface + AssetType enum (Cash, Property, Investment, CustomAsset, CustomLiability)
 ├── helpers/             # Pure business logic and calculations (the math core)
 │   ├── loan-helpers.ts
 │   ├── investment-helpers.ts
 │   ├── forecast-helpers.ts
 │   ├── asset-helpers.ts         # forecastAsset, isAssetLiability, assetNetWorthSign, getAssetValueToday
+│   ├── asset-investment-helpers.ts # assetToInvestment / investmentToAsset / isInvestmentAsset (the fold boundary)
 │   ├── monarch-helpers.ts       # Parse Monarch "account balance history" CSV exports into Assets (importAssetsFromMonarchBalanceCsvFiles)
 │   ├── convert-helpers.ts       # buildLoanSeedFromAsset: seed a Loan from a custom-liability asset (convert to mortgage)
 │   ├── storage-helpers.ts       # On-device persistence I/O (save/load/clear, issue #20)
@@ -152,7 +153,7 @@ npm run deploy     # Deploy to GitHub Pages
 - `Balance` is the asset's current value (always positive); `GrowthRate` is an annual % that may be negative (depreciation)
 - `forecastAsset` in `asset-helpers.ts` produces a monthly-axis compound-growth series anchored to today's balance
 - `forecastHomeEquity` in `forecast-helpers.ts` computes property value minus its linked mortgage balance (pointwise), using `LinkedLoanId` to pair an asset to a loan
-- Ordinary assets (`Cash`, `Property`, `CustomAsset`) add to net worth; `CustomLiability` subtracts
+- Ordinary assets (`Cash`, `Property`, `Investment`, `CustomAsset`) add to net worth; `CustomLiability` subtracts
 - Assets are included in the `forecastNetWorth` roll-up and appear as individual lines (kind `'asset'`) in the forecast chart
 
 ## Important Notes
@@ -161,8 +162,9 @@ npm run deploy     # Deploy to GitHub Pages
 - No backend or database; all data is managed in client-side state
 - Models are input-only: derived data (amortization schedules, growth projections, asset forecasts) is computed on demand by helpers and never stored on models or serialized into exports
 - **Core/UI boundary (decision D7)**: `src/helpers/**` and `src/models/**` are a pure, framework-free layer (TypeScript + dayjs only). An ESLint rule forbids them from importing React, MUI, emotion, or any UI component (`*.tsx`). UI depends on the core, never the reverse — put React hooks in `src/hooks/`, not `src/helpers/`.
-- The `Asset` model (`src/models/asset-model.ts`) follows the same input-only convention; the `AssetType` enum values are `Cash`, `Property`, `CustomAsset`, and `CustomLiability`
-- Export/persistence schema is at **v4** (`CURRENT_SCHEMA_VERSION = 4`); importing a v3 file adds an empty `assets` list via the migration ladder in `migrate-helpers.ts`
+- The `Asset` model (`src/models/asset-model.ts`) follows the same input-only convention; the `AssetType` enum values are `Cash`, `Property`, `Investment`, `CustomAsset`, and `CustomLiability`
+- **Investments are folded into assets** (`AssetType.Investment`), not a separate top-level collection. The investment-only fields (`StartDate`, `RecurringContribution`, `ContributionFrequency`, `ContributionStepUpAmount`/`Type`, `CurrentValue`) live on `Asset` and are optional. The math engine still consumes the `Investment` model, so `Body.tsx` derives `Investment[]` from the investment-type assets at the UI/state boundary via `assetToInvestment` (in `asset-investment-helpers.ts`) and passes the non-investment assets to the asset roll-up — keeping the Charter-gated engine untouched and avoiding double-counting. Do not re-introduce a standalone investments collection in state.
+- Export/persistence schema is at **v5** (`CURRENT_SCHEMA_VERSION = 5`); the migration ladder in `migrate-helpers.ts` upgrades older files forward — a v3 file gains an empty `assets` list (v4), and a v4 file's standalone `investments` array is folded into `assets` as `AssetType.Investment` entries (v5)
 - Future plans include file upload/export for data persistence
 - Test data can be toggled in the UI for development purposes
 

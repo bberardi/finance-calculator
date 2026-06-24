@@ -316,7 +316,9 @@ const parseAssets = (value: unknown): Asset[] => {
       validateDateField(raw.StartDate, 'StartDate', 'asset', index);
       startDate = new Date(raw.StartDate as string);
       if (isNaN(startDate.getTime())) {
-        throw new Error(`Invalid date for 'StartDate' in asset at index ${index}.`);
+        throw new Error(
+          `Invalid date for 'StartDate' in asset at index ${index}.`
+        );
       }
     }
     if (

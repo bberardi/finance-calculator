@@ -60,9 +60,7 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     assets: Array.isArray(data.assets) ? data.assets : [],
   }),
   4: (data) => {
-    const investments = Array.isArray(data.investments)
-      ? data.investments
-      : [];
+    const investments = Array.isArray(data.investments) ? data.investments : [];
     const assets = Array.isArray(data.assets) ? data.assets : [];
     const rest = { ...data };
     delete rest.investments;

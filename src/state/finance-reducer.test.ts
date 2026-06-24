@@ -5,7 +5,7 @@ import {
   initialFinanceState,
 } from './finance-reducer';
 import { Loan } from '../models/loan-model';
-import { Investment, CompoundingFrequency } from '../models/investment-model';
+import { CompoundingFrequency } from '../models/investment-model';
 import { Asset, AssetType } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 
@@ -22,20 +22,6 @@ const makeLoan = (id: string, overrides: Partial<Loan> = {}): Loan => ({
   ...overrides,
 });
 
-const makeInvestment = (
-  id: string,
-  overrides: Partial<Investment> = {}
-): Investment => ({
-  Id: id,
-  Provider: `Provider ${id}`,
-  Name: `Investment ${id}`,
-  StartDate: new Date('2024-01-01'),
-  StartingBalance: 10000,
-  AverageReturnRate: 7,
-  CompoundingPeriod: CompoundingFrequency.Monthly,
-  ...overrides,
-});
-
 const makeAsset = (id: string, overrides: Partial<Asset> = {}): Asset => ({
   Id: id,
   Provider: `Provider ${id}`,
@@ -46,6 +32,22 @@ const makeAsset = (id: string, overrides: Partial<Asset> = {}): Asset => ({
   CompoundingPeriod: CompoundingFrequency.Monthly,
   ...overrides,
 });
+
+// An investment is just an asset whose AssetType is Investment (the fold), so it
+// flows through the same AddAsset/UpdateAsset/… reducer paths as any other
+// holding. These helpers build such an asset for the merge/stash tests.
+const makeInvestmentAsset = (
+  id: string,
+  overrides: Partial<Asset> = {}
+): Asset =>
+  makeAsset(id, {
+    AssetType: AssetType.Investment,
+    GrowthRate: 7,
+    StartDate: new Date('2024-01-01'),
+    RecurringContribution: 500,
+    ContributionFrequency: CompoundingFrequency.Monthly,
+    ...overrides,
+  });
 
 const stateWith = (overrides: Partial<FinanceState>): FinanceState => ({
   ...initialFinanceState,
@@ -204,106 +206,24 @@ describe('financeReducer', () => {
     });
   });
 
-  describe('AddInvestment', () => {
-    it('appends an investment, preserving order', () => {
-      const start = stateWith({
-        investments: [makeInvestment('a'), makeInvestment('b')],
-      });
-      const next = financeReducer(start, {
-        type: 'AddInvestment',
-        investment: makeInvestment('c'),
-      });
-      expect(next.investments.map((i) => i.Id)).toEqual(['a', 'b', 'c']);
-    });
-  });
-
-  describe('UpdateInvestment (regression for #48)', () => {
-    it('replaces the matching investment in place, preserving order', () => {
-      const start = stateWith({
-        investments: [
-          makeInvestment('a'),
-          makeInvestment('b'),
-          makeInvestment('c'),
-        ],
-      });
-      const updated = makeInvestment('b', { Name: 'Updated B' });
-      const next = financeReducer(start, {
-        type: 'UpdateInvestment',
-        investment: updated,
-      });
-      expect(next.investments.map((i) => i.Id)).toEqual(['a', 'b', 'c']);
-      expect(next.investments[1]).toEqual(updated);
-    });
-  });
-
-  describe('DeleteInvestment (regression for #49)', () => {
-    it('removes the investment with the matching Id', () => {
-      const start = stateWith({
-        investments: [
-          makeInvestment('a'),
-          makeInvestment('b'),
-          makeInvestment('c'),
-        ],
-      });
-      const next = financeReducer(start, {
-        type: 'DeleteInvestment',
-        id: 'b',
-      });
-      expect(next.investments.map((i) => i.Id)).toEqual(['a', 'c']);
-    });
-  });
-
-  describe('InsertInvestmentAt (delete soft-undo, roadmap 0.7)', () => {
-    it('delete then undo restores the identical investment at its original index', () => {
-      const x = makeInvestment('x');
-      const y = makeInvestment('y', { Name: 'Middle', StartingBalance: 7 });
-      const z = makeInvestment('z');
-      const start = stateWith({ investments: [x, y, z] });
-
-      const index = start.investments.findIndex((i) => i.Id === 'y');
-      const deleted = financeReducer(start, {
-        type: 'DeleteInvestment',
-        id: 'y',
-      });
-      expect(deleted.investments.map((i) => i.Id)).toEqual(['x', 'z']);
-
-      const undone = financeReducer(deleted, {
-        type: 'InsertInvestmentAt',
-        investment: y,
-        index,
-      });
-      expect(undone.investments.map((i) => i.Id)).toEqual(['x', 'y', 'z']);
-      expect(undone.investments[1]).toEqual(y);
-    });
-
-    it('clamps an out-of-range index by appending', () => {
-      const start = stateWith({ investments: [makeInvestment('x')] });
-      const next = financeReducer(start, {
-        type: 'InsertInvestmentAt',
-        investment: makeInvestment('z'),
-        index: 9,
-      });
-      expect(next.investments.map((i) => i.Id)).toEqual(['x', 'z']);
-    });
-
-    it('is a no-op when the same Id is already present', () => {
-      const start = stateWith({ investments: [makeInvestment('x')] });
-      const next = financeReducer(start, {
-        type: 'InsertInvestmentAt',
-        investment: makeInvestment('x', { Name: 'Dup' }),
-        index: 0,
-      });
-      expect(next).toBe(start);
-    });
-  });
-
-  describe('Asset actions (Phase 7)', () => {
+  // Investments are folded into assets (AssetType.Investment), so they share the
+  // Asset reducer paths below — there are no separate investment actions.
+  describe('Asset actions (Phase 7 + investment fold)', () => {
     it('AddAsset appends an asset', () => {
       const next = financeReducer(initialFinanceState, {
         type: 'AddAsset',
         asset: makeAsset('a'),
       });
       expect(next.assets.map((a) => a.Id)).toEqual(['a']);
+    });
+
+    it('AddAsset appends an investment-type asset', () => {
+      const next = financeReducer(initialFinanceState, {
+        type: 'AddAsset',
+        asset: makeInvestmentAsset('inv'),
+      });
+      expect(next.assets.map((a) => a.Id)).toEqual(['inv']);
+      expect(next.assets[0].AssetType).toBe(AssetType.Investment);
     });
 
     it('UpdateAsset replaces in place, preserving order', () => {
@@ -350,15 +270,15 @@ describe('financeReducer', () => {
     it('adds new items by Id', () => {
       const start = stateWith({
         loans: [makeLoan('a')],
-        investments: [makeInvestment('x')],
+        assets: [makeInvestmentAsset('x')],
       });
       const next = financeReducer(start, {
         type: 'ImportMerge',
         loans: [makeLoan('b')],
-        investments: [makeInvestment('y')],
+        assets: [makeInvestmentAsset('y')],
       });
       expect(next.loans.map((l) => l.Id).sort()).toEqual(['a', 'b']);
-      expect(next.investments.map((i) => i.Id).sort()).toEqual(['x', 'y']);
+      expect(next.assets.map((a) => a.Id).sort()).toEqual(['x', 'y']);
     });
 
     it('overwrites existing items with the same Id (merge-by-Id semantics)', () => {
@@ -366,7 +286,6 @@ describe('financeReducer', () => {
       const next = financeReducer(start, {
         type: 'ImportMerge',
         loans: [makeLoan('a', { Name: 'New' })],
-        investments: [],
       });
       expect(next.loans).toHaveLength(1);
       expect(next.loans[0].Name).toBe('New');
@@ -377,7 +296,6 @@ describe('financeReducer', () => {
       const withAssets = financeReducer(start, {
         type: 'ImportMerge',
         loans: [],
-        investments: [],
         assets: [makeAsset('a', { Name: 'New' }), makeAsset('b')],
       });
       expect(withAssets.assets.map((a) => a.Id).sort()).toEqual(['a', 'b']);
@@ -387,7 +305,6 @@ describe('financeReducer', () => {
       const untouched = financeReducer(start, {
         type: 'ImportMerge',
         loans: [],
-        investments: [],
       });
       expect(untouched.assets).toBe(start.assets);
     });
@@ -399,7 +316,6 @@ describe('financeReducer', () => {
       const next = financeReducer(start, {
         type: 'ImportMerge',
         loans: [makeLoan('a', { Name: 'New A' }), makeLoan('c')],
-        investments: [],
       });
       const byId = new Map(next.loans.map((l) => [l.Id, l]));
       expect(byId.get('a')?.Name).toBe('New A');
@@ -411,40 +327,46 @@ describe('financeReducer', () => {
     it('empty import leaves data unchanged', () => {
       const start = stateWith({
         loans: [makeLoan('a')],
-        investments: [makeInvestment('x')],
+        assets: [makeInvestmentAsset('x')],
       });
       const next = financeReducer(start, {
         type: 'ImportMerge',
         loans: [],
-        investments: [],
       });
       expect(next.loans.map((l) => l.Id)).toEqual(['a']);
-      expect(next.investments.map((i) => i.Id)).toEqual(['x']);
+      expect(next.assets.map((a) => a.Id)).toEqual(['x']);
     });
 
     it('merges into stashed real data while sample data is loaded, surviving a later clear (#83)', () => {
       // Start with the user's real data, load samples (real data is stashed),
       // then import. The import must land in the stash, not the visible samples,
       // so it survives ClearSampleData rather than being silently dropped.
-      const withUserData = stateWith({ loans: [makeLoan('real')] });
+      const withUserData = stateWith({
+        loans: [makeLoan('real')],
+        assets: [makeAsset('real-asset')],
+      });
       const loaded = financeReducer(withUserData, {
         type: 'LoadSampleData',
-        assets: [],
+        assets: [makeAsset('sample-asset')],
         loans: [makeLoan('sample')],
-        investments: [],
       });
 
       const afterImport = financeReducer(loaded, {
         type: 'ImportMerge',
         loans: [makeLoan('imported')],
-        investments: [],
+        assets: [makeAsset('imported-asset')],
       });
 
       // Samples stay visible and untouched; the import goes to the stash.
       expect(afterImport.loans.map((l) => l.Id)).toEqual(['sample']);
+      expect(afterImport.assets.map((a) => a.Id)).toEqual(['sample-asset']);
       expect(afterImport.stashedLoans?.map((l) => l.Id).sort()).toEqual([
         'imported',
         'real',
+      ]);
+      expect(afterImport.stashedAssets?.map((a) => a.Id).sort()).toEqual([
+        'imported-asset',
+        'real-asset',
       ]);
 
       // Clearing samples restores the real data WITH the import included.
@@ -453,6 +375,23 @@ describe('financeReducer', () => {
         'imported',
         'real',
       ]);
+      expect(cleared.assets.map((a) => a.Id).sort()).toEqual([
+        'imported-asset',
+        'real-asset',
+      ]);
+    });
+
+    it('leaves stashed assets untouched when an import omits assets while sample data is loaded', () => {
+      const loaded = financeReducer(
+        stateWith({ loans: [makeLoan('real')], assets: [makeAsset('keep')] }),
+        { type: 'LoadSampleData', assets: [], loans: [makeLoan('sample')] }
+      );
+      const afterImport = financeReducer(loaded, {
+        type: 'ImportMerge',
+        loans: [makeLoan('imported')],
+      });
+      // Same stash array reference — assets were not part of the merge.
+      expect(afterImport.stashedAssets).toBe(loaded.stashedAssets);
     });
   });
 
@@ -460,16 +399,14 @@ describe('financeReducer', () => {
     it('an import then a restore of the pre-merge snapshot reverts the data exactly', () => {
       const before = stateWith({
         loans: [makeLoan('a', { Name: 'Original A' })],
-        investments: [makeInvestment('x')],
+        assets: [makeInvestmentAsset('x')],
       });
       // Capture the snapshot the DataManager would take before merging.
       const snapshot = {
         loans: before.loans,
-        investments: before.investments,
         assets: before.assets,
         scenarios: before.scenarios,
         stashedLoans: before.stashedLoans,
-        stashedInvestments: before.stashedInvestments,
         stashedAssets: before.stashedAssets,
       };
 
@@ -477,35 +414,32 @@ describe('financeReducer', () => {
       const merged = financeReducer(before, {
         type: 'ImportMerge',
         loans: [makeLoan('a', { Name: 'Clobbered A' }), makeLoan('b')],
-        investments: [],
       });
       expect(merged.loans.map((l) => l.Id).sort()).toEqual(['a', 'b']);
 
-      // Undo restores the exact pre-merge loans/investments.
+      // Undo restores the exact pre-merge loans/assets.
       const restored = financeReducer(merged, {
         type: 'RestoreData',
         snapshot,
       });
       expect(restored.loans).toEqual(before.loans);
       expect(restored.loans[0].Name).toBe('Original A');
-      expect(restored.investments).toEqual(before.investments);
+      expect(restored.assets).toEqual(before.assets);
     });
 
     it('restores stashed real data (the merge target while sample data is loaded)', () => {
       const snapshot = {
         loans: [makeLoan('sample')],
-        investments: [],
         assets: [],
         scenarios: [],
         stashedLoans: [makeLoan('real')],
-        stashedInvestments: [makeInvestment('real-inv')],
-        stashedAssets: null,
+        stashedAssets: [makeInvestmentAsset('real-inv')],
       };
       const dirtied = stateWith({
         sampleDataLoaded: true,
         loans: [makeLoan('sample')],
         stashedLoans: [makeLoan('real'), makeLoan('imported')],
-        stashedInvestments: [],
+        stashedAssets: [],
       });
 
       const restored = financeReducer(dirtied, {
@@ -514,9 +448,7 @@ describe('financeReducer', () => {
       });
 
       expect(restored.stashedLoans?.map((l) => l.Id)).toEqual(['real']);
-      expect(restored.stashedInvestments?.map((i) => i.Id)).toEqual([
-        'real-inv',
-      ]);
+      expect(restored.stashedAssets?.map((a) => a.Id)).toEqual(['real-inv']);
       // The sample-data flag is not part of the snapshot and is left untouched.
       expect(restored.sampleDataLoaded).toBe(true);
     });
@@ -525,11 +457,9 @@ describe('financeReducer', () => {
       const start = stateWith({ loans: [makeLoan('a')] });
       const snapshot = {
         loans: [makeLoan('b')],
-        investments: [],
         assets: [],
         scenarios: [],
         stashedLoans: null,
-        stashedInvestments: null,
         stashedAssets: null,
       };
       financeReducer(start, { type: 'RestoreData', snapshot });
@@ -540,26 +470,25 @@ describe('financeReducer', () => {
   describe('Sample data load/clear (roadmap 0.9)', () => {
     it('LoadSampleData stashes user data and shows sample data', () => {
       const userLoans = [makeLoan('user-1')];
-      const userInvestments = [makeInvestment('user-inv-1')];
+      const userAssets = [makeInvestmentAsset('user-inv-1')];
       const start = stateWith({
         loans: userLoans,
-        investments: userInvestments,
+        assets: userAssets,
       });
       const sampleLoans = [makeLoan('sample-1')];
-      const sampleInvestments = [makeInvestment('sample-inv-1')];
+      const sampleAssets = [makeInvestmentAsset('sample-inv-1')];
 
       const next = financeReducer(start, {
         type: 'LoadSampleData',
-        assets: [],
+        assets: sampleAssets,
         loans: sampleLoans,
-        investments: sampleInvestments,
       });
 
       expect(next.sampleDataLoaded).toBe(true);
       expect(next.loans).toEqual(sampleLoans);
-      expect(next.investments).toEqual(sampleInvestments);
+      expect(next.assets).toEqual(sampleAssets);
       expect(next.stashedLoans).toEqual(userLoans);
-      expect(next.stashedInvestments).toEqual(userInvestments);
+      expect(next.stashedAssets).toEqual(userAssets);
     });
 
     it('stashes and restores user assets across load/clear', () => {
@@ -568,7 +497,6 @@ describe('financeReducer', () => {
       const loaded = financeReducer(start, {
         type: 'LoadSampleData',
         loans: [],
-        investments: [],
         assets: [makeAsset('sample-asset')],
       });
       expect(loaded.assets.map((a) => a.Id)).toEqual(['sample-asset']);
@@ -581,43 +509,42 @@ describe('financeReducer', () => {
 
     it('ClearSampleData restores the stashed user data and clears sample data', () => {
       const userLoans = [makeLoan('user-1')];
-      const userInvestments = [makeInvestment('user-inv-1')];
+      const userAssets = [makeInvestmentAsset('user-inv-1')];
       const loaded = stateWith({
         sampleDataLoaded: true,
         loans: [makeLoan('sample-1')],
-        investments: [makeInvestment('sample-inv-1')],
+        assets: [makeInvestmentAsset('sample-inv-1')],
         stashedLoans: userLoans,
-        stashedInvestments: userInvestments,
+        stashedAssets: userAssets,
       });
 
       const next = financeReducer(loaded, { type: 'ClearSampleData' });
 
       expect(next.sampleDataLoaded).toBe(false);
       expect(next.loans).toEqual(userLoans);
-      expect(next.investments).toEqual(userInvestments);
+      expect(next.assets).toEqual(userAssets);
       expect(next.stashedLoans).toBeNull();
-      expect(next.stashedInvestments).toBeNull();
+      expect(next.stashedAssets).toBeNull();
     });
 
     it('round-trips: load then clear restores the exact original data', () => {
       const userLoans = [makeLoan('a'), makeLoan('b')];
-      const userInvestments = [makeInvestment('x')];
+      const userAssets = [makeInvestmentAsset('x')];
       const start = stateWith({
         loans: userLoans,
-        investments: userInvestments,
+        assets: userAssets,
       });
 
       const loaded = financeReducer(start, {
         type: 'LoadSampleData',
-        assets: [],
+        assets: [makeInvestmentAsset('sample-inv')],
         loans: [makeLoan('sample')],
-        investments: [makeInvestment('sample-inv')],
       });
       const cleared = financeReducer(loaded, { type: 'ClearSampleData' });
 
       expect(cleared.sampleDataLoaded).toBe(false);
       expect(cleared.loans).toEqual(userLoans);
-      expect(cleared.investments).toEqual(userInvestments);
+      expect(cleared.assets).toEqual(userAssets);
     });
 
     it('sample data never destroys user data even when starting empty', () => {
@@ -626,11 +553,10 @@ describe('financeReducer', () => {
         type: 'LoadSampleData',
         assets: [],
         loans: [makeLoan('sample')],
-        investments: [],
       });
       const cleared = financeReducer(loaded, { type: 'ClearSampleData' });
       expect(cleared.loans).toEqual([]);
-      expect(cleared.investments).toEqual([]);
+      expect(cleared.assets).toEqual([]);
     });
 
     it('edits made while sample data is loaded are discarded on clear (stash wins)', () => {
@@ -642,7 +568,6 @@ describe('financeReducer', () => {
         type: 'LoadSampleData',
         assets: [],
         loans: [makeLoan('sample')],
-        investments: [],
       });
       const edited = financeReducer(loaded, {
         type: 'AddLoan',
@@ -665,13 +590,11 @@ describe('financeReducer', () => {
         type: 'LoadSampleData',
         assets: [],
         loans: [makeLoan('sample-1')],
-        investments: [],
       });
       const loadedAgain = financeReducer(loaded, {
         type: 'LoadSampleData',
         assets: [],
         loans: [makeLoan('sample-2')],
-        investments: [],
       });
       // Stash must still hold the original user data, not sample-1.
       expect(loadedAgain.stashedLoans).toEqual(userLoans);

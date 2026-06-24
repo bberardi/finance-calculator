@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Asset, AssetType } from '../models/asset-model';
-import { CompoundingFrequency } from '../models/investment-model';
+import { CompoundingFrequency, StepUpType } from '../models/investment-model';
 import {
   ASSET_GROWTH_WARNING_THRESHOLD,
   isAssetValid,
@@ -91,12 +91,14 @@ describe('validateAsset', () => {
   });
 });
 
-// Build a schema-v4 export payload string with the given raw assets array.
+// Build a current-schema export payload string with the given raw assets array.
+// Using the current version means no migration runs, so the raw assets reach
+// parseAssets unchanged (the v4 → v5 migration would coerce a non-array assets
+// field to [], masking the "must be an array" guard this exercises).
 const makeJson = (assets: unknown): string =>
   JSON.stringify({
-    schemaVersion: 4,
+    schemaVersion: 5,
     loans: [],
-    investments: [],
     scenarios: [],
     assets,
   });
@@ -269,5 +271,124 @@ describe('importFromJson — assets (parseAssets)', () => {
     expect(() =>
       importFromJson(makeJson([{ ...base, LinkedLoanId: '   ' }]))
     ).toThrow("Invalid value for 'LinkedLoanId'");
+  });
+});
+
+// Investment-type assets (the fold): the import boundary must validate and
+// round-trip the investment-only fields (StartDate, recurring contributions,
+// step-ups, current value) that ride along on an AssetType.Investment.
+describe('importFromJson — investment-type assets (parseAssets)', () => {
+  const investmentAsset = (overrides: Partial<Asset> = {}): Asset =>
+    validAsset({
+      Id: 'inv1',
+      Provider: 'Brokerage',
+      Name: 'Index Fund',
+      AssetType: AssetType.Investment,
+      Balance: 10000,
+      GrowthRate: 7,
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+      StartDate: new Date('2024-01-01T00:00:00.000Z'),
+      RecurringContribution: 500,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+      ContributionStepUpAmount: 100,
+      ContributionStepUpType: StepUpType.Flat,
+      CurrentValue: 12000,
+      ...overrides,
+    });
+
+  // A raw (serialized) investment-type asset whose StartDate is an ISO string,
+  // for the field-level rejection cases below.
+  const rawInvestment = (overrides: Record<string, unknown> = {}) => ({
+    Id: 'inv1',
+    Provider: 'Brokerage',
+    Name: 'Index Fund',
+    AssetType: AssetType.Investment,
+    Balance: 10000,
+    GrowthRate: 7,
+    CompoundingPeriod: CompoundingFrequency.Monthly,
+    StartDate: '2024-01-01T00:00:00.000Z',
+    RecurringContribution: 500,
+    ContributionFrequency: CompoundingFrequency.Monthly,
+    ContributionStepUpAmount: 100,
+    ContributionStepUpType: StepUpType.Flat,
+    CurrentValue: 12000,
+    ...overrides,
+  });
+
+  it('round-trips a fully-populated investment asset through export and import', () => {
+    const investment = investmentAsset();
+    const json = exportToJson([], [], [investment]);
+    expect(JSON.parse(json).schemaVersion).toBe(5);
+    const { assets } = importFromJson(json);
+    expect(assets).toEqual([investment]);
+    // The StartDate survives as a real Date, not an ISO string.
+    expect(assets[0].StartDate).toBeInstanceOf(Date);
+  });
+
+  it('imports an investment asset without its optional contribution fields', () => {
+    const json = makeJson([
+      {
+        Id: 'inv1',
+        Provider: 'Brokerage',
+        Name: 'Index Fund',
+        AssetType: AssetType.Investment,
+        Balance: 10000,
+        GrowthRate: 7,
+      },
+    ]);
+    const { assets } = importFromJson(json);
+    expect(assets[0].StartDate).toBeUndefined();
+    expect(assets[0].RecurringContribution).toBeUndefined();
+    expect(assets[0].ContributionFrequency).toBeUndefined();
+    expect(assets[0].ContributionStepUpType).toBeUndefined();
+    expect(assets[0].CurrentValue).toBeUndefined();
+  });
+
+  it('rejects a malformed StartDate string', () => {
+    expect(() =>
+      importFromJson(makeJson([rawInvestment({ StartDate: 'not-a-date' })]))
+    ).toThrow("Invalid date for 'StartDate'");
+  });
+
+  it('rejects a non-string StartDate', () => {
+    expect(() =>
+      importFromJson(makeJson([rawInvestment({ StartDate: 1700000000000 })]))
+    ).toThrow("Invalid value for 'StartDate'");
+  });
+
+  it('rejects a negative RecurringContribution', () => {
+    expect(() =>
+      importFromJson(makeJson([rawInvestment({ RecurringContribution: -1 })]))
+    ).toThrow("Invalid value for 'RecurringContribution'");
+  });
+
+  it('rejects a non-numeric ContributionStepUpAmount', () => {
+    expect(() =>
+      importFromJson(
+        makeJson([rawInvestment({ ContributionStepUpAmount: 'lots' })])
+      )
+    ).toThrow("Invalid value for 'ContributionStepUpAmount'");
+  });
+
+  it('rejects a negative CurrentValue', () => {
+    expect(() =>
+      importFromJson(makeJson([rawInvestment({ CurrentValue: -5 })]))
+    ).toThrow("Invalid value for 'CurrentValue'");
+  });
+
+  it('rejects an invalid ContributionFrequency', () => {
+    expect(() =>
+      importFromJson(
+        makeJson([rawInvestment({ ContributionFrequency: 'hourly' })])
+      )
+    ).toThrow("Invalid value for 'ContributionFrequency'");
+  });
+
+  it('rejects an invalid ContributionStepUpType', () => {
+    expect(() =>
+      importFromJson(
+        makeJson([rawInvestment({ ContributionStepUpType: 'exponential' })])
+      )
+    ).toThrow("Invalid value for 'ContributionStepUpType'");
   });
 });
