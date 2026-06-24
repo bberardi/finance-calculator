@@ -13,6 +13,8 @@ import {
 } from './storage-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { AssetType } from '../models/asset-model';
+import { investmentToAsset } from './asset-investment-helpers';
 
 // The test environment is Node, where `localStorage` does not exist. Install a
 // minimal in-memory Storage so the helpers run exactly as they would in a
@@ -82,12 +84,14 @@ afterEach(() => {
 
 describe('saveData / loadData round-trip', () => {
   it('persists inputs and hydrates them back to equivalent entities', () => {
-    expect(saveData([sampleLoan], [sampleInvestment])).toBe('saved');
+    // Investments are folded into assets (AssetType.Investment) for persistence.
+    const investmentAsset = investmentToAsset(sampleInvestment);
+    expect(saveData([sampleLoan], [], [investmentAsset])).toBe('saved');
 
     const loaded = loadData();
     expect(loaded).not.toBeNull();
     expect(loaded!.loans).toHaveLength(1);
-    expect(loaded!.investments).toHaveLength(1);
+    expect(loaded!.assets).toHaveLength(1);
 
     const loan = loaded!.loans[0];
     expect(loan.Id).toBe(sampleLoan.Id);
@@ -95,10 +99,13 @@ describe('saveData / loadData round-trip', () => {
     expect(loan.StartDate.getTime()).toBe(sampleLoan.StartDate.getTime());
     expect(loan.EndDate.getTime()).toBe(sampleLoan.EndDate.getTime());
 
-    const inv = loaded!.investments[0];
-    expect(inv.Id).toBe(sampleInvestment.Id);
-    expect(inv.AverageReturnRate).toBe(sampleInvestment.AverageReturnRate);
-    expect(inv.StartDate.getTime()).toBe(sampleInvestment.StartDate.getTime());
+    const asset = loaded!.assets[0];
+    expect(asset.Id).toBe(sampleInvestment.Id);
+    expect(asset.AssetType).toBe(AssetType.Investment);
+    expect(asset.GrowthRate).toBe(sampleInvestment.AverageReturnRate);
+    expect((asset.StartDate as Date).getTime()).toBe(
+      sampleInvestment.StartDate.getTime()
+    );
   });
 
   it('persists and hydrates scenarios alongside the inputs', () => {
@@ -110,17 +117,17 @@ describe('saveData / loadData round-trip', () => {
         ExtraContributions: {},
       },
     ];
-    expect(saveData([sampleLoan], [], scenarios)).toBe('saved');
+    expect(saveData([sampleLoan], scenarios)).toBe('saved');
     expect(loadData()!.scenarios).toEqual(scenarios);
   });
 
   it('writes inputs-only current-schema JSON under the data key', () => {
-    saveData([sampleLoan], []);
+    saveData([sampleLoan]);
     const raw = (globalThis.localStorage as Storage).getItem(STORAGE_DATA_KEY);
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
     // Same serializer the export path uses: current schema, derived data stripped.
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(5);
     expect(parsed.loans).toHaveLength(1);
     expect(parsed.loans[0].Id).toBe(sampleLoan.Id);
     // Inputs only — no computed amortization schedule rides along.

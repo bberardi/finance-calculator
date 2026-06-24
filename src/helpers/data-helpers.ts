@@ -1,18 +1,16 @@
 import { Loan } from '../models/loan-model';
-import {
-  Investment,
-  CompoundingFrequency,
-  StepUpType,
-} from '../models/investment-model';
+import { CompoundingFrequency, StepUpType } from '../models/investment-model';
 import { Asset, AssetType } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { CURRENT_SCHEMA_VERSION, RawData, migrate } from './migrate-helpers';
 import packageJson from '../../package.json';
 
-// Schema v4 (Phase 7): inputs only — loans, investments, named scenarios, and
-// simple assets (cash/property/custom). Older files import forward via the D8
-// migration ladder (v2 gains scenarios, v3 gains assets); v1 and
-// newer-than-current versions are rejected there.
+// Schema v5 (the investment fold): inputs only — loans, named scenarios, and
+// assets (cash / property / investment / custom / custom-liability). Investments
+// are no longer a separate array; they live in `assets` as AssetType.Investment.
+// Older files import forward via the D8 migration ladder (v2 gains scenarios, v3
+// gains assets, v4 folds investments into assets); v1 and newer-than-current
+// versions are rejected there.
 export const EXPORT_SCHEMA_VERSION = CURRENT_SCHEMA_VERSION;
 
 // Serialized versions with Date fields converted to strings
@@ -21,17 +19,15 @@ export interface SerializedLoan extends Omit<Loan, 'StartDate' | 'EndDate'> {
   EndDate: string;
 }
 
-export interface SerializedInvestment extends Omit<Investment, 'StartDate'> {
-  StartDate: string;
+// An asset's only Date field is the investment-only StartDate; it serializes to
+// an ISO string (other asset fields serialize one-to-one).
+export interface SerializedAsset extends Omit<Asset, 'StartDate'> {
+  StartDate?: string;
 }
-
-// Assets carry no Date fields, so they serialize one-to-one.
-export type SerializedAsset = Asset;
 
 export interface ExportData {
   schemaVersion: number;
   loans: SerializedLoan[];
-  investments: SerializedInvestment[];
   scenarios: Scenario[];
   assets: SerializedAsset[];
   exportDate: string;
@@ -289,6 +285,65 @@ const parseAssets = (value: unknown): Asset[] => {
       );
     }
 
+    // Investment-only fields (AssetType.Investment). All optional; validated
+    // when present, mirroring the loan/investment import boundaries.
+    validateOptionalNumericField(
+      raw.RecurringContribution,
+      'RecurringContribution',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
+    validateOptionalNumericField(
+      raw.ContributionStepUpAmount,
+      'ContributionStepUpAmount',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
+    validateOptionalNumericField(
+      raw.CurrentValue,
+      'CurrentValue',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
+    let startDate: Date | undefined;
+    if (raw.StartDate !== undefined && raw.StartDate !== null) {
+      validateDateField(raw.StartDate, 'StartDate', 'asset', index);
+      startDate = new Date(raw.StartDate as string);
+      if (isNaN(startDate.getTime())) {
+        throw new Error(`Invalid date for 'StartDate' in asset at index ${index}.`);
+      }
+    }
+    if (
+      raw.ContributionFrequency !== undefined &&
+      raw.ContributionFrequency !== null &&
+      !VALID_COMPOUNDING_FREQUENCIES.includes(
+        raw.ContributionFrequency as string
+      )
+    ) {
+      throw new Error(
+        `Invalid value for 'ContributionFrequency' in asset at index ${index}: expected one of ${VALID_COMPOUNDING_FREQUENCIES.join(
+          ', '
+        )}, got ${JSON.stringify(raw.ContributionFrequency)}.`
+      );
+    }
+    if (
+      raw.ContributionStepUpType !== undefined &&
+      raw.ContributionStepUpType !== null &&
+      !VALID_STEP_UP_TYPES.includes(raw.ContributionStepUpType as string)
+    ) {
+      throw new Error(
+        `Invalid value for 'ContributionStepUpType' in asset at index ${index}: expected one of ${VALID_STEP_UP_TYPES.join(
+          ', '
+        )}, got ${JSON.stringify(raw.ContributionStepUpType)}.`
+      );
+    }
+
     return {
       Id: raw.Id as string,
       Provider: raw.Provider,
@@ -300,6 +355,18 @@ const parseAssets = (value: unknown): Asset[] => {
       CompoundingPeriod: raw.CompoundingPeriod as
         | CompoundingFrequency
         | undefined,
+      StartDate: startDate,
+      RecurringContribution: raw.RecurringContribution as number | undefined,
+      ContributionFrequency: raw.ContributionFrequency as
+        | CompoundingFrequency
+        | undefined,
+      ContributionStepUpAmount: raw.ContributionStepUpAmount as
+        | number
+        | undefined,
+      ContributionStepUpType: raw.ContributionStepUpType as
+        | StepUpType
+        | undefined,
+      CurrentValue: raw.CurrentValue as number | undefined,
     };
   });
 };
@@ -311,7 +378,6 @@ const parseAssets = (value: unknown): Asset[] => {
  */
 export const exportToJson = (
   loans: Loan[],
-  investments: Investment[],
   scenarios: Scenario[] = [],
   assets: Asset[] = []
 ): string => {
@@ -321,19 +387,18 @@ export const exportToJson = (
     EndDate: loan.EndDate.toISOString(),
   }));
 
-  const serializedInvestments: SerializedInvestment[] = investments.map(
-    (investment) => ({
-      ...investment,
-      StartDate: investment.StartDate.toISOString(),
-    })
-  );
+  // An asset's optional StartDate (investment only) becomes an ISO string; all
+  // other asset fields serialize one-to-one.
+  const serializedAssets: SerializedAsset[] = assets.map((asset) => ({
+    ...asset,
+    StartDate: asset.StartDate ? asset.StartDate.toISOString() : undefined,
+  }));
 
   const exportData: ExportData = {
     schemaVersion: EXPORT_SCHEMA_VERSION,
     loans: serializedLoans,
-    investments: serializedInvestments,
     scenarios,
-    assets,
+    assets: serializedAssets,
     exportDate: new Date().toISOString(),
     version: packageJson.version,
   };
@@ -352,27 +417,22 @@ export const importFromJson = (
   jsonString: string
 ): {
   loans: Loan[];
-  investments: Investment[];
   scenarios: Scenario[];
   assets: Asset[];
 } => {
   try {
     const raw = JSON.parse(jsonString) as ExportData;
 
-    // Validate the structure
-    if (!raw.loans || !raw.investments) {
+    // Validate the structure. Investments are folded into assets (v5), so only a
+    // loans array is required up front; the migration ladder supplies assets and
+    // scenarios for older files.
+    if (!raw.loans || !Array.isArray(raw.loans)) {
       throw new Error(
-        'Invalid data format: Expected an object with "loans" and "investments" arrays.'
+        'Invalid data format: Expected an object with a "loans" array.'
       );
     }
 
-    if (!Array.isArray(raw.loans) || !Array.isArray(raw.investments)) {
-      throw new Error(
-        'Invalid data format: loans and investments must be arrays'
-      );
-    }
-
-    // D8 ladder: gate the version and upgrade older schemas (v2 → v3) before
+    // D8 ladder: gate the version and upgrade older schemas (v2 → v5) before
     // validation. Throws with the stable legacy/unsupported messages.
     const data = migrate(raw as unknown as RawData) as unknown as ExportData;
 
@@ -470,155 +530,6 @@ export const importFromJson = (
       };
     });
 
-    const investments: Investment[] = data.investments.map(
-      (serializedInvestment, index) => {
-        // Validate ID is present and non-empty
-        if (!isValidId(serializedInvestment.Id)) {
-          throw new Error(
-            `Invalid or missing ID in investment at index ${index}. All items must have a non-empty ID.`
-          );
-        }
-
-        // Validate required fields are present
-        const requiredFields = [
-          'Provider',
-          'Name',
-          'StartingBalance',
-          'AverageReturnRate',
-          'CompoundingPeriod',
-          'StartDate',
-        ];
-        for (const field of requiredFields) {
-          const value =
-            serializedInvestment[field as keyof SerializedInvestment];
-          if (value === undefined || value === null) {
-            throw new Error(
-              `Missing required field '${field}' in investment at index ${index}.`
-            );
-          }
-          // Validate string fields are not empty
-          if (
-            (field === 'Provider' ||
-              field === 'Name' ||
-              field === 'CompoundingPeriod') &&
-            typeof value === 'string' &&
-            value.trim() === ''
-          ) {
-            throw new Error(
-              `Required field '${field}' cannot be empty in investment at index ${index}.`
-            );
-          }
-        }
-
-        // Validate numeric fields: required fields must be finite numbers in sane ranges
-        validateNumericField(
-          serializedInvestment.StartingBalance,
-          'StartingBalance',
-          'investment',
-          index,
-          (n) => n >= 0,
-          'a non-negative finite number'
-        );
-        validateNumericField(
-          serializedInvestment.AverageReturnRate,
-          'AverageReturnRate',
-          'investment',
-          index,
-          (n) => n >= 0,
-          'a non-negative finite number'
-        );
-
-        // Validate optional numeric fields when present
-        validateOptionalNumericField(
-          serializedInvestment.RecurringContribution,
-          'RecurringContribution',
-          'investment',
-          index,
-          (n) => n >= 0,
-          'a non-negative finite number'
-        );
-        validateOptionalNumericField(
-          serializedInvestment.ContributionStepUpAmount,
-          'ContributionStepUpAmount',
-          'investment',
-          index,
-          (n) => n >= 0,
-          'a non-negative finite number'
-        );
-        validateOptionalNumericField(
-          serializedInvestment.CurrentValue,
-          'CurrentValue',
-          'investment',
-          index,
-          (n) => n >= 0,
-          'a non-negative finite number'
-        );
-
-        // Date field must be an ISO string (the NaN check below catches malformed
-        // strings; this rejects non-string types that would coerce to a wrong
-        // date). (#100)
-        validateDateField(
-          serializedInvestment.StartDate,
-          'StartDate',
-          'investment',
-          index
-        );
-
-        // Validate enum fields: CompoundingPeriod must be a valid CompoundingFrequency value
-        if (
-          !VALID_COMPOUNDING_FREQUENCIES.includes(
-            serializedInvestment.CompoundingPeriod as string
-          )
-        ) {
-          throw new Error(
-            `Invalid value for 'CompoundingPeriod' in investment at index ${index}: expected one of ${VALID_COMPOUNDING_FREQUENCIES.join(', ')}, got ${JSON.stringify(serializedInvestment.CompoundingPeriod)}.`
-          );
-        }
-
-        // Validate optional enum fields when present
-        if (
-          serializedInvestment.ContributionFrequency !== undefined &&
-          serializedInvestment.ContributionFrequency !== null &&
-          !VALID_COMPOUNDING_FREQUENCIES.includes(
-            serializedInvestment.ContributionFrequency as string
-          )
-        ) {
-          throw new Error(
-            `Invalid value for 'ContributionFrequency' in investment at index ${index}: expected one of ${VALID_COMPOUNDING_FREQUENCIES.join(', ')}, got ${JSON.stringify(serializedInvestment.ContributionFrequency)}.`
-          );
-        }
-
-        if (
-          serializedInvestment.ContributionStepUpType !== undefined &&
-          serializedInvestment.ContributionStepUpType !== null &&
-          !VALID_STEP_UP_TYPES.includes(
-            serializedInvestment.ContributionStepUpType as string
-          )
-        ) {
-          throw new Error(
-            `Invalid value for 'ContributionStepUpType' in investment at index ${index}: expected one of ${VALID_STEP_UP_TYPES.join(', ')}, got ${JSON.stringify(serializedInvestment.ContributionStepUpType)}.`
-          );
-        }
-
-        // Pick fields explicitly so unknown properties are dropped at the import boundary
-        return {
-          Id: serializedInvestment.Id,
-          Provider: serializedInvestment.Provider,
-          Name: serializedInvestment.Name,
-          StartDate: new Date(serializedInvestment.StartDate),
-          StartingBalance: serializedInvestment.StartingBalance,
-          AverageReturnRate: serializedInvestment.AverageReturnRate,
-          CompoundingPeriod: serializedInvestment.CompoundingPeriod,
-          RecurringContribution: serializedInvestment.RecurringContribution,
-          ContributionFrequency: serializedInvestment.ContributionFrequency,
-          ContributionStepUpAmount:
-            serializedInvestment.ContributionStepUpAmount,
-          ContributionStepUpType: serializedInvestment.ContributionStepUpType,
-          CurrentValue: serializedInvestment.CurrentValue,
-        };
-      }
-    );
-
     // Validate that dates are valid
     loans.forEach((loan, index) => {
       if (isNaN(loan.StartDate.getTime()) || isNaN(loan.EndDate.getTime())) {
@@ -635,16 +546,10 @@ export const importFromJson = (
       }
     });
 
-    investments.forEach((investment, index) => {
-      if (isNaN(investment.StartDate.getTime())) {
-        throw new Error(`Invalid date in investment at index ${index}`);
-      }
-    });
-
     const scenarios = parseScenarios(data.scenarios);
     const assets = parseAssets(data.assets);
 
-    return { loans, investments, scenarios, assets };
+    return { loans, scenarios, assets };
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error('Invalid JSON format: unable to parse file', {

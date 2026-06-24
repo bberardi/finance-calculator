@@ -13,24 +13,19 @@ export const AppErrorBoundary = ({ children }: { children: ReactNode }) => {
   const {
     state: {
       loans,
-      investments,
       assets,
       scenarios,
       sampleDataLoaded,
       stashedLoans,
-      stashedInvestments,
       stashedAssets,
     },
   } = useFinanceData();
 
-  // Export the user's real data, not the sample data shown over it.
+  // Export the user's real data, not the sample data shown over it. Investments
+  // are folded into assets, so `assets` already carries them.
   const realLoans = sampleDataLoaded ? (stashedLoans ?? []) : loans;
-  const realInvestments = sampleDataLoaded
-    ? (stashedInvestments ?? [])
-    : investments;
   const realAssets = sampleDataLoaded ? (stashedAssets ?? []) : assets;
-  const canExport =
-    realLoans.length > 0 || realInvestments.length > 0 || realAssets.length > 0;
+  const canExport = realLoans.length > 0 || realAssets.length > 0;
 
   return (
     <ErrorBoundary
@@ -38,14 +33,7 @@ export const AppErrorBoundary = ({ children }: { children: ReactNode }) => {
         <AppErrorFallback
           error={error}
           onReload={() => window.location.reload()}
-          onExport={() =>
-            downloadJsonExport(
-              realLoans,
-              realInvestments,
-              scenarios,
-              realAssets
-            )
-          }
+          onExport={() => downloadJsonExport(realLoans, scenarios, realAssets)}
           canExport={canExport}
         />
       )}

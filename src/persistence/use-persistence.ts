@@ -34,12 +34,10 @@ export const usePersistence = (): PersistenceController => {
   const { state, importMerge } = useFinanceData();
   const {
     loans,
-    investments,
     assets,
     scenarios,
     sampleDataLoaded,
     stashedLoans,
-    stashedInvestments,
     stashedAssets,
   } = state;
 
@@ -53,10 +51,6 @@ export const usePersistence = (): PersistenceController => {
   const realLoans = useMemo(
     () => (sampleDataLoaded ? (stashedLoans ?? []) : loans),
     [sampleDataLoaded, stashedLoans, loans]
-  );
-  const realInvestments = useMemo(
-    () => (sampleDataLoaded ? (stashedInvestments ?? []) : investments),
-    [sampleDataLoaded, stashedInvestments, investments]
   );
   const realAssets = useMemo(
     () => (sampleDataLoaded ? (stashedAssets ?? []) : assets),
@@ -75,12 +69,7 @@ export const usePersistence = (): PersistenceController => {
     if (isPersistenceEnabled()) {
       const loaded = loadData();
       if (loaded) {
-        importMerge(
-          loaded.loans,
-          loaded.investments,
-          loaded.scenarios,
-          loaded.assets
-        );
+        importMerge(loaded.loans, loaded.scenarios, loaded.assets);
       }
     }
   }, [importMerge]);
@@ -110,19 +99,10 @@ export const usePersistence = (): PersistenceController => {
       return;
     }
     const handle = setTimeout(() => {
-      reportSaveProblem(
-        saveData(realLoans, realInvestments, scenarios, realAssets)
-      );
+      reportSaveProblem(saveData(realLoans, scenarios, realAssets));
     }, AUTO_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [
-    enabled,
-    realLoans,
-    realInvestments,
-    scenarios,
-    realAssets,
-    reportSaveProblem,
-  ]);
+  }, [enabled, realLoans, scenarios, realAssets, reportSaveProblem]);
 
   const toggle = useCallback(() => {
     const next = !enabled;
@@ -130,12 +110,7 @@ export const usePersistence = (): PersistenceController => {
     setPersistenceEnabled(next);
     if (next) {
       // Save immediately on enable so a reload right away still restores data.
-      const status = saveData(
-        realLoans,
-        realInvestments,
-        scenarios,
-        realAssets
-      );
+      const status = saveData(realLoans, scenarios, realAssets);
       if (status === 'saved') {
         setFeedback({
           severity: 'success',
@@ -152,14 +127,7 @@ export const usePersistence = (): PersistenceController => {
         message: 'Saved data cleared from this device.',
       });
     }
-  }, [
-    enabled,
-    realLoans,
-    realInvestments,
-    scenarios,
-    realAssets,
-    reportSaveProblem,
-  ]);
+  }, [enabled, realLoans, scenarios, realAssets, reportSaveProblem]);
 
   const clearFeedback = useCallback(() => setFeedback(null), []);
 

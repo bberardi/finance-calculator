@@ -15,7 +15,6 @@
 //     of throwing, so stale or tampered storage can never white-screen the app.
 
 import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { exportToJson, importFromJson } from './data-helpers';
@@ -48,14 +47,13 @@ const isQuotaExceededError = (error: unknown): boolean =>
  */
 export const saveData = (
   loans: Loan[],
-  investments: Investment[],
   scenarios: Scenario[] = [],
   assets: Asset[] = []
 ): SaveStatus => {
   try {
     globalThis.localStorage.setItem(
       STORAGE_DATA_KEY,
-      exportToJson(loans, investments, scenarios, assets)
+      exportToJson(loans, scenarios, assets)
     );
     return 'saved';
   } catch (error) {
@@ -71,7 +69,6 @@ export const saveData = (
  */
 export const loadData = (): {
   loans: Loan[];
-  investments: Investment[];
   scenarios: Scenario[];
   assets: Asset[];
 } | null => {

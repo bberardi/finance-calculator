@@ -109,8 +109,8 @@ describe('importFromJson — assets (parseAssets)', () => {
       GrowthRate: 3,
       LinkedLoanId: 'loan-1',
     });
-    const json = exportToJson([], [], [], [asset]);
-    expect(JSON.parse(json).schemaVersion).toBe(4);
+    const json = exportToJson([], [], [asset]);
+    expect(JSON.parse(json).schemaVersion).toBe(5);
     const { assets } = importFromJson(json);
     expect(assets).toEqual([asset]);
   });

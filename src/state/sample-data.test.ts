@@ -25,14 +25,15 @@ describe('sample data dates (#68)', () => {
 
   it('reads back the intended local calendar date west of UTC', async () => {
     // Import under the western TZ so the module's date constructors run there.
-    const { sampleLoans, sampleInvestments } = await import('./sample-data');
+    const { sampleLoans, sampleAssets } = await import('./sample-data');
 
     expect(ymd(sampleLoans[0].StartDate)).toEqual([2023, 4, 1]);
     expect(ymd(sampleLoans[0].EndDate)).toEqual([2053, 4, 1]);
     expect(ymd(sampleLoans[1].StartDate)).toEqual([2024, 1, 15]);
     expect(ymd(sampleLoans[1].EndDate)).toEqual([2029, 1, 15]);
 
-    expect(ymd(sampleInvestments[0].StartDate)).toEqual([2021, 0, 1]);
-    expect(ymd(sampleInvestments[1].StartDate)).toEqual([2019, 5, 1]);
+    // The first two sample assets are the folded investments (AssetType.Investment).
+    expect(ymd(sampleAssets[0].StartDate as Date)).toEqual([2021, 0, 1]);
+    expect(ymd(sampleAssets[1].StartDate as Date)).toEqual([2019, 5, 1]);
   });
 });
