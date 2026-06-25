@@ -12,6 +12,8 @@ import {
   CompoundingFrequency,
   StepUpType,
 } from '../models/investment-model';
+import { AssetType } from '../models/asset-model';
+import { investmentToAsset } from './asset-investment-helpers';
 import { validateLoan } from './validation-helpers';
 import { getEffectiveMonthlyPayment } from './forecast-helpers';
 
@@ -38,13 +40,17 @@ describe('exportToJson and importFromJson', () => {
     CompoundingPeriod: CompoundingFrequency.Monthly,
   };
 
-  it('should export loans and investments to JSON with metadata', () => {
-    const json = exportToJson([testLoan], [testInvestment]);
+  it('should export loans and assets (incl. folded investments) with metadata', () => {
+    const json = exportToJson(
+      [testLoan],
+      [],
+      [investmentToAsset(testInvestment)]
+    );
     const data = JSON.parse(json);
 
     expect(json).toBeTruthy();
     expect(data.loans).toBeDefined();
-    expect(data.investments).toBeDefined();
+    expect(data.assets).toBeDefined();
     expect(data.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
     expect(data.version).toBeDefined(); // Version should be present
     expect(typeof data.version).toBe('string'); // Version should be a string
@@ -57,11 +63,15 @@ describe('exportToJson and importFromJson', () => {
   });
 
   it('should not include derived schedules in exports', () => {
-    const json = exportToJson([testLoan], [testInvestment]);
+    const json = exportToJson(
+      [testLoan],
+      [],
+      [investmentToAsset(testInvestment)]
+    );
     const data = JSON.parse(json);
 
     expect(data.loans[0].AmortizationSchedule).toBeUndefined();
-    expect(data.investments[0].ProjectedGrowth).toBeUndefined();
+    expect(data.assets[0].ProjectedGrowth).toBeUndefined();
   });
 
   it('should reject legacy v1 files with no schemaVersion even when they embed derived data', () => {
@@ -139,39 +149,44 @@ describe('exportToJson and importFromJson', () => {
     expect(() => importFromJson(json)).toThrow('Unsupported schema version');
   });
 
-  it('should import loans and investments from JSON', () => {
-    const json = exportToJson([testLoan], [testInvestment]);
-    const { loans, investments } = importFromJson(json);
+  it('should import loans and folded investments (as assets) from JSON', () => {
+    const json = exportToJson(
+      [testLoan],
+      [],
+      [investmentToAsset(testInvestment)]
+    );
+    const { loans, assets } = importFromJson(json);
 
     expect(loans).toHaveLength(1);
-    expect(investments).toHaveLength(1);
+    expect(assets).toHaveLength(1);
 
     expect(loans[0].Id).toBe('loan-1');
     expect(loans[0].Name).toBe('Test Loan');
     expect(loans[0].StartDate).toBeInstanceOf(Date);
     expect(loans[0].StartDate.toISOString()).toBe('2024-01-01T00:00:00.000Z');
 
-    expect(investments[0].Id).toBe('investment-1');
-    expect(investments[0].Name).toBe('Test Investment');
-    expect(investments[0].StartDate).toBeInstanceOf(Date);
+    expect(assets[0].Id).toBe('investment-1');
+    expect(assets[0].Name).toBe('Test Investment');
+    expect(assets[0].AssetType).toBe(AssetType.Investment);
+    expect(assets[0].StartDate).toBeInstanceOf(Date);
   });
 
   it('should handle empty arrays', () => {
-    const json = exportToJson([], []);
-    const { loans, investments } = importFromJson(json);
+    const json = exportToJson([]);
+    const { loans, assets } = importFromJson(json);
 
     expect(loans).toHaveLength(0);
-    expect(investments).toHaveLength(0);
+    expect(assets).toHaveLength(0);
   });
 
   it('should throw error for invalid JSON', () => {
     expect(() => importFromJson('invalid json')).toThrow();
     expect(() => importFromJson('{}')).toThrow(
-      'Expected an object with "loans" and "investments" arrays'
+      'Expected an object with a "loans" array'
     );
-    expect(() =>
-      importFromJson('{"loans": "not array", "investments": []}')
-    ).toThrow('must be arrays');
+    expect(() => importFromJson('{"loans": "not array"}')).toThrow(
+      'Expected an object with a "loans" array'
+    );
   });
 
   it('should throw error for loans with missing required fields', () => {
@@ -250,77 +265,6 @@ describe('exportToJson and importFromJson', () => {
     );
   });
 
-  it('should throw error for investments with missing required fields', () => {
-    const missingProvider = JSON.stringify({
-      schemaVersion: EXPORT_SCHEMA_VERSION,
-      loans: [],
-      investments: [
-        { Id: 'test-1', Name: 'Test', StartDate: new Date().toISOString() },
-      ],
-    });
-    expect(() => importFromJson(missingProvider)).toThrow(
-      "Missing required field 'Provider'"
-    );
-
-    const missingStartingBalance = JSON.stringify({
-      schemaVersion: EXPORT_SCHEMA_VERSION,
-      loans: [],
-      investments: [
-        {
-          Id: 'test-1',
-          Provider: 'Fund',
-          Name: 'Test',
-          StartDate: new Date().toISOString(),
-          AverageReturnRate: 5,
-          CompoundingPeriod: 'annually',
-        },
-      ],
-    });
-    expect(() => importFromJson(missingStartingBalance)).toThrow(
-      "Missing required field 'StartingBalance'"
-    );
-  });
-
-  it('should throw error for investments with empty string fields', () => {
-    const emptyProvider = JSON.stringify({
-      schemaVersion: EXPORT_SCHEMA_VERSION,
-      loans: [],
-      investments: [
-        {
-          Id: 'test-1',
-          Provider: '  ',
-          Name: 'Test',
-          StartingBalance: 5000,
-          AverageReturnRate: 5,
-          CompoundingPeriod: 'annually',
-          StartDate: new Date().toISOString(),
-        },
-      ],
-    });
-    expect(() => importFromJson(emptyProvider)).toThrow(
-      "Required field 'Provider' cannot be empty"
-    );
-
-    const emptyName = JSON.stringify({
-      schemaVersion: EXPORT_SCHEMA_VERSION,
-      loans: [],
-      investments: [
-        {
-          Id: 'test-1',
-          Provider: 'Fund',
-          Name: '',
-          StartingBalance: 5000,
-          AverageReturnRate: 5,
-          CompoundingPeriod: 'annually',
-          StartDate: new Date().toISOString(),
-        },
-      ],
-    });
-    expect(() => importFromJson(emptyName)).toThrow(
-      "Required field 'Name' cannot be empty"
-    );
-  });
-
   it('should throw error for invalid dates', () => {
     const invalidJson = JSON.stringify({
       schemaVersion: EXPORT_SCHEMA_VERSION,
@@ -350,15 +294,6 @@ describe('exportToJson and importFromJson', () => {
       investments: [],
     });
     expect(() => importFromJson(json)).toThrow("Invalid value for 'EndDate'");
-  });
-
-  it('should reject an investment with a non-string StartDate (#100)', () => {
-    const json = JSON.stringify({
-      schemaVersion: EXPORT_SCHEMA_VERSION,
-      loans: [],
-      investments: [{ ...testInvestment, StartDate: true }],
-    });
-    expect(() => importFromJson(json)).toThrow("Invalid value for 'StartDate'");
   });
 
   it('should reject a loan whose EndDate is before its StartDate (#85)', () => {
@@ -399,20 +334,6 @@ describe('exportToJson and importFromJson', () => {
     expect(loans[0].MonthlyPayment).toBe(testLoan.MonthlyPayment);
   });
 
-  it('should preserve all investment fields', () => {
-    const json = exportToJson([], [testInvestment]);
-    const { investments } = importFromJson(json);
-
-    expect(investments[0].Provider).toBe(testInvestment.Provider);
-    expect(investments[0].StartingBalance).toBe(testInvestment.StartingBalance);
-    expect(investments[0].AverageReturnRate).toBe(
-      testInvestment.AverageReturnRate
-    );
-    expect(investments[0].CompoundingPeriod).toBe(
-      testInvestment.CompoundingPeriod
-    );
-  });
-
   it('should throw error for loans with missing IDs', () => {
     const invalidJson = JSON.stringify({
       schemaVersion: EXPORT_SCHEMA_VERSION,
@@ -422,18 +343,6 @@ describe('exportToJson and importFromJson', () => {
 
     expect(() => importFromJson(invalidJson)).toThrow(
       'Invalid or missing ID in loan'
-    );
-  });
-
-  it('should throw error for investments with missing IDs', () => {
-    const invalidJson = JSON.stringify({
-      schemaVersion: EXPORT_SCHEMA_VERSION,
-      loans: [],
-      investments: [{ ...testInvestment, Id: '' }],
-    });
-
-    expect(() => importFromJson(invalidJson)).toThrow(
-      'Invalid or missing ID in investment'
     );
   });
 
@@ -464,7 +373,7 @@ describe('exportToJson and importFromJson', () => {
     );
   });
 
-  it('should round-trip optional input fields for Loan and Investment', () => {
+  it('should round-trip optional fields for a Loan and an investment asset', () => {
     const loanWithOptional: Loan = {
       ...testLoan,
       MonthlyPayment: 1234.56,
@@ -479,17 +388,20 @@ describe('exportToJson and importFromJson', () => {
       ContributionStepUpType: StepUpType.Flat,
     };
 
-    const json = exportToJson([loanWithOptional], [investmentWithOptional]);
-    const { loans, investments } = importFromJson(json);
+    const json = exportToJson(
+      [loanWithOptional],
+      [],
+      [investmentToAsset(investmentWithOptional)]
+    );
+    const { loans, assets } = importFromJson(json);
 
     expect(loans[0].MonthlyPayment).toBe(1234.56);
-    expect(investments[0].CurrentValue).toBe(15000);
-    expect(investments[0].RecurringContribution).toBe(500);
-    expect(investments[0].ContributionFrequency).toBe(
-      CompoundingFrequency.Monthly
-    );
-    expect(investments[0].ContributionStepUpAmount).toBe(50);
-    expect(investments[0].ContributionStepUpType).toBe(StepUpType.Flat);
+    const asset = assets[0];
+    expect(asset.CurrentValue).toBe(15000);
+    expect(asset.RecurringContribution).toBe(500);
+    expect(asset.ContributionFrequency).toBe(CompoundingFrequency.Monthly);
+    expect(asset.ContributionStepUpAmount).toBe(50);
+    expect(asset.ContributionStepUpType).toBe(StepUpType.Flat);
   });
 
   it('should reject a file with schemaVersion: 1 as a legacy version', () => {
@@ -706,229 +618,6 @@ describe('exportToJson and importFromJson', () => {
       ).toBeUndefined();
     });
   });
-
-  describe('investment numeric field validation', () => {
-    const baseInvestment = {
-      Id: 'inv-num-test',
-      Provider: 'Fund',
-      Name: 'Test Investment',
-      StartDate: new Date('2024-01-01').toISOString(),
-      StartingBalance: 10000,
-      AverageReturnRate: 7,
-      CompoundingPeriod: 'monthly',
-    };
-
-    it('should reject an investment where StartingBalance is a string', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, StartingBalance: 'not-a-number' }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'StartingBalance'"
-      );
-    });
-
-    it('should reject an investment where StartingBalance is negative', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, StartingBalance: -500 }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'StartingBalance'"
-      );
-    });
-
-    it('should reject an investment where AverageReturnRate is a string', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, AverageReturnRate: 'bad' }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'AverageReturnRate'"
-      );
-    });
-
-    it('should reject an investment where AverageReturnRate is negative', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, AverageReturnRate: -1 }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'AverageReturnRate'"
-      );
-    });
-
-    it('should accept an investment where AverageReturnRate is 0', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, AverageReturnRate: 0 }],
-      });
-      const { investments } = importFromJson(json);
-      expect(investments[0].AverageReturnRate).toBe(0);
-    });
-
-    it('should reject an investment where RecurringContribution is negative', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, RecurringContribution: -50 }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'RecurringContribution'"
-      );
-    });
-
-    it('should reject an investment where ContributionStepUpAmount is negative', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, ContributionStepUpAmount: -10 }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'ContributionStepUpAmount'"
-      );
-    });
-
-    it('should reject an investment where CurrentValue is negative', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, CurrentValue: -1 }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'CurrentValue'"
-      );
-    });
-  });
-
-  describe('investment enum field validation', () => {
-    const baseInvestment = {
-      Id: 'inv-enum-test',
-      Provider: 'Fund',
-      Name: 'Test Investment',
-      StartDate: new Date('2024-01-01').toISOString(),
-      StartingBalance: 5000,
-      AverageReturnRate: 5,
-      CompoundingPeriod: 'monthly',
-    };
-
-    it('should reject an investment where CompoundingPeriod is an invalid enum value', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, CompoundingPeriod: 'weekly' }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'CompoundingPeriod'"
-      );
-    });
-
-    it('should reject an investment where CompoundingPeriod is a number', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment, CompoundingPeriod: 12 }],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'CompoundingPeriod'"
-      );
-    });
-
-    it('should accept valid CompoundingPeriod values (monthly, quarterly, annually)', () => {
-      for (const period of ['monthly', 'quarterly', 'annually']) {
-        const json = JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          loans: [],
-          investments: [{ ...baseInvestment, CompoundingPeriod: period }],
-        });
-        const { investments } = importFromJson(json);
-        expect(investments[0].CompoundingPeriod).toBe(period);
-      }
-    });
-
-    it('should reject an investment where ContributionFrequency is an invalid enum value', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [
-          {
-            ...baseInvestment,
-            RecurringContribution: 100,
-            ContributionFrequency: 'biweekly',
-          },
-        ],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'ContributionFrequency'"
-      );
-    });
-
-    it('should accept a valid ContributionFrequency when present', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [
-          {
-            ...baseInvestment,
-            RecurringContribution: 100,
-            ContributionFrequency: 'monthly',
-          },
-        ],
-      });
-      const { investments } = importFromJson(json);
-      expect(investments[0].ContributionFrequency).toBe('monthly');
-    });
-
-    it('should accept ContributionFrequency absent (undefined)', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [{ ...baseInvestment }],
-      });
-      const { investments } = importFromJson(json);
-      expect(investments[0].ContributionFrequency).toBeUndefined();
-    });
-
-    it('should reject an investment where ContributionStepUpType is an invalid enum value', () => {
-      const json = JSON.stringify({
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        loans: [],
-        investments: [
-          {
-            ...baseInvestment,
-            ContributionStepUpAmount: 50,
-            ContributionStepUpType: 'invalid-type',
-          },
-        ],
-      });
-      expect(() => importFromJson(json)).toThrow(
-        "Invalid value for 'ContributionStepUpType'"
-      );
-    });
-
-    it('should accept valid ContributionStepUpType values (flat, percentage)', () => {
-      for (const stepUpType of ['flat', 'percentage']) {
-        const json = JSON.stringify({
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          loans: [],
-          investments: [
-            {
-              ...baseInvestment,
-              ContributionStepUpAmount: 50,
-              ContributionStepUpType: stepUpType,
-            },
-          ],
-        });
-        const { investments } = importFromJson(json);
-        expect(investments[0].ContributionStepUpType).toBe(stepUpType);
-      }
-    });
-  });
 });
 
 describe('mergeData', () => {
@@ -1136,8 +825,8 @@ describe('scenario import/export (schema v3)', () => {
         ExtraContributions: { 'inv-1': 100 },
       },
     ];
-    const json = exportToJson([], [], scenarios);
-    expect(JSON.parse(json).schemaVersion).toBe(4);
+    const json = exportToJson([], scenarios);
+    expect(JSON.parse(json).schemaVersion).toBe(5);
     expect(importFromJson(json).scenarios).toEqual(scenarios);
   });
 

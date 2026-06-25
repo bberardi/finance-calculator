@@ -9,6 +9,26 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.4.0] — Investments are a kind of asset
+
+### Changed
+
+- **Investments are now a type of asset, not a separate collection.** An
+  investment is modeled as an `AssetType.Investment` holding, so every position
+  lives in one unified `assets` list. All investment features are preserved
+  unchanged — configurable compounding, recurring contributions, yearly step-ups
+  (flat or percentage), the projected-growth schedule, point-in-time values, and
+  the optimizer/scenario contributions. The forecast engine still computes on the
+  `Investment` shape; investment-type assets are converted to it at the UI/state
+  boundary in a new pure `asset-investment-helpers.ts` (100% covered), leaving the
+  Charter-gated math core untouched and avoiding any double-counting in the
+  net-worth roll-up.
+- **Export/persistence schema is now v5.** Existing data upgrades forward
+  automatically on import or device-load: a standalone `investments` array folds
+  into `assets` as `AssetType.Investment` entries (`StartingBalance` → `Balance`,
+  `AverageReturnRate` → `GrowthRate`, the rest by name). Older v2/v3 files still
+  climb the same migration ladder; new exports are written at v5.
+
 ## [1.3.0] — Convert holding types
 
 ### Added

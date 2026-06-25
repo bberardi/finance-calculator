@@ -1,63 +1,17 @@
-import { createContext, Dispatch, ReactNode, useMemo, useReducer } from 'react';
+import { ReactNode, useMemo, useReducer } from 'react';
 import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { generateId } from '../helpers/id-helpers';
 import {
   DataSnapshot,
-  FinanceAction,
-  FinanceState,
   financeReducer,
   initialFinanceState,
 } from './finance-reducer';
-
-export interface FinanceDataContextValue {
-  state: FinanceState;
-  dispatch: Dispatch<FinanceAction>;
-  // Convenience action creators. ID assignment for new entities happens here
-  // (outside the reducer) so the reducer stays pure/deterministic.
-  addLoan: (loan: Loan) => void;
-  updateLoan: (loan: Loan) => void;
-  deleteLoan: (id: string) => void;
-  // Undo a loan delete by restoring it at its original index (roadmap 0.7).
-  insertLoanAt: (loan: Loan, index: number) => void;
-  addInvestment: (investment: Investment) => void;
-  updateInvestment: (investment: Investment) => void;
-  deleteInvestment: (id: string) => void;
-  // Undo an investment delete by restoring it at its original index.
-  insertInvestmentAt: (investment: Investment, index: number) => void;
-  // Asset actions (Phase 7). Id assignment happens here so the reducer stays pure.
-  addAsset: (asset: Asset) => void;
-  updateAsset: (asset: Asset) => void;
-  deleteAsset: (id: string) => void;
-  // Undo an asset delete by restoring it at its original index.
-  insertAssetAt: (asset: Asset, index: number) => void;
-  importMerge: (
-    loans: Loan[],
-    investments: Investment[],
-    scenarios?: Scenario[],
-    assets?: Asset[]
-  ) => void;
-  // Undo an import merge by restoring a pre-merge snapshot (roadmap 6.3).
-  restoreData: (snapshot: DataSnapshot) => void;
-  loadSampleData: (
-    loans: Loan[],
-    investments: Investment[],
-    assets: Asset[]
-  ) => void;
-  clearSampleData: () => void;
-  // Scenario actions (Phase 4). addScenario assigns an Id and returns it so the
-  // caller can immediately make the new scenario active.
-  addScenario: (scenario: Scenario) => string;
-  updateScenario: (scenario: Scenario) => void;
-  deleteScenario: (id: string) => void;
-  setActiveScenario: (id: string | null) => void;
-}
-
-export const FinanceDataContext = createContext<
-  FinanceDataContextValue | undefined
->(undefined);
+import {
+  FinanceDataContext,
+  FinanceDataContextValue,
+} from './finance-data-context-value';
 
 export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(financeReducer, initialFinanceState);
@@ -77,17 +31,6 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
       deleteLoan: (id: string) => dispatch({ type: 'DeleteLoan', id }),
       insertLoanAt: (loan: Loan, index: number) =>
         dispatch({ type: 'InsertLoanAt', loan, index }),
-      addInvestment: (investment: Investment) =>
-        dispatch({
-          type: 'AddInvestment',
-          investment: { ...investment, Id: investment.Id || generateId() },
-        }),
-      updateInvestment: (investment: Investment) =>
-        dispatch({ type: 'UpdateInvestment', investment }),
-      deleteInvestment: (id: string) =>
-        dispatch({ type: 'DeleteInvestment', id }),
-      insertInvestmentAt: (investment: Investment, index: number) =>
-        dispatch({ type: 'InsertInvestmentAt', investment, index }),
       addAsset: (asset: Asset) =>
         dispatch({
           type: 'AddAsset',
@@ -97,26 +40,17 @@ export const FinanceDataProvider = ({ children }: { children: ReactNode }) => {
       deleteAsset: (id: string) => dispatch({ type: 'DeleteAsset', id }),
       insertAssetAt: (asset: Asset, index: number) =>
         dispatch({ type: 'InsertAssetAt', asset, index }),
-      importMerge: (
-        loans: Loan[],
-        investments: Investment[],
-        scenarios?: Scenario[],
-        assets?: Asset[]
-      ) =>
+      importMerge: (loans: Loan[], scenarios?: Scenario[], assets?: Asset[]) =>
         dispatch({
           type: 'ImportMerge',
           loans,
-          investments,
           scenarios,
           assets,
         }),
       restoreData: (snapshot: DataSnapshot) =>
         dispatch({ type: 'RestoreData', snapshot }),
-      loadSampleData: (
-        loans: Loan[],
-        investments: Investment[],
-        assets: Asset[]
-      ) => dispatch({ type: 'LoadSampleData', loans, investments, assets }),
+      loadSampleData: (loans: Loan[], assets: Asset[]) =>
+        dispatch({ type: 'LoadSampleData', loans, assets }),
       clearSampleData: () => dispatch({ type: 'ClearSampleData' }),
       addScenario: (scenario: Scenario) => {
         const id = scenario.Id || generateId();

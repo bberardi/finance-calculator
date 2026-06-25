@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import {
   FinanceDataContext,
   FinanceDataContextValue,
-} from './finance-data-context';
+} from './finance-data-context-value';
 
 export const useFinanceData = (): FinanceDataContextValue => {
   const context = useContext(FinanceDataContext);

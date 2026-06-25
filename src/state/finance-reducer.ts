@@ -1,24 +1,24 @@
 import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { mergeData } from '../helpers/data-helpers';
 
 // State shape for the finance data context (D2).
 //
-// `loans`/`investments` are the data currently shown to the user. While sample
-// data is loaded (roadmap 0.9), these hold the sample entities and the user's
-// real data is parked in `stashedLoans`/`stashedInvestments` until sample data
-// is cleared again. `sampleDataLoaded` mirrors that state.
+// Investments are no longer a separate collection: they live in `assets` as
+// `AssetType.Investment` (the fold). `loans`/`assets` are the data currently
+// shown to the user. While sample data is loaded (roadmap 0.9), these hold the
+// sample entities and the user's real data is parked in `stashedLoans`/
+// `stashedAssets` until sample data is cleared again. `sampleDataLoaded` mirrors
+// that state.
 export interface FinanceState {
   loans: Loan[];
-  investments: Investment[];
-  // Simple holdings — cash / property / custom (Phase 7, Whole Net Worth).
+  // Every holding — cash / property / investment / custom / custom-liability
+  // (Phase 7 + the investment fold).
   assets: Asset[];
   sampleDataLoaded: boolean;
   // User data stashed while sample data is loaded; null otherwise.
   stashedLoans: Loan[] | null;
-  stashedInvestments: Investment[] | null;
   stashedAssets: Asset[] | null;
   // Named what-if scenarios (Phase 4). Session-scoped until 4.5 persists them.
   scenarios: Scenario[];
@@ -32,21 +32,17 @@ export interface FinanceState {
 // snapshot.
 export interface DataSnapshot {
   loans: Loan[];
-  investments: Investment[];
   assets: Asset[];
   scenarios: Scenario[];
   stashedLoans: Loan[] | null;
-  stashedInvestments: Investment[] | null;
   stashedAssets: Asset[] | null;
 }
 
 export const initialFinanceState: FinanceState = {
   loans: [],
-  investments: [],
   assets: [],
   sampleDataLoaded: false,
   stashedLoans: null,
-  stashedInvestments: null,
   stashedAssets: null,
   scenarios: [],
   activeScenarioId: null,
@@ -54,7 +50,7 @@ export const initialFinanceState: FinanceState = {
 
 // Reducer actions (D2). ID generation happens OUTSIDE the reducer (in the
 // dispatch call sites) so the reducer stays pure/deterministic: AddLoan /
-// AddInvestment expect a fully-formed entity whose Id is already assigned.
+// AddAsset expect a fully-formed entity whose Id is already assigned.
 export type FinanceAction =
   | { type: 'AddLoan'; loan: Loan }
   | { type: 'UpdateLoan'; loan: Loan }
@@ -65,12 +61,9 @@ export type FinanceAction =
   // so an out-of-range index (e.g. the list shrank meanwhile) appends sanely
   // instead of throwing or leaving a hole.
   | { type: 'InsertLoanAt'; loan: Loan; index: number }
-  | { type: 'AddInvestment'; investment: Investment }
-  | { type: 'UpdateInvestment'; investment: Investment }
-  | { type: 'DeleteInvestment'; id: string }
-  | { type: 'InsertInvestmentAt'; investment: Investment; index: number }
-  // Asset actions (Phase 7). Like loans/investments, Id generation happens at
-  // the dispatch call site so the reducer stays pure.
+  // Asset actions (Phase 7; investments are folded in as AssetType.Investment).
+  // Like loans, Id generation happens at the dispatch call site so the reducer
+  // stays pure.
   | { type: 'AddAsset'; asset: Asset }
   | { type: 'UpdateAsset'; asset: Asset }
   | { type: 'DeleteAsset'; id: string }
@@ -78,7 +71,6 @@ export type FinanceAction =
   | {
       type: 'ImportMerge';
       loans: Loan[];
-      investments: Investment[];
       scenarios?: Scenario[];
       assets?: Asset[];
     }
@@ -88,7 +80,6 @@ export type FinanceAction =
   | {
       type: 'LoadSampleData';
       loans: Loan[];
-      investments: Investment[];
       assets: Asset[];
     }
   | { type: 'ClearSampleData' }
@@ -141,46 +132,6 @@ export const financeReducer = (
         loans: insertAt(state.loans, action.loan, action.index),
       };
 
-    case 'AddInvestment':
-      return {
-        ...state,
-        investments: [...state.investments, action.investment],
-      };
-
-    case 'UpdateInvestment':
-      // Replace in place, preserving order (regression for #48).
-      return {
-        ...state,
-        investments: state.investments.map((investment) =>
-          investment.Id === action.investment.Id
-            ? action.investment
-            : investment
-        ),
-      };
-
-    case 'DeleteInvestment':
-      // Explicit delete by Id, no sentinel (regression for #49).
-      return {
-        ...state,
-        investments: state.investments.filter(
-          (investment) => investment.Id !== action.id
-        ),
-      };
-
-    case 'InsertInvestmentAt':
-      // Restore a deleted investment at its original index (undo).
-      if (state.investments.some((inv) => inv.Id === action.investment.Id)) {
-        return state;
-      }
-      return {
-        ...state,
-        investments: insertAt(
-          state.investments,
-          action.investment,
-          action.index
-        ),
-      };
-
     case 'AddAsset':
       return { ...state, assets: [...state.assets, action.asset] };
 
@@ -217,20 +168,16 @@ export const financeReducer = (
       // Assets merge by Id (Phase 7); omitted means "leave unchanged".
       const importedAssets = action.assets;
 
-      // While sample data is loaded, the visible loans/investments are the
-      // samples and the user's real data is parked in the stash. Merge imports
-      // into the *stashed real data* (not the samples), so an import isn't
-      // silently discarded when ClearSampleData restores the stash. Samples stay
-      // visible and untouched until cleared, at which point the merged real data
+      // While sample data is loaded, the visible loans/assets are the samples
+      // and the user's real data is parked in the stash. Merge imports into the
+      // *stashed real data* (not the samples), so an import isn't silently
+      // discarded when ClearSampleData restores the stash. Samples stay visible
+      // and untouched until cleared, at which point the merged real data
       // (including the import) is restored. (#83)
       if (state.sampleDataLoaded) {
         const { items: mergedLoans } = mergeData(
           state.stashedLoans ?? [],
           action.loans
-        );
-        const { items: mergedInvestments } = mergeData(
-          state.stashedInvestments ?? [],
-          action.investments
         );
         const mergedStashedAssets = importedAssets
           ? mergeData(state.stashedAssets ?? [], importedAssets).items
@@ -238,7 +185,6 @@ export const financeReducer = (
         return {
           ...state,
           stashedLoans: mergedLoans,
-          stashedInvestments: mergedInvestments,
           stashedAssets: mergedStashedAssets,
           scenarios: mergedScenarios,
         };
@@ -246,17 +192,12 @@ export const financeReducer = (
 
       // Preserve DataManager's merge-by-Id semantics exactly.
       const { items: mergedLoans } = mergeData(state.loans, action.loans);
-      const { items: mergedInvestments } = mergeData(
-        state.investments,
-        action.investments
-      );
       const mergedAssets = importedAssets
         ? mergeData(state.assets, importedAssets).items
         : state.assets;
       return {
         ...state,
         loans: mergedLoans,
-        investments: mergedInvestments,
         assets: mergedAssets,
         scenarios: mergedScenarios,
       };
@@ -268,11 +209,9 @@ export const financeReducer = (
       return {
         ...state,
         loans: action.snapshot.loans,
-        investments: action.snapshot.investments,
         assets: action.snapshot.assets,
         scenarios: action.snapshot.scenarios,
         stashedLoans: action.snapshot.stashedLoans,
-        stashedInvestments: action.snapshot.stashedInvestments,
         stashedAssets: action.snapshot.stashedAssets,
       };
 
@@ -287,10 +226,8 @@ export const financeReducer = (
         ...state,
         sampleDataLoaded: true,
         stashedLoans: state.loans,
-        stashedInvestments: state.investments,
         stashedAssets: state.assets,
         loans: action.loans,
-        investments: action.investments,
         assets: action.assets,
       };
     }
@@ -305,10 +242,8 @@ export const financeReducer = (
         ...state,
         sampleDataLoaded: false,
         loans: state.stashedLoans ?? [],
-        investments: state.stashedInvestments ?? [],
         assets: state.stashedAssets ?? [],
         stashedLoans: null,
-        stashedInvestments: null,
         stashedAssets: null,
       };
     }

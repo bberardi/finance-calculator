@@ -14,7 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Loan } from './models/loan-model';
 import { LoanTable } from './loan/loan-table';
 import { Investment } from './models/investment-model';
@@ -33,6 +33,11 @@ import { OptimizerPanel } from './optimizer/optimizer-panel';
 import { useFinanceData } from './state/use-finance-data';
 import { DataSnapshot } from './state/finance-reducer';
 import { buildLoanSeedFromAsset } from './helpers/convert-helpers';
+import {
+  investmentToAsset,
+  isInvestmentAsset,
+  investmentsFromAssets,
+} from './helpers/asset-investment-helpers';
 import { ColorModeToggle, SECTION_GAP, PAPER_PADDING } from './theme';
 import { ConfirmDeleteDialog } from './components/confirm-delete-dialog';
 import {
@@ -40,11 +45,7 @@ import {
   SectionEmptyState,
 } from './components/empty-state';
 import { DialogFallback } from './components/dialog-fallback';
-import {
-  sampleLoans,
-  sampleInvestments,
-  sampleAssets,
-} from './state/sample-data';
+import { sampleLoans, sampleAssets } from './state/sample-data';
 
 // Code-split the heaviest, non-critical-path chunks (roadmap 6.6): the forecast
 // chart (@mui/x-charts) and the add/edit forms (@mui/x-date-pickers) are kept
@@ -66,23 +67,21 @@ const AddEditAsset = lazy(() =>
 );
 
 // A delete pending confirmation: which kind of entity, and the entity itself
-// (we need its name for the prompt).
+// (we need its name for the prompt). Investments are assets now, so they delete
+// through the 'asset' path.
 type PendingDelete =
   | { kind: 'loan'; entity: Loan }
-  | { kind: 'investment'; entity: Investment }
   | { kind: 'asset'; entity: Asset };
 
 // A delete that just happened and can still be undone: the removed entity plus
 // the index it occupied, so undo can restore it exactly where it was.
 type UndoableDelete =
   | { kind: 'loan'; entity: Loan; index: number }
-  | { kind: 'investment'; entity: Investment; index: number }
   | { kind: 'asset'; entity: Asset; index: number };
 
 // A bulk delete pending confirmation: which kind, and the selected entities.
 type PendingBulkDelete =
   | { kind: 'loan'; entities: Loan[] }
-  | { kind: 'investment'; entities: Investment[] }
   | { kind: 'asset'; entities: Asset[] };
 
 // A committed bulk delete that can still be undone: the pre-delete data
@@ -132,11 +131,9 @@ export const Body = () => {
   const {
     state: {
       loans,
-      investments,
       assets,
       sampleDataLoaded,
       stashedLoans,
-      stashedInvestments,
       stashedAssets,
       scenarios,
       activeScenarioId,
@@ -145,10 +142,6 @@ export const Body = () => {
     updateLoan,
     deleteLoan,
     insertLoanAt,
-    addInvestment,
-    updateInvestment,
-    deleteInvestment,
-    insertInvestmentAt,
     addAsset,
     updateAsset,
     deleteAsset,
@@ -157,6 +150,16 @@ export const Body = () => {
     loadSampleData,
     clearSampleData,
   } = useFinanceData();
+
+  // Investments are folded into assets: derive the Investment[] the investment
+  // table / engine consume from the investment-type assets, and the non-
+  // investment assets that flow to the asset tables and the net-worth engine
+  // (passing both `investments` and all assets would double-count).
+  const investments = useMemo(() => investmentsFromAssets(assets), [assets]);
+  const nonInvestmentAssets = useMemo(
+    () => assets.filter((a) => !isInvestmentAsset(a)),
+    [assets]
+  );
 
   // Local UI state only: dialog open/closed and which entity is being edited.
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
@@ -193,8 +196,7 @@ export const Body = () => {
     useState<PendingBulkDelete>();
   const [bulkUndo, setBulkUndo] = useState<BulkUndo>();
 
-  const onLoadSampleData = () =>
-    loadSampleData(sampleLoans, sampleInvestments, sampleAssets);
+  const onLoadSampleData = () => loadSampleData(sampleLoans, sampleAssets);
 
   const onLoanAddEdit = (loan?: Loan) => {
     setEditLoan(loan);
@@ -242,28 +244,33 @@ export const Body = () => {
     setEditInvestment(undefined);
   };
 
+  // Investments are stored as AssetType.Investment assets, so the investment
+  // form's Investment is converted to/from an asset at this boundary.
   const onInvestmentAddEditSave = (
     newInvestment: Investment,
     oldInvestment?: Investment
   ) => {
     if (!oldInvestment) {
-      addInvestment(newInvestment);
+      addAsset(investmentToAsset(newInvestment));
     } else {
-      updateInvestment(newInvestment);
+      updateAsset(investmentToAsset(newInvestment));
     }
   };
 
-  // Step 1: clicking the row/card trash icon asks for confirmation.
+  // Step 1: clicking the row/card trash icon asks for confirmation. The
+  // investment is deleted as its underlying asset.
   const onInvestmentDelete = (investment: Investment) => {
-    setPendingDelete({ kind: 'investment', entity: investment });
+    setPendingDelete({ kind: 'asset', entity: investmentToAsset(investment) });
   };
 
   const onInvestmentClone = (investment: Investment) =>
-    addInvestment({
-      ...investment,
-      Id: '',
-      Name: `${investment.Name} (copy)`,
-    });
+    addAsset(
+      investmentToAsset({
+        ...investment,
+        Id: '',
+        Name: `${investment.Name} (copy)`,
+      })
+    );
 
   // Edit an existing asset/liability from its table row. Editing offers every
   // asset type so a holding can be retyped freely — including flipping an asset
@@ -347,16 +354,6 @@ export const Body = () => {
       const index = loans.findIndex((l) => l.Id === pendingDelete.entity.Id);
       deleteLoan(pendingDelete.entity.Id);
       setUndoableDelete({ kind: 'loan', entity: pendingDelete.entity, index });
-    } else if (pendingDelete.kind === 'investment') {
-      const index = investments.findIndex(
-        (i) => i.Id === pendingDelete.entity.Id
-      );
-      deleteInvestment(pendingDelete.entity.Id);
-      setUndoableDelete({
-        kind: 'investment',
-        entity: pendingDelete.entity,
-        index,
-      });
     } else {
       const index = assets.findIndex((a) => a.Id === pendingDelete.entity.Id);
       deleteAsset(pendingDelete.entity.Id);
@@ -376,8 +373,6 @@ export const Body = () => {
     }
     if (undoableDelete.kind === 'loan') {
       insertLoanAt(undoableDelete.entity, undoableDelete.index);
-    } else if (undoableDelete.kind === 'investment') {
-      insertInvestmentAt(undoableDelete.entity, undoableDelete.index);
     } else {
       insertAssetAt(undoableDelete.entity, undoableDelete.index);
     }
@@ -395,7 +390,10 @@ export const Body = () => {
 
   const onInvestmentBulkDelete = (selected: Investment[]) => {
     if (selected.length > 0) {
-      setPendingBulkDelete({ kind: 'investment', entities: selected });
+      setPendingBulkDelete({
+        kind: 'asset',
+        entities: selected.map(investmentToAsset),
+      });
     }
   };
 
@@ -417,17 +415,13 @@ export const Body = () => {
     // Snapshot the restorable data before deleting, so undo restores it whole.
     const snapshot: DataSnapshot = {
       loans,
-      investments,
       assets,
       scenarios,
       stashedLoans,
-      stashedInvestments,
       stashedAssets,
     };
     if (pendingBulkDelete.kind === 'loan') {
       pendingBulkDelete.entities.forEach((loan) => deleteLoan(loan.Id));
-    } else if (pendingBulkDelete.kind === 'investment') {
-      pendingBulkDelete.entities.forEach((inv) => deleteInvestment(inv.Id));
     } else {
       pendingBulkDelete.entities.forEach((asset) => deleteAsset(asset.Id));
     }
@@ -453,14 +447,13 @@ export const Body = () => {
   // Split assets for display: custom liabilities live in the Liabilities section
   // (next to loans); everything else is a true asset. They remain one collection
   // in state — this is purely a presentation split.
-  const liabilityAssets = assets.filter(
+  const liabilityAssets = nonInvestmentAssets.filter(
     (a) => a.AssetType === AssetType.CustomLiability
   );
-  const assetHoldings = assets.filter(
+  const assetHoldings = nonInvestmentAssets.filter(
     (a) => a.AssetType !== AssetType.CustomLiability
   );
-  const allEmpty =
-    loans.length === 0 && investments.length === 0 && assets.length === 0;
+  const allEmpty = loans.length === 0 && assets.length === 0;
   const activeScenario = scenarios.find((s) => s.Id === activeScenarioId);
 
   return (
@@ -570,7 +563,7 @@ export const Body = () => {
             <NetWorthSummary
               loans={loans}
               investments={investments}
-              assets={assets}
+              assets={nonInvestmentAssets}
             />
             {/* Milestone callouts (roadmap 3.2): debt-free date + net worth at
                 +5y/+10y/+30y, cheap reads off the same engine series. */}
@@ -578,7 +571,7 @@ export const Body = () => {
               <MilestoneCallouts
                 loans={loans}
                 investments={investments}
-                assets={assets}
+                assets={nonInvestmentAssets}
               />
             </Box>
           </Box>
@@ -708,7 +701,7 @@ export const Body = () => {
               <ForecastChart
                 loans={loans}
                 investments={investments}
-                assets={assets}
+                assets={nonInvestmentAssets}
                 scenario={activeScenario}
               />
             </Suspense>
@@ -718,7 +711,7 @@ export const Body = () => {
               <ScenarioImpactSummary
                 loans={loans}
                 investments={investments}
-                assets={assets}
+                assets={nonInvestmentAssets}
                 scenario={activeScenario}
               />
             )}
@@ -737,7 +730,7 @@ export const Body = () => {
               <OptimizerPanel
                 loans={loans}
                 investments={investments}
-                assets={assets}
+                assets={nonInvestmentAssets}
               />
             </Box>
           </Paper>

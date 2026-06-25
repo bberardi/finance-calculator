@@ -1,21 +1,10 @@
 import {
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableFooter,
-  TableSortLabel,
-  Checkbox,
-  Paper,
   Box,
   Card,
   CardContent,
+  Checkbox,
   Typography,
   Grid,
-  useTheme,
-  useMediaQuery,
 } from '@mui/material';
 import {
   Investment,
@@ -25,8 +14,6 @@ import {
 import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { currentInvestmentValue } from '../helpers/forecast-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
-import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
-import { filterBySearch } from '../helpers/filter-helpers';
 import {
   Calculate,
   ContentCopy,
@@ -34,12 +21,10 @@ import {
   Edit,
   TrendingUp,
 } from '@mui/icons-material';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { DialogFallback } from '../components/dialog-fallback';
-import { TableSearchField } from '../components/table-search-field';
-import { BulkActionsToolbar } from '../components/bulk-actions-toolbar';
-import { useRowSelection } from '../hooks/use-row-selection';
+import { HoldingColumn, HoldingTable } from '../components/holding-table';
 
 // Code-split the popouts (roadmap 6.6): modal, opened on demand, and pulling in
 // date pickers + the table virtualizer — kept out of the initial bundle.
@@ -129,60 +114,71 @@ const getCompoundingText = (period: CompoundingFrequency) => {
   }
 };
 
-type InvestmentColumnId =
-  | 'Name'
-  | 'Provider'
-  | 'StartingBalance'
-  | 'CurrentValue'
-  | 'AverageReturnRate'
-  | 'CompoundingPeriod'
-  | 'RecurringContribution';
+const sumBy = (items: Investment[], pick: (i: Investment) => number): string =>
+  formatCurrency(items.reduce((sum, i) => sum + pick(i), 0));
 
-interface InvestmentColumn {
-  id: InvestmentColumnId;
-  label: string;
-  numeric: boolean;
-  value: (investment: Investment) => SortValue;
-}
-
-const INVESTMENT_COLUMNS: InvestmentColumn[] = [
-  { id: 'Name', label: 'Name', numeric: false, value: (i) => i.Name },
+const INVESTMENT_COLUMNS: HoldingColumn<Investment>[] = [
+  {
+    id: 'Name',
+    label: 'Name',
+    numeric: false,
+    value: (i) => i.Name,
+    render: (i) => i.Name,
+    footer: () => <strong>Totals</strong>,
+  },
   {
     id: 'Provider',
     label: 'Provider',
     numeric: false,
     value: (i) => i.Provider,
+    render: (i) => i.Provider,
   },
   {
     id: 'StartingBalance',
     label: 'Starting Balance',
     numeric: true,
     value: (i) => i.StartingBalance,
+    render: (i) => formatCurrency(i.StartingBalance),
+    footer: (items) => (
+      <strong>{sumBy(items, (i) => i.StartingBalance)}</strong>
+    ),
   },
   {
     id: 'CurrentValue',
     label: 'Current Value',
     numeric: true,
     value: (i) => currentValue(i),
+    render: (i) => formatCurrency(currentValue(i)),
+    footer: (items) => <strong>{sumBy(items, (i) => currentValue(i))}</strong>,
   },
   {
     id: 'AverageReturnRate',
     label: 'Return Rate',
     numeric: true,
     value: (i) => i.AverageReturnRate,
+    render: (i) => formatPercent(i.AverageReturnRate, 3),
   },
   {
     id: 'CompoundingPeriod',
     label: 'Compounding',
     numeric: false,
     value: (i) => getCompoundingText(i.CompoundingPeriod),
+    render: (i) => getCompoundingText(i.CompoundingPeriod),
   },
   {
     id: 'RecurringContribution',
     label: 'Recurring Contribution',
     numeric: true,
     value: (i) => i.RecurringContribution ?? 0,
+    render: (i) => formatContribution(i),
   },
+];
+
+// Stable accessors for HoldingTable's effect/memo dependencies.
+const investmentId = (investment: Investment): string => investment.Id;
+const investmentSearchFields = (investment: Investment): string[] => [
+  investment.Name,
+  investment.Provider,
 ];
 
 const InvestmentCard = ({
@@ -278,25 +274,6 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
   const [selectedGrowth, setSelectedGrowth] = useState<
     Investment | undefined
   >();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  // Default ordering: highest expected return first.
-  const [sortColumn, setSortColumn] =
-    useState<InvestmentColumnId>('AverageReturnRate');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  // Search/filter + multi-select (roadmap 6.4).
-  const [query, setQuery] = useState('');
-  const selection = useRowSelection();
-
-  // Keep the selection in sync with the investments that currently exist: a
-  // deleted row leaves the Set, so a bulk-delete undo restores rows unselected
-  // instead of re-selecting them (PR #109 review follow-up).
-  const { retain } = selection;
-  useEffect(() => {
-    retain(props.investments.map((i) => i.Id));
-  }, [props.investments, retain]);
 
   const handlers: InvestmentRowHandlers = {
     onGrowth: setSelectedGrowth,
@@ -305,58 +282,6 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     onClone: props.onInvestmentClone,
     onDelete: props.onInvestmentDelete,
   };
-
-  const column =
-    INVESTMENT_COLUMNS.find((c) => c.id === sortColumn) ??
-    INVESTMENT_COLUMNS[0];
-  const sortedInvestments = useMemo(
-    () => sortBy(props.investments, column.value, sortDirection),
-    [props.investments, column, sortDirection]
-  );
-
-  // Visible rows after the text filter (name or provider).
-  const visibleInvestments = useMemo(
-    () => filterBySearch(sortedInvestments, query, (i) => [i.Name, i.Provider]),
-    [sortedInvestments, query]
-  );
-
-  const handleSort = (id: InvestmentColumnId) => {
-    if (sortColumn === id) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(id);
-      setSortDirection('asc');
-    }
-  };
-
-  // Totals reflect what's currently visible (equal to all when unfiltered).
-  const totalStarting = visibleInvestments.reduce(
-    (sum, i) => sum + i.StartingBalance,
-    0
-  );
-  const totalCurrent = visibleInvestments.reduce(
-    (sum, i) => sum + currentValue(i),
-    0
-  );
-
-  // Effective selection: selected investments that still exist.
-  const selectedInvestments = props.investments.filter((i) =>
-    selection.isSelected(i.Id)
-  );
-  const visibleIds = visibleInvestments.map((i) => i.Id);
-  const allVisibleSelected =
-    visibleIds.length > 0 && visibleIds.every((id) => selection.isSelected(id));
-  const someVisibleSelected = visibleIds.some((id) => selection.isSelected(id));
-
-  const onBulkDuplicate = () => {
-    selectedInvestments.forEach((i) => props.onInvestmentClone(i));
-    selection.clear();
-  };
-  // Delete routes through Body for the confirm dialog + soft-undo; selection is
-  // left as-is and the confirmed deletions drop out of the count on their own.
-  const onBulkDelete = () => props.onInvestmentBulkDelete(selectedInvestments);
-
-  const noMatches = visibleInvestments.length === 0 && query.trim() !== '';
 
   return (
     <>
@@ -375,135 +300,32 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
         )}
       </Suspense>
 
-      <TableSearchField
-        value={query}
-        onChange={setQuery}
-        label="Search investments"
-      />
-      <BulkActionsToolbar
-        count={selectedInvestments.length}
+      <HoldingTable<Investment>
+        items={props.investments}
+        getRowId={investmentId}
+        searchFields={investmentSearchFields}
+        columns={INVESTMENT_COLUMNS}
+        getRowName={(i) => i.Name}
+        rowActions={(i) => investmentActions(i, handlers)}
+        renderCard={({ item, selected, onSelect, isMobile }) => (
+          <InvestmentCard
+            investment={item}
+            handlers={handlers}
+            isMobile={isMobile}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        )}
+        // Default ordering: highest expected return first.
+        defaultSortColumnId="AverageReturnRate"
+        searchLabel="Search investments"
         itemLabel="investment"
-        onDuplicate={onBulkDuplicate}
-        onDelete={onBulkDelete}
-        onClear={selection.clear}
+        itemLabelPlural="investments"
+        onBulkDuplicate={(items) =>
+          items.forEach((i) => props.onInvestmentClone(i))
+        }
+        onBulkDelete={props.onInvestmentBulkDelete}
       />
-
-      {noMatches ? (
-        <Typography color="text.secondary" sx={{ py: 2 }}>
-          No investments match “{query}”.
-        </Typography>
-      ) : isMobile ? (
-        <Box>
-          {visibleInvestments.map((investment) => (
-            <InvestmentCard
-              key={investment.Id}
-              investment={investment}
-              handlers={handlers}
-              isMobile={isMobile}
-              selected={selection.isSelected(investment.Id)}
-              onSelect={() => selection.toggle(investment.Id)}
-            />
-          ))}
-        </Box>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    checked={allVisibleSelected}
-                    indeterminate={someVisibleSelected && !allVisibleSelected}
-                    onChange={(e) =>
-                      selection.setMany(visibleIds, e.target.checked)
-                    }
-                    slotProps={{
-                      input: { 'aria-label': 'Select all investments' },
-                    }}
-                  />
-                </TableCell>
-                {INVESTMENT_COLUMNS.map((col) => (
-                  <TableCell
-                    key={col.id}
-                    align={col.numeric ? 'right' : 'left'}
-                    sortDirection={
-                      sortColumn === col.id ? sortDirection : false
-                    }
-                  >
-                    <TableSortLabel
-                      active={sortColumn === col.id}
-                      direction={sortColumn === col.id ? sortDirection : 'asc'}
-                      onClick={() => handleSort(col.id)}
-                    >
-                      {col.label}
-                    </TableSortLabel>
-                  </TableCell>
-                ))}
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {visibleInvestments.map((row) => {
-                const isSelected = selection.isSelected(row.Id);
-                return (
-                  <TableRow key={row.Id} selected={isSelected}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={isSelected}
-                        onChange={() => selection.toggle(row.Id)}
-                        slotProps={{
-                          input: { 'aria-label': `Select ${row.Name}` },
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>{row.Name}</TableCell>
-                    <TableCell>{row.Provider}</TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(row.StartingBalance)}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(currentValue(row))}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatPercent(row.AverageReturnRate, 3)}
-                    </TableCell>
-                    <TableCell>
-                      {getCompoundingText(row.CompoundingPeriod)}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatContribution(row)}
-                    </TableCell>
-                    <TableCell>
-                      <EntityRowActions
-                        actions={investmentActions(row, handlers)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell padding="checkbox" />
-                <TableCell>
-                  <strong>Totals</strong>
-                </TableCell>
-                <TableCell />
-                <TableCell align="right">
-                  <strong>{formatCurrency(totalStarting)}</strong>
-                </TableCell>
-                <TableCell align="right">
-                  <strong>{formatCurrency(totalCurrent)}</strong>
-                </TableCell>
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </TableContainer>
-      )}
     </>
   );
 };

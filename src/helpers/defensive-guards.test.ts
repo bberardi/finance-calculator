@@ -207,7 +207,10 @@ describe('Defensive guards: forecastInvestment without a contribution cadence', 
 });
 
 describe('Defensive guards: import date validation', () => {
-  it('rejects an investment whose StartDate is invalid even when loans are valid', () => {
+  it('rejects an imported investment (folded to an asset) whose StartDate is invalid', () => {
+    // A legacy v2 file carries a standalone `investments` array. The migration
+    // ladder folds it into `assets` as an AssetType.Investment, so its bad date
+    // is caught by the asset validator after the fold — even when loans are valid.
     const json = JSON.stringify({
       schemaVersion: 2,
       loans: [],
@@ -223,7 +226,9 @@ describe('Defensive guards: import date validation', () => {
         },
       ],
     });
-    expect(() => importFromJson(json)).toThrow(/Invalid date in investment/);
+    expect(() => importFromJson(json)).toThrow(
+      /Invalid date for 'StartDate' in asset/
+    );
   });
 });
 

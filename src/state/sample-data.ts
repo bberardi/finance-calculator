@@ -1,15 +1,16 @@
 import { Loan } from '../models/loan-model';
-import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { CompoundingFrequency } from '../models/investment-model';
 import { Asset, AssetType } from '../models/asset-model';
 
 // Sample data for the onboarding empty state (roadmap 0.9).
 //
 // These are realistic, pedagogically useful examples — a mortgage, a car loan,
-// and a couple of investments — so a first-time visitor can see what PathWise
-// does without typing anything. Each Name is prefixed with "Sample:" so the
-// rows are unmistakably demo data, and the in-app banner offers a one-click
-// "Clear sample data". The reducer stashes any real user data while these are
-// loaded, so nothing the user typed is ever lost (see finance-reducer.ts).
+// a couple of investments, cash, a home, and a depreciating car — so a
+// first-time visitor can see what PathWise does without typing anything. Each
+// Name is prefixed with "Sample:" so the rows are unmistakably demo data, and
+// the in-app banner offers a one-click "Clear sample data". The reducer stashes
+// any real user data while these are loaded, so nothing the user typed is ever
+// lost (see finance-reducer.ts).
 //
 // This is a plain UI seed, not state: the provider copies it into the reducer
 // via LoadSampleData. Stable Ids keep load/clear idempotent.
@@ -42,38 +43,40 @@ export const sampleLoans: Loan[] = [
   },
 ];
 
-export const sampleInvestments: Investment[] = [
+// Sample holdings. Investments are folded in as `AssetType.Investment` (a
+// brokerage index fund and a 401(k), each with recurring contributions); plus a
+// high-yield savings account (7.1), the home whose value backs the sample
+// mortgage above (7.2, linked by LinkedLoanId so net worth reflects home
+// equity), and a depreciating car (7.3, a custom asset with a negative growth
+// rate). For an investment asset, `Balance` is the starting balance and
+// `CurrentValue` is today's value. Stable Ids keep load/clear idempotent.
+export const sampleAssets: Asset[] = [
   {
     Id: '00000000-0000-0000-0000-000000000003',
     Name: 'Sample: Index Fund (brokerage)',
     Provider: 'Sample Brokerage',
-    StartingBalance: 15000,
-    CurrentValue: 22000,
-    AverageReturnRate: 7,
+    AssetType: AssetType.Investment,
+    Balance: 15000,
+    GrowthRate: 7,
     CompoundingPeriod: CompoundingFrequency.Monthly,
     StartDate: new Date(2021, 0, 1),
     RecurringContribution: 500,
     ContributionFrequency: CompoundingFrequency.Monthly,
+    CurrentValue: 22000,
   },
   {
     Id: '00000000-0000-0000-0000-000000000004',
     Name: 'Sample: 401(k)',
     Provider: 'Sample Retirement',
-    StartingBalance: 40000,
-    CurrentValue: 58000,
-    AverageReturnRate: 6.5,
+    AssetType: AssetType.Investment,
+    Balance: 40000,
+    GrowthRate: 6.5,
     CompoundingPeriod: CompoundingFrequency.Monthly,
     StartDate: new Date(2019, 5, 1),
     RecurringContribution: 800,
     ContributionFrequency: CompoundingFrequency.Monthly,
+    CurrentValue: 58000,
   },
-];
-
-// Phase 7 sample holdings: a high-yield savings account (7.1), the home whose
-// value backs the sample mortgage above (7.2, linked by LinkedLoanId so net
-// worth reflects home equity), and a depreciating car (7.3, a custom asset with
-// a negative growth rate). Stable Ids keep load/clear idempotent.
-export const sampleAssets: Asset[] = [
   {
     Id: '00000000-0000-0000-0000-000000000005',
     Name: 'Sample: High-Yield Savings',

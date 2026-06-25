@@ -1,5 +1,4 @@
 import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { exportToJson } from '../helpers/data-helpers';
@@ -10,11 +9,10 @@ import { exportToJson } from '../helpers/data-helpers';
 // drift between them. Throws on failure; callers surface their own feedback.
 export const downloadJsonExport = (
   loans: Loan[],
-  investments: Investment[],
   scenarios: Scenario[] = [],
   assets: Asset[] = []
 ): void => {
-  const jsonData = exportToJson(loans, investments, scenarios, assets);
+  const jsonData = exportToJson(loans, scenarios, assets);
   const blob = new Blob([jsonData], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

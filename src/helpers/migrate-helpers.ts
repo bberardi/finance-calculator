@@ -9,7 +9,7 @@
 
 // The current schema version. data-helpers re-exports this as
 // EXPORT_SCHEMA_VERSION; kept here so the ladder owns the "current" definition.
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 // A parsed payload: a numeric schemaVersion plus arbitrary other fields the
 // individual migration steps and the downstream validator interpret.
@@ -18,10 +18,36 @@ export type RawData = { schemaVersion: number } & Record<string, unknown>;
 // A migration step upgrades data from one version to the next.
 type MigrationStep = (data: RawData) => RawData;
 
+// Convert a serialized Investment into its serialized AssetType.Investment
+// shape (the field correspondence mirrors investmentToAsset): StartingBalance →
+// Balance, AverageReturnRate → GrowthRate, everything else by the same name.
+const investmentToSerializedAsset = (
+  investment: unknown
+): Record<string, unknown> => {
+  const i = (investment ?? {}) as Record<string, unknown>;
+  return {
+    Id: i.Id,
+    Provider: i.Provider,
+    Name: i.Name,
+    AssetType: 'investment',
+    Balance: i.StartingBalance,
+    GrowthRate: i.AverageReturnRate,
+    CompoundingPeriod: i.CompoundingPeriod,
+    StartDate: i.StartDate,
+    RecurringContribution: i.RecurringContribution,
+    ContributionFrequency: i.ContributionFrequency,
+    ContributionStepUpAmount: i.ContributionStepUpAmount,
+    ContributionStepUpType: i.ContributionStepUpType,
+    CurrentValue: i.CurrentValue,
+  };
+};
+
 // Keyed by the version each step upgrades FROM. v2 → v3 introduces the
 // `scenarios` array (Phase 4.5); a v2 file simply gains an empty list. v3 → v4
 // introduces the `assets` array (Phase 7, Whole Net Worth); a v3 file simply
-// gains an empty list, so an older file with no assets migrates cleanly.
+// gains an empty list. v4 → v5 folds the standalone `investments` array into
+// `assets` as `AssetType.Investment` entries (the investment fold); the
+// `investments` key is dropped.
 const MIGRATIONS: Record<number, MigrationStep> = {
   2: (data) => ({
     ...data,
@@ -33,6 +59,17 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     schemaVersion: 4,
     assets: Array.isArray(data.assets) ? data.assets : [],
   }),
+  4: (data) => {
+    const investments = Array.isArray(data.investments) ? data.investments : [];
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const rest = { ...data };
+    delete rest.investments;
+    return {
+      ...rest,
+      schemaVersion: 5,
+      assets: [...assets, ...investments.map(investmentToSerializedAsset)],
+    };
+  },
 };
 
 /**
@@ -50,7 +87,12 @@ export const migrate = (data: RawData): RawData => {
       'Invalid data format: missing schemaVersion. Legacy (v1) files are not supported.'
     );
   }
-  if (typeof version !== 'number') {
+  // `NaN` and `Infinity` are `typeof 'number'`, so a bare type check would let a
+  // non-finite (or fractional) version slip past every gate below: `NaN > N` and
+  // `NaN < N` are both false, so the ladder is skipped and the payload is returned
+  // as if already current — defeating the version gate at the untrusted-data
+  // boundary it exists to protect. Require a real integer version. (#132)
+  if (typeof version !== 'number' || !Number.isInteger(version)) {
     throw new Error('Invalid data format: schemaVersion must be a number.');
   }
   if (version > CURRENT_SCHEMA_VERSION) {

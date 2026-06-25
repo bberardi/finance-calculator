@@ -1,40 +1,26 @@
 import {
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableFooter,
-  TableSortLabel,
-  Checkbox,
-  Paper,
   Box,
   Card,
   CardContent,
+  Checkbox,
   Typography,
   Grid,
-  useTheme,
-  useMediaQuery,
 } from '@mui/material';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Asset, AssetType } from '../models/asset-model';
 import { Loan } from '../models/loan-model';
 import { forecastHomeEquity } from '../helpers/forecast-helpers';
 import { isAssetLiability } from '../helpers/asset-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
-import { sortBy, SortDirection, SortValue } from '../helpers/sort-helpers';
-import { filterBySearch } from '../helpers/filter-helpers';
 import { ContentCopy, Delete, Edit, SwapHoriz } from '@mui/icons-material';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
-import { TableSearchField } from '../components/table-search-field';
-import { BulkActionsToolbar } from '../components/bulk-actions-toolbar';
-import { useRowSelection } from '../hooks/use-row-selection';
+import { HoldingColumn, HoldingTable } from '../components/holding-table';
 
 // Human-readable labels for each asset type, used in the table and cards.
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   [AssetType.Cash]: 'Cash',
   [AssetType.Property]: 'Property',
+  [AssetType.Investment]: 'Investment',
   [AssetType.CustomAsset]: 'Custom asset',
   [AssetType.CustomLiability]: 'Custom liability',
 };
@@ -88,23 +74,15 @@ const assetActions = (
   return actions;
 };
 
-type AssetColumnId =
-  | 'Name'
-  | 'Provider'
-  | 'AssetType'
-  | 'Balance'
-  | 'GrowthRate';
-
-interface AssetColumn {
-  id: AssetColumnId;
-  label: string;
-  numeric: boolean;
-  value: (row: AssetRow) => SortValue;
-  render: (row: AssetRow) => ReactNode;
-}
-
 const equityText = (row: AssetRow): string =>
   row.equity === undefined ? '—' : formatCurrency(row.equity);
+
+// Stable accessors for HoldingTable's effect/memo dependencies.
+const assetRowId = (row: AssetRow): string => row.asset.Id;
+const assetSearchFields = (row: AssetRow): string[] => [
+  row.asset.Name,
+  row.asset.Provider,
+];
 
 const AssetCard = ({
   row,
@@ -176,6 +154,7 @@ const AssetCard = ({
 // framing: the Assets section (cash / property / custom assets — Type and Equity
 // columns shown) and the Liabilities section's custom liabilities (a single
 // type, so those columns are hidden and the labels read "liability"/"Owed").
+// All the shared table chrome lives in HoldingTable; this configures it.
 export const AssetTable = (props: AssetTableProps) => {
   const {
     showTypeColumn = true,
@@ -186,20 +165,6 @@ export const AssetTable = (props: AssetTableProps) => {
     balanceHeader = 'Balance',
   } = props;
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  const [sortColumn, setSortColumn] = useState<AssetColumnId>('Balance');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  const [query, setQuery] = useState('');
-  const selection = useRowSelection();
-
-  const { retain } = selection;
-  useEffect(() => {
-    retain(props.assets.map((a) => a.Id));
-  }, [props.assets, retain]);
-
   const handlers: AssetRowHandlers = {
     onEdit: props.onAssetEdit,
     onClone: props.onAssetClone,
@@ -208,15 +173,17 @@ export const AssetTable = (props: AssetTableProps) => {
   };
 
   // Sortable data columns, built from props so the Type column can be dropped
-  // and the balance header relabelled per group.
-  const columns = useMemo<AssetColumn[]>(() => {
-    const cols: AssetColumn[] = [
+  // and the balance header relabelled per group. The Equity column is derived
+  // (home equity) and therefore non-sortable.
+  const columns = useMemo<HoldingColumn<AssetRow>[]>(() => {
+    const cols: HoldingColumn<AssetRow>[] = [
       {
         id: 'Name',
         label: 'Name',
         numeric: false,
         value: (r) => r.asset.Name,
         render: (r) => r.asset.Name,
+        footer: () => <strong>Totals</strong>,
       },
       {
         id: 'Provider',
@@ -242,6 +209,11 @@ export const AssetTable = (props: AssetTableProps) => {
         numeric: true,
         value: (r) => r.asset.Balance,
         render: (r) => formatCurrency(r.asset.Balance),
+        footer: (rows) => (
+          <strong>
+            {formatCurrency(rows.reduce((sum, r) => sum + r.asset.Balance, 0))}
+          </strong>
+        ),
       },
       {
         id: 'GrowthRate',
@@ -251,8 +223,17 @@ export const AssetTable = (props: AssetTableProps) => {
         render: (r) => formatPercent(r.asset.GrowthRate),
       }
     );
+    if (showEquityColumn) {
+      cols.push({
+        id: 'Equity',
+        label: 'Equity',
+        numeric: true,
+        sortable: false,
+        render: (r) => equityText(r),
+      });
+    }
     return cols;
-  }, [showTypeColumn, balanceHeader]);
+  }, [showTypeColumn, showEquityColumn, balanceHeader]);
 
   // Engine-derived rows: today's home equity for a property linked to a
   // mortgage that still exists (7.2). Memoized so it recomputes only when the
@@ -271,185 +252,34 @@ export const AssetTable = (props: AssetTableProps) => {
     });
   }, [props.assets, props.loans, today]);
 
-  const column = columns.find((c) => c.id === sortColumn) ?? columns[0];
-  const sortedRows = useMemo(
-    () => sortBy(rows, column.value, sortDirection),
-    [rows, column, sortDirection]
-  );
-
-  const visibleRows = useMemo(
-    () =>
-      filterBySearch(sortedRows, query, (r) => [
-        r.asset.Name,
-        r.asset.Provider,
-      ]),
-    [sortedRows, query]
-  );
-
-  const handleSort = (id: AssetColumnId) => {
-    if (sortColumn === id) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(id);
-      setSortDirection('asc');
-    }
-  };
-
-  const visibleAssets = visibleRows.map((r) => r.asset);
-  const totalBalance = visibleAssets.reduce((sum, a) => sum + a.Balance, 0);
-
-  const selectedAssets = props.assets.filter((a) => selection.isSelected(a.Id));
-  const visibleIds = visibleRows.map((r) => r.asset.Id);
-  const allVisibleSelected =
-    visibleIds.length > 0 && visibleIds.every((id) => selection.isSelected(id));
-  const someVisibleSelected = visibleIds.some((id) => selection.isSelected(id));
-
-  const onBulkDuplicate = () => {
-    selectedAssets.forEach((asset) => props.onAssetClone(asset));
-    selection.clear();
-  };
-  const onBulkDelete = () => props.onAssetBulkDelete(selectedAssets);
-
-  const noMatches = visibleRows.length === 0 && query.trim() !== '';
-
   return (
-    <>
-      <TableSearchField value={query} onChange={setQuery} label={searchLabel} />
-      <BulkActionsToolbar
-        count={selectedAssets.length}
-        itemLabel={itemLabel}
-        itemLabelPlural={itemLabelPlural}
-        onDuplicate={onBulkDuplicate}
-        onDelete={onBulkDelete}
-        onClear={selection.clear}
-      />
-
-      {noMatches ? (
-        <Typography color="text.secondary" sx={{ py: 2 }}>
-          No {itemLabelPlural} match “{query}”.
-        </Typography>
-      ) : isMobile ? (
-        <Box>
-          {visibleRows.map((row) => (
-            <AssetCard
-              key={row.asset.Id}
-              row={row}
-              handlers={handlers}
-              selected={selection.isSelected(row.asset.Id)}
-              onSelect={() => selection.toggle(row.asset.Id)}
-              showType={showTypeColumn}
-            />
-          ))}
-        </Box>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    checked={allVisibleSelected}
-                    indeterminate={someVisibleSelected && !allVisibleSelected}
-                    onChange={(e) =>
-                      selection.setMany(visibleIds, e.target.checked)
-                    }
-                    slotProps={{
-                      input: { 'aria-label': `Select all ${itemLabelPlural}` },
-                    }}
-                  />
-                </TableCell>
-                {columns.map((col) => (
-                  <TableCell
-                    key={col.id}
-                    align={col.numeric ? 'right' : 'left'}
-                    sortDirection={
-                      sortColumn === col.id ? sortDirection : false
-                    }
-                  >
-                    <TableSortLabel
-                      active={sortColumn === col.id}
-                      direction={sortColumn === col.id ? sortDirection : 'asc'}
-                      onClick={() => handleSort(col.id)}
-                    >
-                      {col.label}
-                    </TableSortLabel>
-                  </TableCell>
-                ))}
-                {showEquityColumn && (
-                  <TableCell align="right">Equity</TableCell>
-                )}
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {visibleRows.map((row) => {
-                const isSelected = selection.isSelected(row.asset.Id);
-                return (
-                  <TableRow key={row.asset.Id} selected={isSelected}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={isSelected}
-                        onChange={() => selection.toggle(row.asset.Id)}
-                        slotProps={{
-                          input: {
-                            'aria-label': `Select ${row.asset.Name}`,
-                          },
-                        }}
-                      />
-                    </TableCell>
-                    {columns.map((col) => (
-                      <TableCell
-                        key={col.id}
-                        align={col.numeric ? 'right' : 'left'}
-                      >
-                        {col.render(row)}
-                      </TableCell>
-                    ))}
-                    {showEquityColumn && (
-                      <TableCell align="right">{equityText(row)}</TableCell>
-                    )}
-                    <TableCell>
-                      <EntityRowActions
-                        actions={assetActions(row.asset, handlers)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell padding="checkbox" />
-                {columns.map((col) => {
-                  if (col.id === 'Name') {
-                    return (
-                      <TableCell key={col.id}>
-                        <strong>Totals</strong>
-                      </TableCell>
-                    );
-                  }
-                  if (col.id === 'Balance') {
-                    return (
-                      <TableCell key={col.id} align="right">
-                        <strong>{formatCurrency(totalBalance)}</strong>
-                      </TableCell>
-                    );
-                  }
-                  return (
-                    <TableCell
-                      key={col.id}
-                      align={col.numeric ? 'right' : 'left'}
-                    />
-                  );
-                })}
-                {showEquityColumn && <TableCell />}
-                <TableCell />
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </TableContainer>
+    <HoldingTable<AssetRow>
+      items={rows}
+      getRowId={assetRowId}
+      searchFields={assetSearchFields}
+      columns={columns}
+      getRowName={(r) => r.asset.Name}
+      rowActions={(r) => assetActions(r.asset, handlers)}
+      renderCard={({ item, selected, onSelect }) => (
+        <AssetCard
+          row={item}
+          handlers={handlers}
+          selected={selected}
+          onSelect={onSelect}
+          showType={showTypeColumn}
+        />
       )}
-    </>
+      defaultSortColumnId="Balance"
+      searchLabel={searchLabel}
+      itemLabel={itemLabel}
+      itemLabelPlural={itemLabelPlural}
+      onBulkDuplicate={(selected) =>
+        selected.forEach((r) => props.onAssetClone(r.asset))
+      }
+      onBulkDelete={(selected) =>
+        props.onAssetBulkDelete(selected.map((r) => r.asset))
+      }
+    />
   );
 };
 

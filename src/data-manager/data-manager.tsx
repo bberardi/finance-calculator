@@ -8,7 +8,6 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { useFinanceData } from '../state/use-finance-data';
 import { Loan } from '../models/loan-model';
-import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { DataSnapshot } from '../state/finance-reducer';
@@ -19,10 +18,10 @@ import {
 import { MonarchImportDialog } from './monarch-import-dialog';
 
 // A parsed import awaiting confirmation: the entities to merge plus the
-// precomputed add/overwrite preview shown to the user.
+// precomputed add/overwrite preview shown to the user. Investments are folded
+// into assets, so there is no separate investments list.
 interface PendingImport {
   loans: Loan[];
-  investments: Investment[];
   scenarios: Scenario[];
   assets: Asset[];
   sections: ImportPreviewSection[];
@@ -51,12 +50,10 @@ export const DataManager = () => {
   const {
     state: {
       loans,
-      investments,
       assets,
       scenarios,
       sampleDataLoaded,
       stashedLoans,
-      stashedInvestments,
       stashedAssets,
     },
     importMerge,
@@ -78,17 +75,13 @@ export const DataManager = () => {
   // otherwise an export dumps sample data and an import (which the reducer
   // routes into the stash) would report stats against the wrong collection. (#83)
   const realLoans = sampleDataLoaded ? (stashedLoans ?? []) : loans;
-  const realInvestments = sampleDataLoaded
-    ? (stashedInvestments ?? [])
-    : investments;
   const realAssets = sampleDataLoaded ? (stashedAssets ?? []) : assets;
 
-  const hasData =
-    realLoans.length > 0 || realInvestments.length > 0 || realAssets.length > 0;
+  const hasData = realLoans.length > 0 || realAssets.length > 0;
 
   const handleExport = () => {
     try {
-      downloadJsonExport(realLoans, realInvestments, scenarios, realAssets);
+      downloadJsonExport(realLoans, scenarios, realAssets);
       setExportMessage('Data exported successfully!');
     } catch (error) {
       // Log full error details for debugging
@@ -126,7 +119,6 @@ export const DataManager = () => {
         const content = e.target?.result as string;
         const {
           loans: importedLoans,
-          investments: importedInvestments,
           scenarios: importedScenarios,
           assets: importedAssets,
         } = importFromJson(content);
@@ -134,23 +126,18 @@ export const DataManager = () => {
         // Compute the add-vs-overwrite preview against the *real* data (the
         // merge target), so the user confirms exactly what the subsequent merge
         // will do. The merge itself still runs in the reducer (one source of
-        // truth) once confirmed.
+        // truth) once confirmed. Investments are folded into assets, so the
+        // Assets section covers them too.
         const loanPreview = previewMerge(realLoans, importedLoans);
-        const investmentPreview = previewMerge(
-          realInvestments,
-          importedInvestments
-        );
         const scenarioPreview = previewMerge(scenarios, importedScenarios);
         const assetPreview = previewMerge(realAssets, importedAssets);
 
         setPendingImport({
           loans: importedLoans,
-          investments: importedInvestments,
           scenarios: importedScenarios,
           assets: importedAssets,
           sections: [
             { label: 'Loans', ...loanPreview },
-            { label: 'Investments', ...investmentPreview },
             { label: 'Assets', ...assetPreview },
             { label: 'Scenarios', ...scenarioPreview },
           ],
@@ -218,7 +205,6 @@ export const DataManager = () => {
   const commitImportMerge = (
     parts: {
       loans: Loan[];
-      investments: Investment[];
       scenarios: Scenario[];
       assets: Asset[];
     },
@@ -229,14 +215,12 @@ export const DataManager = () => {
     // state fields RestoreData replaces — not the derived `real*` views.
     const snapshot: DataSnapshot = {
       loans,
-      investments,
       assets,
       scenarios,
       stashedLoans,
-      stashedInvestments,
       stashedAssets,
     };
-    importMerge(parts.loans, parts.investments, parts.scenarios, parts.assets);
+    importMerge(parts.loans, parts.scenarios, parts.assets);
     setImportUndo({
       snapshot,
       message: `Imported ${added} item${added === 1 ? '' : 's'}${
@@ -260,11 +244,11 @@ export const DataManager = () => {
   };
 
   // Confirm a Monarch import with the user's chosen per-account types. Only the
-  // assets list is touched; loans/investments/scenarios stay put.
+  // assets list is touched; loans and scenarios stay put.
   const handleMonarchConfirm = (typedAssets: Asset[]) => {
     const { added, overwritten } = previewMerge(realAssets, typedAssets);
     commitImportMerge(
-      { loans: [], investments: [], scenarios: [], assets: typedAssets },
+      { loans: [], scenarios: [], assets: typedAssets },
       added.length,
       overwritten.length
     );
