@@ -90,8 +90,11 @@ export const loadData = (): {
     return importFromJson(raw);
   } catch (error) {
     // Corrupt, partial, or unmigratable data must never white-screen the app
-    // (D4): drop it and start clean.
+    // (D4): drop it and start clean. Actually remove the bad blob — otherwise it
+    // stays in localStorage and is re-parsed and re-rejected (and re-logged) on
+    // every subsequent load until a save happens to overwrite it. (#133)
     console.warn('PathWise: discarding unreadable saved data.', error);
+    clearData();
     return null;
   }
 };

@@ -87,7 +87,12 @@ export const migrate = (data: RawData): RawData => {
       'Invalid data format: missing schemaVersion. Legacy (v1) files are not supported.'
     );
   }
-  if (typeof version !== 'number') {
+  // `NaN` and `Infinity` are `typeof 'number'`, so a bare type check would let a
+  // non-finite (or fractional) version slip past every gate below: `NaN > N` and
+  // `NaN < N` are both false, so the ladder is skipped and the payload is returned
+  // as if already current — defeating the version gate at the untrusted-data
+  // boundary it exists to protect. Require a real integer version. (#132)
+  if (typeof version !== 'number' || !Number.isInteger(version)) {
     throw new Error('Invalid data format: schemaVersion must be a number.');
   }
   if (version > CURRENT_SCHEMA_VERSION) {

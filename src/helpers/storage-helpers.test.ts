@@ -204,6 +204,25 @@ describe('loadData failure modes', () => {
     );
     expect(loadData()).toBeNull();
   });
+
+  it('actually removes the unreadable blob so it is not re-read every load (#133)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    (globalThis.localStorage as Storage).setItem(
+      STORAGE_DATA_KEY,
+      'not json {'
+    );
+
+    expect(loadData()).toBeNull();
+    // The corrupt payload is dropped from storage, not left in place to be
+    // re-parsed and re-rejected (and re-logged) on every subsequent load.
+    expect(
+      (globalThis.localStorage as Storage).getItem(STORAGE_DATA_KEY)
+    ).toBeNull();
+
+    warn.mockClear();
+    expect(loadData()).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
 });
 
 describe('clearData', () => {

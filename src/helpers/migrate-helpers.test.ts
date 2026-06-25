@@ -130,6 +130,25 @@ describe('migrate (D8 migration ladder)', () => {
     );
   });
 
+  it('rejects a non-finite schemaVersion instead of skipping the ladder (#132)', () => {
+    // `NaN`/`Infinity` are `typeof 'number'`, and both `NaN > N` and `NaN < N`
+    // evaluate to false — so without an integer check a non-finite version would
+    // pass every gate and be returned unmodified as if already current, bypassing
+    // the ladder at the untrusted-data boundary it guards.
+    expect(() => migrate({ schemaVersion: NaN })).toThrow(
+      'schemaVersion must be a number'
+    );
+    expect(() => migrate({ schemaVersion: Infinity })).toThrow(
+      'schemaVersion must be a number'
+    );
+  });
+
+  it('rejects a fractional schemaVersion (#132)', () => {
+    expect(() => migrate({ schemaVersion: 2.5 })).toThrow(
+      'schemaVersion must be a number'
+    );
+  });
+
   it('rejects a version newer than this app understands', () => {
     expect(() =>
       migrate({ schemaVersion: CURRENT_SCHEMA_VERSION + 1 })
