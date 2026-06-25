@@ -162,6 +162,11 @@ export const PitPopout = (props: PitPopoutProps) => {
           <Typography>{`Current Value: ${formatCurrency(
             pitInvestment.CurrentValue
           )}`}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Theoretical projection from this investment&apos;s original inputs.
+            When you&apos;ve set an actual current value, your dashboard and the
+            chart reflect that instead, so the figures here may differ.
+          </Typography>
         </Box>
       </DialogContent>
     </ResponsiveDialog>

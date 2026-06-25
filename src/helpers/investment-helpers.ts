@@ -353,7 +353,24 @@ export const generateInvestmentGrowth = (
   return growth;
 };
 
-// Returns a point-in-time view of an investment using date-based calculations
+// Point-in-time view of an investment at an arbitrary date along its timeline.
+//
+// This is deliberately a THEORETICAL projection from the investment's original
+// inputs (StartingBalance + contributions + compounding) and intentionally does
+// NOT consult the `CurrentValue` actual-balance anchor. It backs the PIT popout,
+// whose "Projection Date" ranges over the whole life of the investment
+// ([StartDate, ∞)), so there is no single "today" at which an anchor would even
+// apply — applying CurrentValue uniformly across past and future projection
+// dates would be wrong.
+//
+// The dashboard, investment table, and chart instead report the actual-anchored
+// value as of today via `currentInvestmentValue` (= CurrentValue when set) — the
+// single source of truth for "what it's worth now". The two figures can
+// legitimately differ for an investment whose real balance has drifted from the
+// modeled curve; that divergence is by design. (A correct anchored projection
+// here would also have to duplicate forecastInvestment's off-boundary
+// compounding reconciliation (#88/#103), or import it and create an
+// investment-helpers <-> forecast-helpers dependency cycle.) (#135)
 export const getPitInvestmentCalculation = (
   investment: Investment,
   date?: Date
