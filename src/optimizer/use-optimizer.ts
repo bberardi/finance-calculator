@@ -52,14 +52,21 @@ export const useOptimizer = ({
     worker.onmessage = (event: MessageEvent<OptimizerResponse>) => {
       // Ignore results for any request newer work has already superseded.
       if (event.data.requestId !== requestIdRef.current) return;
+      if (event.data.error) {
+        // The search failed for the current request; surface it, keep no plans.
+        setError(true);
+        setLoading(false);
+        return;
+      }
       setPlans(event.data.plans);
       setLoading(false);
     };
-    // Without these, a worker-side failure (an exception in suggestPlans, a
-    // structured-clone or module-load failure) never resolves `loading`, so the
-    // spinner spins forever. The ErrorEvent carries no requestId, but `loading`
-    // is only ever true while a request is in flight, so clearing it on any
-    // worker error is safe. (#131)
+    // Last-resort net for failures that never produce a response message — a
+    // worker module-load failure, or onmessageerror on an undeserializable
+    // message. A suggestPlans throw is reported through the requestId-keyed
+    // onmessage channel above (so it can be dropped if stale); these events carry
+    // no requestId, but `loading` is only ever true while a request is in flight,
+    // so clearing it and surfacing the error here is safe. (#131)
     const handleWorkerFailure = () => {
       setLoading(false);
       setError(true);
