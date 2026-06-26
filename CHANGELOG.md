@@ -9,6 +9,22 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.5.0] — Type editors at Monarch import
+
+### Added
+
+- **Set an account's full type — including Loan — while importing from Monarch.**
+  The per-account type picker now offers **Loan** and **Investment** alongside
+  Cash / Property / Custom asset / Custom liability. Choosing Loan, Cash,
+  Property, or Investment opens that type's editor pre-filled from the account
+  (name, provider, balance), so its type-specific fields — loan rate/term/payment,
+  cash APY, property appreciation and linked mortgage, investment return and
+  contributions — are captured up front instead of landing half-specified. A
+  Monarch debt can become a real amortizing loan in the same step, rather than
+  importing as a custom liability and being converted afterward. Custom
+  asset/liability still import in one click, and the whole batch commits as a
+  single undoable merge.
+
 ## [1.4.1] — Optimizer and projection robustness
 
 ### Fixed

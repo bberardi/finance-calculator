@@ -243,14 +243,16 @@ export const DataManager = () => {
     setPendingImport(null);
   };
 
-  // Confirm a Monarch import with the user's chosen per-account types. Only the
-  // assets list is touched; loans and scenarios stay put.
-  const handleMonarchConfirm = (typedAssets: Asset[]) => {
-    const { added, overwritten } = previewMerge(realAssets, typedAssets);
+  // Confirm a Monarch import with the user's chosen per-account types. Loan rows
+  // commit as loans, everything else (incl. investments, as AssetType.Investment)
+  // as assets — one undoable merge.
+  const handleMonarchConfirm = (result: { loans: Loan[]; assets: Asset[] }) => {
+    const loanPreview = previewMerge(realLoans, result.loans);
+    const assetPreview = previewMerge(realAssets, result.assets);
     commitImportMerge(
-      { loans: [], scenarios: [], assets: typedAssets },
-      added.length,
-      overwritten.length
+      { loans: result.loans, scenarios: [], assets: result.assets },
+      loanPreview.added.length + assetPreview.added.length,
+      loanPreview.overwritten.length + assetPreview.overwritten.length
     );
     setMonarchAccounts(null);
   };
@@ -260,12 +262,6 @@ export const DataManager = () => {
     restoreData(importUndo.snapshot);
     setImportUndo(null);
   };
-
-  // Add-vs-update counts for the Monarch dialog (by Id, so independent of the
-  // types the user picks). Computed against the real (merge-target) assets.
-  const monarchPreview = monarchAccounts
-    ? previewMerge(realAssets, monarchAccounts)
-    : null;
 
   return (
     <>
@@ -338,8 +334,7 @@ export const DataManager = () => {
       <MonarchImportDialog
         open={!!monarchAccounts}
         accounts={monarchAccounts ?? []}
-        addedCount={monarchPreview?.added.length ?? 0}
-        updatedCount={monarchPreview?.overwritten.length ?? 0}
+        existingLoans={realLoans}
         onConfirm={handleMonarchConfirm}
         onCancel={() => setMonarchAccounts(null)}
       />

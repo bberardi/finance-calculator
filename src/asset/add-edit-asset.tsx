@@ -74,11 +74,15 @@ export const AddEditAsset = (props: AddEditAssetProps) => {
   } = useFieldTracking(validation);
 
   useEffect(() => {
-    // Edit reuses the passed entity; add seeds an empty entity of the type the
-    // entry point chose, so the form opens already on (say) "Custom liability".
-    setNewAsset(props.asset ?? { ...emptyAsset, AssetType: seedType });
+    // Edit reuses the passed entity; an import/convert seeds add-mode from
+    // `initialValues` (name/provider/balance + chosen type pre-filled); a plain
+    // add starts empty on the entry point's chosen type.
+    setNewAsset(
+      props.asset ??
+        props.initialValues ?? { ...emptyAsset, AssetType: seedType }
+    );
     resetTracking();
-  }, [props.asset, props.open, seedType, resetTracking]);
+  }, [props.asset, props.initialValues, props.open, seedType, resetTracking]);
 
   const onSave = () => {
     if (!isFormValid()) {
@@ -265,6 +269,11 @@ export interface AddEditAssetProps {
   onSave: (newAsset: Asset, oldAsset?: Asset) => void;
   onClose: () => void;
   asset?: Asset;
+  // Add-mode prefill (e.g. configuring an account chosen as Cash / Property /
+  // Investment during Monarch import). Ignored when `asset` is set (edit mode);
+  // the form still treats this as an add, so onSave receives no `oldAsset` and a
+  // fresh Id is assigned downstream.
+  initialValues?: Asset;
   // Loans available to pair with a property (7.2 entity linking).
   loans: Loan[];
   // The AssetType options the in-dialog selector offers. When only one type is

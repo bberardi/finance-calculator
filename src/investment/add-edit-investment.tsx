@@ -72,9 +72,14 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   };
 
   useEffect(() => {
-    setNewInvestment(props.investment ?? emptyInvestment);
+    // Edit reuses the passed entity; an import seeds add-mode from
+    // `initialValues` (name/provider/starting balance pre-filled); a plain add
+    // starts empty.
+    setNewInvestment(
+      props.investment ?? props.initialValues ?? emptyInvestment
+    );
     resetTracking();
-  }, [props.investment, props.open, resetTracking]);
+  }, [props.investment, props.initialValues, props.open, resetTracking]);
 
   return (
     <ResponsiveDialog open={props.open} onClose={props.onClose}>
@@ -384,4 +389,8 @@ export interface AddEditInvestmentProps {
   onSave: (newInvestment: Investment, oldInvestment?: Investment) => void;
   onClose: () => void;
   investment?: Investment;
+  // Add-mode prefill (e.g. configuring an account chosen as Investment during
+  // Monarch import). Ignored when `investment` is set (edit mode); the form still
+  // treats this as an add, so onSave receives no `oldInvestment`.
+  initialValues?: Investment;
 }
