@@ -483,6 +483,26 @@ describe('Investment Helpers', () => {
           100;
         expect(pit.ProjectedAnnualReturn).toBeCloseTo(expected, 2);
       });
+
+      it('is a theoretical projection that intentionally ignores the CurrentValue anchor (#135)', () => {
+        // The PIT popout is a "from original inputs" projection across the whole
+        // timeline; the actual-balance anchor belongs to the dashboard's
+        // currentInvestmentValue, not here. Setting CurrentValue must not move
+        // these figures — the divergence is documented and by design.
+        const endDate = new Date(2030, 0, 1);
+        const projected = getPitInvestmentCalculation(investment, endDate);
+        const withAnchor = getPitInvestmentCalculation(
+          { ...investment, CurrentValue: 999999 },
+          endDate
+        );
+        expect(withAnchor.CurrentValue).toBe(projected.CurrentValue);
+        expect(withAnchor.TotalInterestEarned).toBe(
+          projected.TotalInterestEarned
+        );
+        expect(withAnchor.ProjectedAnnualReturn).toBe(
+          projected.ProjectedAnnualReturn
+        );
+      });
     });
   });
 

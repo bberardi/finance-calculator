@@ -9,6 +9,25 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.4.1] — Optimizer and projection robustness
+
+### Fixed
+
+- **The optimizer no longer shows a spinner that never resolves when its
+  background worker fails.** A worker error now clears the spinner and surfaces an
+  error message instead of a stuck "calculating…" state, and failures are reported
+  on the same channel as results so a stale failure can't flag the current search.
+  (#131)
+- **Bounded the optimizer's suggested-split search** so aggressive engine options
+  can no longer blow up the search space — the split is capped to at most four
+  targets and the step granularity is floored to keep the grid bounded. Default
+  behavior is unchanged. (#134)
+- **Clarified that the point-in-time investment calculator is a theoretical
+  projection from an investment's original inputs**, not the actual-value anchor
+  the dashboard and chart use, so its figures can legitimately differ for a
+  position with an explicit current value. Explained in code and in a caption on
+  the popout. (#135)
+
 ## [1.4.0] — Investments are a kind of asset
 
 ### Changed

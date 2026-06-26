@@ -32,6 +32,10 @@ export interface OptimizerRequest {
 export interface OptimizerResponse {
   requestId: number;
   plans: PlanEvaluation[];
+  // Set when the search threw. Routing the failure through this requestId-keyed
+  // channel lets the hook drop a stale failure exactly as it drops a stale
+  // success, rather than reacting to an uncorrelated main-thread ErrorEvent. (#131)
+  error?: boolean;
 }
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -47,15 +51,24 @@ ctx.onmessage = (event: MessageEvent<OptimizerRequest>) => {
     horizon,
     assets,
   } = event.data;
-  const plans = suggestPlans(
-    loans,
-    investments,
-    monthlyExtra,
-    options,
-    today,
-    horizon,
-    assets
-  );
-  const response: OptimizerResponse = { requestId, plans };
-  ctx.postMessage(response);
+  try {
+    const plans = suggestPlans(
+      loans,
+      investments,
+      monthlyExtra,
+      options,
+      today,
+      horizon,
+      assets
+    );
+    const response: OptimizerResponse = { requestId, plans };
+    ctx.postMessage(response);
+  } catch {
+    // Report a search failure on the same requestId-keyed channel as success, so
+    // the hook can ignore it if the request has since been superseded, instead of
+    // letting the exception escape to the main thread's onerror where it can't be
+    // correlated to this request. (#131)
+    const response: OptimizerResponse = { requestId, plans: [], error: true };
+    ctx.postMessage(response);
+  }
 };
