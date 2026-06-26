@@ -76,7 +76,7 @@ export const OptimizerPanel = ({
     [horizonKey, loans, investments, today]
   );
 
-  const { plans, loading } = useOptimizer({
+  const { plans, loading, error } = useOptimizer({
     loans,
     investments,
     monthlyExtra,
@@ -143,6 +143,12 @@ export const OptimizerPanel = ({
         </Alert>
       ) : (
         <>
+          {error && (
+            <Alert severity="error">
+              The optimizer ran into a problem and couldn&apos;t finish. Try
+              adjusting your inputs.
+            </Alert>
+          )}
           <Table size="small" aria-label="Ranked allocation plans">
             <TableHead>
               <TableRow>

@@ -17,6 +17,9 @@ interface UseOptimizerArgs {
 interface OptimizerResult {
   plans: PlanEvaluation[];
   loading: boolean;
+  // True when the worker failed, so the UI can report it instead of showing a
+  // spinner that never resolves. Cleared when a new search starts.
+  error: boolean;
 }
 
 const DEBOUNCE_MS = 250;
@@ -36,6 +39,7 @@ export const useOptimizer = ({
 }: UseOptimizerArgs): OptimizerResult => {
   const [plans, setPlans] = useState<PlanEvaluation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef(0);
 
@@ -48,9 +52,27 @@ export const useOptimizer = ({
     worker.onmessage = (event: MessageEvent<OptimizerResponse>) => {
       // Ignore results for any request newer work has already superseded.
       if (event.data.requestId !== requestIdRef.current) return;
+      if (event.data.error) {
+        // The search failed for the current request; surface it, keep no plans.
+        setError(true);
+        setLoading(false);
+        return;
+      }
       setPlans(event.data.plans);
       setLoading(false);
     };
+    // Last-resort net for failures that never produce a response message — a
+    // worker module-load failure, or onmessageerror on an undeserializable
+    // message. A suggestPlans throw is reported through the requestId-keyed
+    // onmessage channel above (so it can be dropped if stale); these events carry
+    // no requestId, but `loading` is only ever true while a request is in flight,
+    // so clearing it and surfacing the error here is safe. (#131)
+    const handleWorkerFailure = () => {
+      setLoading(false);
+      setError(true);
+    };
+    worker.onerror = handleWorkerFailure;
+    worker.onmessageerror = handleWorkerFailure;
     workerRef.current = worker;
     return () => {
       worker.terminate();
@@ -65,6 +87,7 @@ export const useOptimizer = ({
       requestIdRef.current += 1;
       setPlans([]);
       setLoading(false);
+      setError(false);
       return;
     }
 
@@ -72,6 +95,7 @@ export const useOptimizer = ({
     if (!worker) return;
 
     setLoading(true);
+    setError(false);
     const requestId = (requestIdRef.current += 1);
     const handle = window.setTimeout(() => {
       const request: OptimizerRequest = {
@@ -83,11 +107,19 @@ export const useOptimizer = ({
         horizon,
         assets,
       };
-      worker.postMessage(request);
+      try {
+        worker.postMessage(request);
+      } catch {
+        // A non-cloneable message would throw here synchronously, outside the
+        // worker's onerror handler; clear the spinner directly so it can't
+        // stick. (#131)
+        setLoading(false);
+        setError(true);
+      }
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
   }, [loans, investments, monthlyExtra, today, horizon, assets]);
 
-  return { plans, loading };
+  return { plans, loading, error };
 };
