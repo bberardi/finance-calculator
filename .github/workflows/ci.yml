@@ -68,10 +68,10 @@ jobs:
     # OS deps) pre-installed at /ms-playwright. This sidesteps `playwright
     # install` entirely — that step hung deterministically on this runner,
     # downloading Chromium to 100% and then stalling in extraction until killed.
-    # The tag MUST track the @playwright/test version in package.json (1.56.1);
+    # The tag MUST track the @playwright/test version in package.json (1.61.1);
     # bump both together so the bundled browser matches the installed client.
     container:
-      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
     # Safety net so a hung dev server / browser can't sit at the 6-hour default.
     timeout-minutes: 15
     steps:
