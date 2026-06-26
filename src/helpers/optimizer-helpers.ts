@@ -120,6 +120,18 @@ export interface SuggestOptions {
 const DEFAULT_STEP_PERCENT = 10;
 const DEFAULT_MAX_CANDIDATES = 3;
 
+// Hard upper bounds on the split search so it stays tractable regardless of the
+// caller's SuggestOptions (#134). The grid enumerates integer compositions of
+// (100 / stepPercent) across the split targets and runs a full multi-entity
+// forecast per composition, so a fine step over several targets blows up
+// combinatorially — e.g. stepPercent 1 with 5 targets is C(104, 4) ≈ 4.6M
+// forecasts, which would pin the worker indefinitely. Cap the number of split
+// targets and floor the step so the composition count stays within
+// MAX_SPLIT_GRID_POINTS. The defaults (10% / 3 candidates → 66 compositions) sit
+// far inside these bounds, so normal use is unaffected.
+const MAX_SPLIT_CANDIDATES = 4;
+const MAX_SPLIT_GRID_POINTS = 1000;
+
 // The split grid only sums to a true 100% when the step evenly divides 100;
 // otherwise `Math.round(100 / step) * step` lands short (e.g. step=7 → 98%),
 // drifting the displayed splitLabel percentages and share ratios away from a
@@ -132,6 +144,29 @@ const normalizeStepPercent = (requested: number): number => {
     Math.abs(divisor - requested) < Math.abs(best - requested) ? divisor : best
   );
 };
+
+// Number of integer compositions of `steps` over `parts` parts:
+// C(steps + parts - 1, parts - 1). Computed multiplicatively (exact for the
+// small, clamped inputs here) so the grid can be sized without enumerating it.
+const compositionCount = (steps: number, parts: number): number => {
+  let count = 1;
+  for (let i = 1; i < parts; i++) {
+    count = (count * (steps + i)) / i;
+  }
+  return count;
+};
+
+// Finest divisor of 100 whose composition grid over `parts` targets fits within
+// MAX_SPLIT_GRID_POINTS. Seeded with the coarsest divisor (100 → grid size
+// `parts`, which always fits), so it always returns a clean divisor of 100. (#134)
+const minFittingStepPercent = (parts: number): number =>
+  STEP_DIVISORS.reduce(
+    (finest, divisor) =>
+      compositionCount(100 / divisor, parts) <= MAX_SPLIT_GRID_POINTS
+        ? Math.min(finest, divisor)
+        : finest,
+    100
+  );
 
 // Every ordered list of `parts` non-negative integers that sum to `total`
 // (integer compositions including zeros), e.g. total=10, parts=2 →
@@ -203,10 +238,15 @@ export const suggestPlans = (
 ): PlanEvaluation[] => {
   if (!(monthlyExtra > 0)) return [];
 
-  const stepPercent = normalizeStepPercent(
+  const requestedStep = normalizeStepPercent(
     options.stepPercent ?? DEFAULT_STEP_PERCENT
   );
-  const maxCandidates = options.maxCandidates ?? DEFAULT_MAX_CANDIDATES;
+  // Clamp candidate count to a small bound so the split grid can't explode; the
+  // floor/min collapse a fractional, zero, or negative request into range. (#134)
+  const maxCandidates = Math.min(
+    Math.max(1, Math.floor(options.maxCandidates ?? DEFAULT_MAX_CANDIDATES)),
+    MAX_SPLIT_CANDIDATES
+  );
 
   const targets: Target[] = [
     ...loans.map((loan) => ({ id: loan.Id, name: loan.Name })),
@@ -258,6 +298,13 @@ export const suggestPlans = (
     });
 
   if (topTargets.length >= 2) {
+    // Floor the requested step so the composition grid over the actual number of
+    // split targets stays within budget — a fine step is coarsened, never the
+    // reverse, so an explicit coarse request is still honored. (#134)
+    const stepPercent = Math.max(
+      requestedStep,
+      minFittingStepPercent(topTargets.length)
+    );
     const steps = Math.round(100 / stepPercent);
     for (const composition of integerCompositions(steps, topTargets.length)) {
       const shares = composition.map((part) => part * stepPercent);

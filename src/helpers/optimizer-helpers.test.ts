@@ -258,6 +258,41 @@ describe('suggestPlans', () => {
       expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(300, 2);
     }
   });
+
+  it('clamps maxCandidates and floors stepPercent so aggressive options cannot blow up the search (#134)', () => {
+    // Five targets with maxCandidates: 50 and stepPercent: 1 would, unclamped,
+    // enumerate integer compositions of 100 across up to 50 targets — millions of
+    // full forecasts, effectively a hang. The clamp caps the split to at most
+    // MAX_SPLIT_CANDIDATES (4) targets and floors the step, so the grid — and the
+    // plan count — stays bounded and the search terminates immediately.
+    const loans: Loan[] = Array.from({ length: 5 }, (_, i) => ({
+      ...loan,
+      Id: `loan-${i}`,
+      Name: `Loan ${i}`,
+    }));
+    // Short horizon → each per-composition forecast is cheap, so even the bounded
+    // worst-case grid runs fast under coverage instrumentation.
+    const horizon = new Date(2025, 3, 1);
+
+    const plans = suggestPlans(
+      loans,
+      [],
+      600,
+      { maxCandidates: 50, stepPercent: 1 },
+      TODAY,
+      horizon
+    );
+
+    // Bounded: 5 singles plus a small split grid, nowhere near the unclamped
+    // millions. And no plan splits across more than the clamped target count —
+    // un-capped, the topTargets (and thus some splits) would span all 5.
+    expect(plans.length).toBeGreaterThan(loans.length);
+    expect(plans.length).toBeLessThan(1000);
+    for (const plan of plans) {
+      expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(600, 2);
+      expect(Object.keys(plan.plan.allocations).length).toBeLessThanOrEqual(4);
+    }
+  });
 });
 
 describe('rebalanceAllocation', () => {
