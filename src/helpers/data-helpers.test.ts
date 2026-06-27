@@ -386,6 +386,9 @@ describe('exportToJson and importFromJson', () => {
       ContributionFrequency: CompoundingFrequency.Monthly,
       ContributionStepUpAmount: 50,
       ContributionStepUpType: StepUpType.Flat,
+      EmployerMatchRate: 50,
+      EmployerMatchLimitPct: 6,
+      AnnualSalary: 100000,
     };
 
     const json = exportToJson(
@@ -402,6 +405,20 @@ describe('exportToJson and importFromJson', () => {
     expect(asset.ContributionFrequency).toBe(CompoundingFrequency.Monthly);
     expect(asset.ContributionStepUpAmount).toBe(50);
     expect(asset.ContributionStepUpType).toBe(StepUpType.Flat);
+    expect(asset.EmployerMatchRate).toBe(50);
+    expect(asset.EmployerMatchLimitPct).toBe(6);
+    expect(asset.AnnualSalary).toBe(100000);
+  });
+
+  it('rejects a negative employer-match field on import (ROADMAP 8.1)', () => {
+    const asset = investmentToAsset({
+      ...testInvestment,
+      EmployerMatchRate: -5,
+    });
+    const json = exportToJson([], [], [asset]);
+    expect(() => importFromJson(json)).toThrow(
+      "Invalid value for 'EmployerMatchRate'"
+    );
   });
 
   it('should reject a file with schemaVersion: 1 as a legacy version', () => {

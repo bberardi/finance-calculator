@@ -32,6 +32,9 @@ export const assetToInvestment = (asset: Asset): Investment => ({
   ContributionStepUpAmount: asset.ContributionStepUpAmount,
   ContributionStepUpType: asset.ContributionStepUpType,
   CurrentValue: asset.CurrentValue,
+  EmployerMatchRate: asset.EmployerMatchRate,
+  EmployerMatchLimitPct: asset.EmployerMatchLimitPct,
+  AnnualSalary: asset.AnnualSalary,
 });
 
 /** Convert an Investment into its `AssetType.Investment` Asset representation. */
@@ -49,6 +52,9 @@ export const investmentToAsset = (investment: Investment): Asset => ({
   ContributionStepUpAmount: investment.ContributionStepUpAmount,
   ContributionStepUpType: investment.ContributionStepUpType,
   CurrentValue: investment.CurrentValue,
+  EmployerMatchRate: investment.EmployerMatchRate,
+  EmployerMatchLimitPct: investment.EmployerMatchLimitPct,
+  AnnualSalary: investment.AnnualSalary,
 });
 
 /** True for assets that are investments (folded from the standalone Investment). */

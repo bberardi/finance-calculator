@@ -311,6 +311,31 @@ const parseAssets = (value: unknown): Asset[] => {
       (n) => n >= 0,
       'a non-negative finite number'
     );
+    // Employer-match inputs (ROADMAP 8.1); investment-only, optional, non-negative.
+    validateOptionalNumericField(
+      raw.EmployerMatchRate,
+      'EmployerMatchRate',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
+    validateOptionalNumericField(
+      raw.EmployerMatchLimitPct,
+      'EmployerMatchLimitPct',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
+    validateOptionalNumericField(
+      raw.AnnualSalary,
+      'AnnualSalary',
+      'asset',
+      index,
+      (n) => n >= 0,
+      'a non-negative finite number'
+    );
     let startDate: Date | undefined;
     if (raw.StartDate !== undefined && raw.StartDate !== null) {
       validateDateField(raw.StartDate, 'StartDate', 'asset', index);
@@ -378,6 +403,9 @@ const parseAssets = (value: unknown): Asset[] => {
         | StepUpType
         | undefined,
       CurrentValue: raw.CurrentValue as number | undefined,
+      EmployerMatchRate: raw.EmployerMatchRate as number | undefined,
+      EmployerMatchLimitPct: raw.EmployerMatchLimitPct as number | undefined,
+      AnnualSalary: raw.AnnualSalary as number | undefined,
     };
   });
 };

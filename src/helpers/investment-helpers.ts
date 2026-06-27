@@ -208,6 +208,42 @@ export const getContributionForYear = (
   }
 };
 
+// Employer 401(k) match earned as this investment-year's cumulative contributions
+// grow by `contributionThisStep` from `priorCumulativeThisYear` (ROADMAP 8.1).
+// The employer adds EmployerMatchRate% of your contributions, on the first
+// (EmployerMatchLimitPct% of AnnualSalary) you contribute each year — so the
+// match tapers to 0 as cumulative contributions cross that cap. Returns 0 unless
+// all three match inputs are set (> 0). Deliberately UNROUNDED so per-step accrual
+// telescopes exactly to the annual figure (callers round the value, per
+// PRECISION.md): min() is piecewise-linear, so summing the match over many small
+// steps equals computing it over one large step, which keeps the monthly forecast
+// and the period growth engine consistent regardless of contribution/compounding
+// granularity.
+export const employerMatchOnContribution = (
+  priorCumulativeThisYear: number,
+  contributionThisStep: number,
+  investment: Investment
+): number => {
+  const rate = investment.EmployerMatchRate ?? 0;
+  const limitPct = investment.EmployerMatchLimitPct ?? 0;
+  const salary = investment.AnnualSalary ?? 0;
+  if (
+    !(rate > 0) ||
+    !(limitPct > 0) ||
+    !(salary > 0) ||
+    !(contributionThisStep > 0)
+  ) {
+    return 0;
+  }
+  const cap = (limitPct / 100) * salary;
+  const matchedBefore = Math.min(priorCumulativeThisYear, cap);
+  const matchedAfter = Math.min(
+    priorCumulativeThisYear + contributionThisStep,
+    cap
+  );
+  return (rate / 100) * (matchedAfter - matchedBefore);
+};
+
 // Calculate the investment year number (1-indexed) based on how many years have passed since start
 export const getInvestmentYear = (
   currentDate: Date,
@@ -296,6 +332,11 @@ export const generateInvestmentGrowth = (
     TotalValue: Math.round(currentValue * 100) / 100,
   });
 
+  // Employer-match accrual state (ROADMAP 8.1): the matchable contribution used
+  // this investment-year, reset at each year boundary so the annual cap holds.
+  let matchYear = 0;
+  let matchCumThisYear = 0;
+
   // Process each compounding period
   while (currentDate < end) {
     const nextCompoundDate = getNextCompoundingDate(
@@ -323,6 +364,24 @@ export const generateInvestmentGrowth = (
       currentValue += contributionThisPeriod;
     }
 
+    // Employer match (ROADMAP 8.1), accrued against the annual cap per
+    // investment-year. A compounding period never crosses a year boundary (the
+    // period count divides the year evenly), so the whole period belongs to one
+    // year; reset the running total when the year changes. The match is money in
+    // that compounds this period like any contribution.
+    const periodYear = getInvestmentYear(currentDate, investment.StartDate);
+    if (periodYear !== matchYear) {
+      matchYear = periodYear;
+      matchCumThisYear = 0;
+    }
+    const employerMatch = employerMatchOnContribution(
+      matchCumThisYear,
+      contributionThisPeriod,
+      investment
+    );
+    matchCumThisYear += contributionThisPeriod;
+    currentValue += employerMatch;
+
     // Apply compound interest (full period or pro-rated)
     let interestEarned: number;
     if (nextCompoundDate <= end) {
@@ -342,7 +401,9 @@ export const generateInvestmentGrowth = (
 
     growth.push({
       Period: period,
-      ContributionAmount: contributionThisPeriod,
+      // Total money in this period — your contribution plus any employer match.
+      ContributionAmount:
+        Math.round((contributionThisPeriod + employerMatch) * 100) / 100,
       InterestEarned: Math.round(interestEarned * 100) / 100,
       TotalValue: Math.round(currentValue * 100) / 100,
     });

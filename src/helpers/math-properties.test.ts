@@ -5,7 +5,10 @@ import {
   getMonthlyPayment,
   getTerms,
 } from './loan-helpers';
-import { getContributionForYear } from './investment-helpers';
+import {
+  employerMatchOnContribution,
+  getContributionForYear,
+} from './investment-helpers';
 import {
   forecastLoan,
   forecastInvestment,
@@ -250,6 +253,90 @@ describe('Property: contribution step-ups', () => {
           const thisYear = getContributionForYear(base, year, stepUp, type);
           const nextYear = getContributionForYear(base, year + 1, stepUp, type);
           expect(nextYear).toBeGreaterThanOrEqual(thisYear);
+        }
+      )
+    );
+  });
+});
+
+describe('Property: employer match invariants (ROADMAP 8.1)', () => {
+  const investmentWith = (
+    rate: number,
+    limitPct: number,
+    salary: number
+  ): Investment => ({
+    Id: 'p',
+    Provider: '',
+    Name: '',
+    StartDate: new Date(2020, 0, 1),
+    StartingBalance: 0,
+    AverageReturnRate: 0,
+    CompoundingPeriod: CompoundingFrequency.Annually,
+    EmployerMatchRate: rate,
+    EmployerMatchLimitPct: limitPct,
+    AnnualSalary: salary,
+  });
+
+  const matchArb = fc.record({
+    rate: fc.double({ min: 0, max: 200, noNaN: true }),
+    limitPct: fc.double({ min: 0, max: 50, noNaN: true }),
+    salary: fc.double({ min: 0, max: 500000, noNaN: true }),
+    prior: fc.double({ min: 0, max: 300000, noNaN: true }),
+    step: fc.double({ min: 0, max: 60000, noNaN: true }),
+  });
+
+  it('is non-negative and never exceeds rate% of the step or of the annual cap', () => {
+    fc.assert(
+      fc.property(matchArb, ({ rate, limitPct, salary, prior, step }) => {
+        const inv = investmentWith(rate, limitPct, salary);
+        const m = employerMatchOnContribution(prior, step, inv);
+        const cap = (limitPct / 100) * salary;
+        expect(m).toBeGreaterThanOrEqual(0);
+        expect(m).toBeLessThanOrEqual((rate / 100) * step + 1e-6);
+        expect(m).toBeLessThanOrEqual((rate / 100) * cap + 1e-6);
+      })
+    );
+  });
+
+  it('never decreases as the contribution grows (more in, never less match)', () => {
+    fc.assert(
+      fc.property(
+        matchArb,
+        fc.double({ min: 0, max: 60000, noNaN: true }),
+        ({ rate, limitPct, salary, prior, step }, extra) => {
+          const inv = investmentWith(rate, limitPct, salary);
+          const less = employerMatchOnContribution(prior, step, inv);
+          const more = employerMatchOnContribution(prior, step + extra, inv);
+          expect(more).toBeGreaterThanOrEqual(less - 1e-6);
+        }
+      )
+    );
+  });
+
+  it('telescopes: a year filled in many steps earns the same total as one step', () => {
+    // The invariant that makes the monthly forecast and the period growth engine
+    // agree — the match summed over arbitrary sub-steps equals the match on the
+    // whole, so different contribution/compounding granularities reconcile.
+    fc.assert(
+      fc.property(
+        fc.double({ min: 1, max: 100, noNaN: true }),
+        fc.double({ min: 1, max: 20, noNaN: true }),
+        fc.double({ min: 1000, max: 300000, noNaN: true }),
+        fc.array(fc.double({ min: 0, max: 5000, noNaN: true }), {
+          minLength: 1,
+          maxLength: 24,
+        }),
+        (rate, limitPct, salary, steps) => {
+          const inv = investmentWith(rate, limitPct, salary);
+          let used = 0;
+          let stepwise = 0;
+          for (const s of steps) {
+            stepwise += employerMatchOnContribution(used, s, inv);
+            used += s;
+          }
+          const total = steps.reduce((a, b) => a + b, 0);
+          const oneShot = employerMatchOnContribution(0, total, inv);
+          expect(stepwise).toBeCloseTo(oneShot, 2);
         }
       )
     );

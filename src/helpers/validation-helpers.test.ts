@@ -294,6 +294,29 @@ describe('validateInvestment — errors', () => {
     ).toBeUndefined();
   });
 
+  it('rejects negative employer-match fields, accepts a complete match (ROADMAP 8.1)', () => {
+    expect(
+      validateInvestment({ ...validInvestment(), EmployerMatchRate: -1 }).errors
+        .EmployerMatchRate
+    ).toBeDefined();
+    expect(
+      validateInvestment({ ...validInvestment(), EmployerMatchLimitPct: -1 })
+        .errors.EmployerMatchLimitPct
+    ).toBeDefined();
+    expect(
+      validateInvestment({ ...validInvestment(), AnnualSalary: -1 }).errors
+        .AnnualSalary
+    ).toBeDefined();
+    expect(
+      isInvestmentValid({
+        ...validInvestment(),
+        EmployerMatchRate: 50,
+        EmployerMatchLimitPct: 6,
+        AnnualSalary: 100000,
+      })
+    ).toBe(true);
+  });
+
   it('isInvestmentValid is false whenever any error is present', () => {
     expect(isInvestmentValid({ ...validInvestment(), Name: '' })).toBe(false);
     expect(
@@ -321,6 +344,37 @@ describe('validateInvestment — warnings (non-blocking)', () => {
       'beats every broad index'
     );
     expect(isInvestmentValid(high)).toBe(true);
+  });
+
+  it('warns when an employer match is only partially configured, not when complete (ROADMAP 8.1)', () => {
+    // One of the three inputs set → the match is ignored until all three → warn.
+    expect(
+      validateInvestment({ ...validInvestment(), EmployerMatchRate: 50 })
+        .warnings.EmployerMatchRate
+    ).toContain('all three');
+    // Two of three → still partial → warn (non-blocking).
+    const partial = {
+      ...validInvestment(),
+      EmployerMatchRate: 50,
+      AnnualSalary: 100000,
+    };
+    expect(
+      validateInvestment(partial).warnings.EmployerMatchRate
+    ).toBeDefined();
+    expect(isInvestmentValid(partial)).toBe(true);
+    // All three set → no warning.
+    expect(
+      validateInvestment({
+        ...validInvestment(),
+        EmployerMatchRate: 50,
+        EmployerMatchLimitPct: 6,
+        AnnualSalary: 100000,
+      }).warnings.EmployerMatchRate
+    ).toBeUndefined();
+    // None set → no warning.
+    expect(
+      validateInvestment(validInvestment()).warnings.EmployerMatchRate
+    ).toBeUndefined();
   });
 
   it('warns on a $0 balance with no recurring contribution (#72)', () => {

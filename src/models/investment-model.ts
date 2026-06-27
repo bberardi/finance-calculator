@@ -24,6 +24,13 @@ export interface Investment {
   ContributionStepUpAmount?: number; // Yearly step-up: flat dollar amount or percentage value
   ContributionStepUpType?: StepUpType; // Type of step-up: flat or percentage
   CurrentValue?: number; // Today's actual value when known; forecasts anchor here
+  // Employer 401(k) match (ROADMAP 8.1). Active only when all three are set (> 0)
+  // and the investment has recurring contributions: the employer adds
+  // EmployerMatchRate% of your contributions, on the first
+  // (EmployerMatchLimitPct% of AnnualSalary) you contribute each year.
+  EmployerMatchRate?: number; // % of your contribution the employer matches
+  EmployerMatchLimitPct?: number; // matched up to this % of AnnualSalary per year
+  AnnualSalary?: number; // salary basis for the match cap
 }
 
 export const emptyInvestment: Investment = {

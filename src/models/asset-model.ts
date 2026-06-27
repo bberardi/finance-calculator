@@ -60,6 +60,12 @@ export interface Asset {
   ContributionStepUpAmount?: number;
   ContributionStepUpType?: StepUpType;
   CurrentValue?: number;
+  // Employer 401(k) match (ROADMAP 8.1); investment-only, mirrors Investment. The
+  // employer adds EmployerMatchRate% of your contributions, up to
+  // EmployerMatchLimitPct% of AnnualSalary per year.
+  EmployerMatchRate?: number;
+  EmployerMatchLimitPct?: number;
+  AnnualSalary?: number;
 }
 
 export const emptyAsset: Asset = {

@@ -78,13 +78,13 @@ Declared once, up front, so future feature debates have a reference point. Every
 
 Sharpen the optimizer with the inputs that most change its rankings, and let users compare whole strategies.
 
-| #   | Work item                       | Notes / acceptance                                                                                                                         |
-| --- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 8.1 | **Employer match**              | Match % + cap on a contribution, fed into the optimizer. Without it, "pay the 6% loan vs. fund the 401(k) with 50% match" ranks wrong.     |
-| 8.2 | **One-time lump-sum payments**  | "Where does a $5k bonus go?" — the one-time counterpart to the monthly optimizer. Scenario engine extension.                               |
-| 8.3 | **True monthly payment**        | Escrow, taxes, insurance, PMI with automatic drop-off at 80% LTV (TODO already noted in `loan-model.ts`). Pairs naturally with 7.2.        |
-| 8.4 | **Allocation strategy presets** | Pre-built scenario templates: debt-focused, invest-focused, balanced (split by rate), custom — each showing net-worth impact vs. baseline. |
-| 8.5 | **Strategy comparison view**    | Side-by-side dashboard: net worth at +5y/+10y/+30y, debt-free date, final asset allocation across the presets.                             |
+| #   | Work item                              | Notes / acceptance                                                                                                                                                                                               |
+| --- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8.1 | **Employer match** ✅ _shipped v1.6.0_ | Employer matches a % of your contributions up to a % of salary, fed into the optimizer so a matched contribution is valued correctly — the founding "pay the 6% loan vs. fund the 401(k) with a 50% match" case. |
+| 8.2 | **One-time lump-sum payments**         | "Where does a $5k bonus go?" — the one-time counterpart to the monthly optimizer. Scenario engine extension.                                                                                                     |
+| 8.3 | **True monthly payment**               | Escrow, taxes, insurance, PMI with automatic drop-off at 80% LTV (TODO already noted in `loan-model.ts`). Pairs naturally with 7.2.                                                                              |
+| 8.4 | **Allocation strategy presets**        | Pre-built scenario templates: debt-focused, invest-focused, balanced (split by rate), custom — each showing net-worth impact vs. baseline.                                                                       |
+| 8.5 | **Strategy comparison view**           | Side-by-side dashboard: net worth at +5y/+10y/+30y, debt-free date, final asset allocation across the presets.                                                                                                   |
 
 ---
 

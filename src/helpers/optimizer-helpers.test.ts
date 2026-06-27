@@ -78,6 +78,29 @@ describe('evaluatePlan', () => {
     expect(evaluation.score).toBeGreaterThan(0);
   });
 
+  it('values an employer match: the same extra to a matched 401(k) beats an unmatched one (ROADMAP 8.1)', () => {
+    // $500/mo extra = $6,000/yr, within a 6%-of-$100k cap, matched 100% → the
+    // employer adds another ~$6,000/yr, so the matched account gains more net
+    // worth for the identical allocation. This is the founding "loan vs. matched
+    // 401(k)" signal the optimizer was previously blind to.
+    const planFor = (inv: Investment) =>
+      evaluatePlan(
+        [loan],
+        [inv],
+        { label: 'All to 401(k)', allocations: { [inv.Id]: 500 } },
+        TODAY
+      );
+    const matched: Investment = {
+      ...investment,
+      EmployerMatchRate: 100,
+      EmployerMatchLimitPct: 6,
+      AnnualSalary: 100000,
+    };
+    expect(planFor(matched).netWorthDelta).toBeGreaterThan(
+      planFor(investment).netWorthDelta
+    );
+  });
+
   it('an empty plan has zero impact and score', () => {
     const evaluation = evaluatePlan(
       [loan],
