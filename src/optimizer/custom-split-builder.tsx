@@ -4,6 +4,7 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import {
+  AllocationMode,
   AllocationPlan,
   evaluatePlan,
   rebalanceAllocation,
@@ -19,6 +20,9 @@ interface CustomSplitBuilderProps {
   monthlyExtra: number;
   today: Date;
   horizon: Date;
+  // Recurring monthly extra vs. one-time lump (Phase 8.2): drives scoring and the
+  // per-target labels.
+  mode: AllocationMode;
   onViewAsScenario: (plan: AllocationPlan) => void;
 }
 
@@ -52,8 +56,12 @@ export const CustomSplitBuilder = ({
   monthlyExtra,
   today,
   horizon,
+  mode,
   onViewAsScenario,
 }: CustomSplitBuilderProps) => {
+  // Per-target amount suffix: a recurring split reads "$X/mo", a one-time lump
+  // reads just "$X".
+  const perSuffix = mode === 'oneTime' ? '' : '/mo';
   const targets: Target[] = useMemo(
     () => [
       ...loans.map((loan) => ({ id: loan.Id, name: loan.Name })),
@@ -89,8 +97,8 @@ export const CustomSplitBuilder = ({
   );
 
   const evaluation = useMemo(
-    () => evaluatePlan(loans, investments, plan, today, horizon, assets),
-    [loans, investments, plan, today, horizon, assets]
+    () => evaluatePlan(loans, investments, plan, today, horizon, assets, mode),
+    [loans, investments, plan, today, horizon, assets, mode]
   );
 
   const handleSlider = (id: string, next: number) => {
@@ -118,8 +126,9 @@ export const CustomSplitBuilder = ({
         Build your own split
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        Drag to divide {formatCurrency(monthlyExtra)}/month across your
-        positions — the rest rebalances so it always adds up.
+        Drag to divide {formatCurrency(monthlyExtra)}
+        {mode === 'oneTime' ? '' : '/month'} across your positions — the rest
+        rebalances so it always adds up.
       </Typography>
 
       <Stack spacing={2} sx={{ marginTop: 2 }}>
@@ -131,7 +140,8 @@ export const CustomSplitBuilder = ({
             >
               <Typography variant="body2">{target.name}</Typography>
               <Typography variant="body2" color="text.secondary">
-                {formatCurrency(values[target.id] ?? 0)}/mo
+                {formatCurrency(values[target.id] ?? 0)}
+                {perSuffix}
               </Typography>
             </Stack>
             <Slider
@@ -141,7 +151,9 @@ export const CustomSplitBuilder = ({
               step={Math.max(1, Math.round(monthlyExtra / 100))}
               value={values[target.id] ?? 0}
               onChange={(_, next) => handleSlider(target.id, next as number)}
-              aria-label={`Extra per month toward ${target.name}`}
+              aria-label={`${
+                mode === 'oneTime' ? 'One-time amount' : 'Extra per month'
+              } toward ${target.name}`}
             />
           </Box>
         ))}

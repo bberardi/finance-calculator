@@ -3,6 +3,7 @@ import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import {
+  AllocationMode,
   PlanEvaluation,
   SuggestOptions,
   suggestPlans,
@@ -27,6 +28,9 @@ export interface OptimizerRequest {
   // Passive holdings (Phase 7); folded into the net-worth anchor the search
   // scores against. Plain data with no Date fields, so structured-clone-safe.
   assets: Asset[];
+  // Whether the budget is a recurring monthly extra or a one-time lump (Phase
+  // 8.2). Optional so older callers default to monthly.
+  mode?: AllocationMode;
 }
 
 export interface OptimizerResponse {
@@ -50,6 +54,7 @@ ctx.onmessage = (event: MessageEvent<OptimizerRequest>) => {
     today,
     horizon,
     assets,
+    mode,
   } = event.data;
   try {
     const plans = suggestPlans(
@@ -59,7 +64,8 @@ ctx.onmessage = (event: MessageEvent<OptimizerRequest>) => {
       options,
       today,
       horizon,
-      assets
+      assets,
+      mode
     );
     const response: OptimizerResponse = { requestId, plans };
     ctx.postMessage(response);

@@ -158,6 +158,30 @@ describe('Property: forecastLoan invariants', () => {
       })
     );
   });
+
+  it('a one-time lump never leaves a higher balance, and a zero lump is a no-op (#8.2)', () => {
+    fc.assert(
+      fc.property(loanArb, fc.integer({ min: 1, max: 5000 }), (loan, lump) => {
+        const base = forecastLoan(loan, loan.EndDate, 0, loan.StartDate);
+        const zero = forecastLoan(loan, loan.EndDate, 0, loan.StartDate, 0);
+        const withLump = forecastLoan(
+          loan,
+          loan.EndDate,
+          0,
+          loan.StartDate,
+          lump
+        );
+        for (let m = 0; m < base.length; m++) {
+          // A zero lump reproduces the baseline exactly (identity).
+          expect(cents(zero[m].Value)).toBe(cents(base[m].Value));
+          // A positive lump never raises the balance at any month (monotone).
+          expect(cents(withLump[m].Value)).toBeLessThanOrEqual(
+            cents(base[m].Value)
+          );
+        }
+      })
+    );
+  });
 });
 
 describe('Property: forecastInvestment invariants', () => {
@@ -175,6 +199,33 @@ describe('Property: forecastInvestment invariants', () => {
           const base = forecastInvestment(inv, horizon, 0, inv.StartDate);
           const more = forecastInvestment(inv, horizon, extra, inv.StartDate);
           for (let m = 0; m < base.length; m++) {
+            expect(cents(more[m].Value)).toBeGreaterThanOrEqual(
+              cents(base[m].Value)
+            );
+          }
+        }
+      )
+    );
+  });
+
+  it('more one-time contribution never yields a lower value, and a zero lump is a no-op (#8.2)', () => {
+    fc.assert(
+      fc.property(
+        investmentArb,
+        fc.integer({ min: 1, max: 5000 }),
+        (inv, lump) => {
+          const horizon = new Date(
+            inv.StartDate.getFullYear() + 20,
+            inv.StartDate.getMonth(),
+            1
+          );
+          const base = forecastInvestment(inv, horizon, 0, inv.StartDate);
+          const zero = forecastInvestment(inv, horizon, 0, inv.StartDate, 0);
+          const more = forecastInvestment(inv, horizon, 0, inv.StartDate, lump);
+          for (let m = 0; m < base.length; m++) {
+            // A zero lump reproduces the baseline exactly (identity).
+            expect(cents(zero[m].Value)).toBe(cents(base[m].Value));
+            // A positive lump never lowers the value at any month (monotone).
             expect(cents(more[m].Value)).toBeGreaterThanOrEqual(
               cents(base[m].Value)
             );
