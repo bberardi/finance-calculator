@@ -189,7 +189,7 @@ const parseScenarios = (value: unknown): Scenario[] => {
     if (typeof raw.Name !== 'string' || raw.Name.trim() === '') {
       throw new Error(`Invalid or missing Name in scenario at index ${index}.`);
     }
-    return {
+    const scenario: Scenario = {
       Id: raw.Id as string,
       Name: raw.Name,
       ExtraLoanPayments: parseNumberRecord(
@@ -203,6 +203,24 @@ const parseScenarios = (value: unknown): Scenario[] => {
         index
       ),
     };
+    // One-time lump maps (Phase 8.2) are optional: attach them only when the file
+    // actually carries them, so a recurring-only scenario round-trips byte-for-
+    // byte (no empty OneTime clutter) while a one-time scenario is preserved.
+    if (raw.OneTimeLoanPayments != null) {
+      scenario.OneTimeLoanPayments = parseNumberRecord(
+        raw.OneTimeLoanPayments,
+        'OneTimeLoanPayments',
+        index
+      );
+    }
+    if (raw.OneTimeContributions != null) {
+      scenario.OneTimeContributions = parseNumberRecord(
+        raw.OneTimeContributions,
+        'OneTimeContributions',
+        index
+      );
+    }
+    return scenario;
   });
 };
 

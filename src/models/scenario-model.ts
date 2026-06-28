@@ -10,6 +10,12 @@ export interface Scenario {
   Name: string;
   ExtraLoanPayments: Record<string, number>;
   ExtraContributions: Record<string, number>;
+  // One-time lump-sum amounts applied once at the first forecast month (Phase
+  // 8.2). Optional so the common case — a recurring-only scenario — carries no
+  // empty clutter, and so existing scenarios (and import files) stay valid
+  // without migration. A Scenario remains a valid ScenarioInput either way.
+  OneTimeLoanPayments?: Record<string, number>;
+  OneTimeContributions?: Record<string, number>;
 }
 
 export const emptyScenario: Scenario = {

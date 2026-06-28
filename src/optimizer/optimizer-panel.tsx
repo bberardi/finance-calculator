@@ -21,7 +21,7 @@ import { NumericFormat } from 'react-number-format';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
-import { AllocationPlan } from '../helpers/optimizer-helpers';
+import { AllocationMode, AllocationPlan } from '../helpers/optimizer-helpers';
 import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 import { useFinanceData } from '../state/use-finance-data';
 import { useOptimizer } from './use-optimizer';
@@ -66,8 +66,11 @@ export const OptimizerPanel = ({
   const { addScenario, setActiveScenario } = useFinanceData();
 
   const [monthlyExtra, setMonthlyExtra] = useState(0);
+  const [mode, setMode] = useState<AllocationMode>('monthly');
   const [horizonKey, setHorizonKey] = useState<HorizonKey>('full');
   const [createdName, setCreatedName] = useState<string | null>(null);
+
+  const isOneTime = mode === 'oneTime';
 
   // Stable "today" so the horizon and worker requests share one anchor.
   const today = useMemo(() => new Date(), []);
@@ -83,13 +86,14 @@ export const OptimizerPanel = ({
     today,
     horizon,
     assets,
+    mode,
   });
 
   const topPlans = plans.slice(0, MAX_ROWS);
   const hasPositions = loans.length + investments.length > 0;
 
   const onViewAsScenario = (plan: AllocationPlan) => {
-    const scenario = planToScenario(loans, plan);
+    const scenario = planToScenario(loans, plan, mode);
     const id = addScenario(scenario);
     setActiveScenario(id);
     setCreatedName(scenario.Name);
@@ -98,9 +102,9 @@ export const OptimizerPanel = ({
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Tell PathWise how much extra you can put in each month and it ranks
-        where that money does the most good — all toward one position, or split
-        across several.
+        {isOneTime
+          ? 'Got a one-time lump sum — a bonus, a tax refund, a windfall? PathWise ranks where that money does the most good — all toward one position, or split across several.'
+          : 'Tell PathWise how much extra you can put in each month and it ranks where that money does the most good — all toward one position, or split across several.'}
       </Typography>
 
       <Stack
@@ -109,8 +113,22 @@ export const OptimizerPanel = ({
         useFlexGap
         sx={{ flexWrap: 'wrap', alignItems: 'center', mb: 2 }}
       >
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={mode}
+          onChange={(_, next: AllocationMode | null) => next && setMode(next)}
+          aria-label="Contribution type"
+        >
+          <ToggleButton value="monthly" aria-label="Per month">
+            Per month
+          </ToggleButton>
+          <ToggleButton value="oneTime" aria-label="One-time lump sum">
+            One-time
+          </ToggleButton>
+        </ToggleButtonGroup>
         <NumericFormat
-          label="Extra per month"
+          label={isOneTime ? 'One-time amount' : 'Extra per month'}
           value={monthlyExtra || ''}
           thousandSeparator
           decimalScale={2}
@@ -213,6 +231,7 @@ export const OptimizerPanel = ({
               monthlyExtra={monthlyExtra}
               today={today}
               horizon={horizon}
+              mode={mode}
               onViewAsScenario={onViewAsScenario}
             />
           )}

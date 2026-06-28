@@ -9,6 +9,23 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.7.0] — One-time lump-sum optimizer
+
+### Added
+
+- **Optimize a one-time lump sum, not just a recurring monthly extra (Phase
+  8.2).** A new **Per month / One-time** toggle in the "next dollar" optimizer
+  answers "where does a $5,000 bonus go?" the same way it answers the monthly
+  question — it ranks single-target and split allocations of the lump by
+  long-term net-worth impact and interest saved, and the custom split builder and
+  "view as scenario" overlay work in either mode. A one-time payment is applied
+  once at the first forecast month: on a loan it drops the principal (saving
+  future interest and moving up the debt-free date); on an investment it
+  compounds from month one and earns the employer match up to the remaining
+  annual cap, just like a recurring contribution. Scenarios now carry optional
+  one-time amounts and round-trip through JSON export/import (no schema bump —
+  the fields are additive and optional).
+
 ## [1.6.0] — Employer 401(k) match in the optimizer
 
 ### Added

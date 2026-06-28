@@ -2,7 +2,11 @@ import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { getDefaultHorizon } from '../helpers/forecast-helpers';
-import { AllocationPlan, splitAllocations } from '../helpers/optimizer-helpers';
+import {
+  AllocationMode,
+  AllocationPlan,
+  splitAllocations,
+} from '../helpers/optimizer-helpers';
 import { Scenario, emptyScenario } from '../models/scenario-model';
 
 // Horizon choices for the optimizer (mirrors the chart's time-range control).
@@ -47,19 +51,26 @@ export const formatPayoffSooner = (months: number): string => {
 
 // Build a Scenario (Phase 4 overlay) from an allocation plan so "view as
 // scenario" on the chart reuses the existing scenario machinery. The plan label
-// becomes the scenario name.
+// becomes the scenario name (prefixed for a one-time lump so the chip is
+// self-describing). In 'oneTime' mode (Phase 8.2) splitAllocations targets the
+// OneTime* maps, so the overlay shows the lump applied at the first month.
 export const planToScenario = (
   loans: Loan[],
-  plan: AllocationPlan
+  plan: AllocationPlan,
+  mode: AllocationMode = 'monthly'
 ): Scenario => {
-  const { ExtraLoanPayments, ExtraContributions } = splitAllocations(
-    loans,
-    plan.allocations
-  );
-  return {
-    ...emptyScenario,
-    Name: plan.label,
+  const {
     ExtraLoanPayments,
     ExtraContributions,
+    OneTimeLoanPayments,
+    OneTimeContributions,
+  } = splitAllocations(loans, plan.allocations, mode);
+  return {
+    ...emptyScenario,
+    Name: mode === 'oneTime' ? `One-time — ${plan.label}` : plan.label,
+    ExtraLoanPayments,
+    ExtraContributions,
+    OneTimeLoanPayments,
+    OneTimeContributions,
   };
 };

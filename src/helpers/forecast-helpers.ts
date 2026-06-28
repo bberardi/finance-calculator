@@ -124,7 +124,14 @@ export const forecastLoan = (
   loan: Loan,
   horizon: Date,
   extraMonthlyPayment: number = 0,
-  today: Date = new Date()
+  today: Date = new Date(),
+  // A one-time lump-sum payment applied once, alongside the first month's payment
+  // (Phase 8.2). Like the recurring extra it reduces principal after that month's
+  // interest accrues, so a $X lump and one month of $X extra hit the balance
+  // identically — the difference is only that the lump never recurs. Index 0
+  // (today) is left at CurrentAmount so baseline and scenario agree at the anchor
+  // and diverge from month 1.
+  oneTimePayment: number = 0
 ): ForecastPoint[] => {
   const months = getMonthsBetween(today, horizon);
   const start = dayjs(today);
@@ -139,7 +146,10 @@ export const forecastLoan = (
   for (let month = 1; month <= months; month++) {
     if (balance > 0) {
       const interest = balance * monthlyRate;
-      balance = roundToCents(Math.max(0, balance + interest - payment));
+      const oneTimeThisMonth = month === 1 ? oneTimePayment : 0;
+      balance = roundToCents(
+        Math.max(0, balance + interest - payment - oneTimeThisMonth)
+      );
     }
     points.push({
       Date: start.add(month, 'month').toDate(),
@@ -162,7 +172,12 @@ export const forecastInvestment = (
   investment: Investment,
   horizon: Date,
   extraMonthlyContribution: number = 0,
-  today: Date = new Date()
+  today: Date = new Date(),
+  // A one-time lump-sum contribution applied once, at the first forecast month
+  // (Phase 8.2). It is added to that month's money-in exactly like the recurring
+  // extra — so it earns the employer match up to the remaining annual cap and
+  // compounds from month 1 — but it does not recur.
+  oneTimeContribution: number = 0
 ): ForecastPoint[] => {
   const months = getMonthsBetween(today, horizon);
   const start = dayjs(today);
@@ -284,6 +299,13 @@ export const forecastInvestment = (
       contributionThisMonth += extraMonthlyContribution;
     }
 
+    // One-time lump-sum contribution (ROADMAP 8.2): applied once at month 1, then
+    // folded into the same money-in as the recurring/extra contributions below so
+    // it is matched and compounded identically.
+    if (oneTimeContribution > 0 && month === 1) {
+      contributionThisMonth += oneTimeContribution;
+    }
+
     // Employer match (ROADMAP 8.1) on this month's total contribution (recurring
     // + any optimizer extra), accrued against the annual cap per investment-year.
     // Attribute to the base contribution's canonical year when it fires (matching
@@ -368,7 +390,8 @@ export const forecastNetWorth = (
       loan,
       horizon,
       scenario?.ExtraLoanPayments?.[loan.Id] ?? 0,
-      today
+      today,
+      scenario?.OneTimeLoanPayments?.[loan.Id] ?? 0
     )
   );
   const investmentSeries = investments.map((investment) =>
@@ -376,7 +399,8 @@ export const forecastNetWorth = (
       investment,
       horizon,
       scenario?.ExtraContributions?.[investment.Id] ?? 0,
-      today
+      today,
+      scenario?.OneTimeContributions?.[investment.Id] ?? 0
     )
   );
   const assetSeries = assets.map((asset) =>
