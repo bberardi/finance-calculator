@@ -9,6 +9,21 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.8.0] — True monthly payment (escrow & PMI)
+
+### Added
+
+- **A loan's "true monthly payment" — principal & interest plus escrow and PMI
+  (Phase 8.3).** A loan can now carry a home value, annual property tax, annual
+  homeowners insurance, and a monthly PMI premium. These don't pay down the
+  balance (the forecast still amortizes on principal & interest alone), but they
+  make the **monthly-commitments** total honest and surface a payment breakdown
+  and a **"PMI drops off around …"** date on the loan's point-in-time view. PMI is
+  charged only while loan-to-value is above 80% and is dropped automatically at or
+  below the line (measured against the home's original value, per the federal
+  Homeowners Protection Act). All four fields are optional and additive — a loan
+  without them is unchanged, and files round-trip with no schema bump.
+
 ## [1.7.0] — One-time lump-sum optimizer
 
 ### Added

@@ -557,15 +557,29 @@ export const importFromJson = (
         'a non-negative finite number'
       );
 
-      // Validate optional numeric fields when present
-      validateOptionalNumericField(
-        serializedLoan.MonthlyPayment,
-        'MonthlyPayment',
-        'loan',
-        index,
-        (n) => n >= 0,
-        'a non-negative finite number'
-      );
+      // Validate optional numeric fields when present. The escrow/PMI/home-value
+      // fields (Phase 8.3) join MonthlyPayment as additive optional numerics — no
+      // schema bump, so a file without them stays valid.
+      const optionalNonNegativeFields: [
+        keyof SerializedLoan,
+        number | undefined,
+      ][] = [
+        ['MonthlyPayment', serializedLoan.MonthlyPayment],
+        ['HomeValue', serializedLoan.HomeValue],
+        ['PropertyTaxAnnual', serializedLoan.PropertyTaxAnnual],
+        ['HomeInsuranceAnnual', serializedLoan.HomeInsuranceAnnual],
+        ['MonthlyPmi', serializedLoan.MonthlyPmi],
+      ];
+      for (const [field, value] of optionalNonNegativeFields) {
+        validateOptionalNumericField(
+          value,
+          field,
+          'loan',
+          index,
+          (n) => n >= 0,
+          'a non-negative finite number'
+        );
+      }
 
       // Date fields must be ISO strings (the NaN check below catches malformed
       // strings; this rejects non-string types that would coerce to a wrong
@@ -582,6 +596,10 @@ export const importFromJson = (
         Principal: serializedLoan.Principal,
         CurrentAmount: serializedLoan.CurrentAmount,
         MonthlyPayment: serializedLoan.MonthlyPayment,
+        HomeValue: serializedLoan.HomeValue,
+        PropertyTaxAnnual: serializedLoan.PropertyTaxAnnual,
+        HomeInsuranceAnnual: serializedLoan.HomeInsuranceAnnual,
+        MonthlyPmi: serializedLoan.MonthlyPmi,
         StartDate: new Date(serializedLoan.StartDate),
         EndDate: new Date(serializedLoan.EndDate),
       };

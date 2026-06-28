@@ -29,7 +29,7 @@ Everything runs in your browser. There's **no backend, no account, and no tracki
 ## Features
 
 - 📊 **Multiple positions at a glance** — manage any number of loans and investments side by side, not one calculator at a time.
-- 🏦 **Loan modeling** — auto-calculated monthly payment, full amortization schedule, and a point-in-time view of any loan on any date.
+- 🏦 **Loan modeling** — auto-calculated monthly payment, full amortization schedule, and a point-in-time view of any loan on any date. Optional escrow (property tax + insurance) and PMI roll into a **"true monthly payment"** that feeds your monthly-commitments total, with PMI auto-dropping at 80% loan-to-value and a projected drop-off date — while the forecast still amortizes on principal & interest alone.
 - 📈 **Investment modeling** — configurable compounding frequencies, recurring contributions, and yearly step-ups (flat or percentage), with a projected-growth schedule.
 - 🏠 **Whole net worth** — cash accounts (HYSA/CD/checking), property (with home-equity from a linked mortgage), and custom assets/liabilities feed the net-worth roll-up alongside loans and investments. `CustomLiability` entries subtract from net worth; all others add.
 - 💰 **Net worth forecasting** — a date-indexed engine projects loans, investments, assets, and overall net worth onto a single shared timeline.

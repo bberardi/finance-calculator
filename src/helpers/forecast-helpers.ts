@@ -3,7 +3,12 @@ import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { ForecastPoint, ScenarioInput } from '../models/forecast-model';
-import { getMonthlyPayment } from './loan-helpers';
+import {
+  PMI_LTV_THRESHOLD,
+  getMonthlyEscrow,
+  getMonthlyPayment,
+  isPmiActive,
+} from './loan-helpers';
 import { assetNetWorthSign, forecastAsset } from './asset-helpers';
 import {
   employerMatchOnContribution,
@@ -456,3 +461,52 @@ export const forecastHomeEquity = (
 // within the series (e.g. payoff falls beyond the horizon).
 export const getPayoffDate = (series: ForecastPoint[]): Date | undefined =>
   series.find((point) => point.Value === 0)?.Date;
+
+// A loan's full monthly outflow split into the amortizing principal-and-interest,
+// the escrow (property tax + homeowners insurance), and PMI (Phase 8.3). `total`
+// is the "true monthly payment". For a plain loan with no escrow/PMI fields,
+// escrow and pmi are 0 and total equals the P&I payment — fully backward
+// compatible, so existing loans and the commitment total are unchanged.
+export interface MonthlyPaymentBreakdown {
+  principalAndInterest: number;
+  escrow: number;
+  pmi: number;
+  total: number;
+}
+
+export const getMonthlyPaymentBreakdown = (
+  loan: Loan,
+  today: Date = new Date()
+): MonthlyPaymentBreakdown => {
+  const principalAndInterest = getEffectiveMonthlyPayment(loan, today);
+  const escrow = getMonthlyEscrow(loan);
+  // PMI only applies while LTV is above the 80% line; below it the breakdown
+  // drops it, exactly as the lender would. isPmiActive already guarantees a
+  // positive MonthlyPmi, so the non-null assertion is safe.
+  const pmi = isPmiActive(loan) ? roundToCents(loan.MonthlyPmi!) : 0;
+  return {
+    principalAndInterest,
+    escrow,
+    pmi,
+    total: roundToCents(principalAndInterest + escrow + pmi),
+  };
+};
+
+// The date PMI drops off: the first forecast month the balance falls to or below
+// 80% of the home value (LTV ≤ 80%). Undefined when the loan carries no PMI (no
+// premium, or no home value to measure against) or never builds enough equity to
+// cross the line within its schedule. When today's balance is already at/below
+// the line the first point (today) is returned — PMI is not owed at all.
+export const getPmiEndDate = (
+  loan: Loan,
+  today: Date = new Date()
+): Date | undefined => {
+  if (!((loan.MonthlyPmi ?? 0) > 0) || !((loan.HomeValue ?? 0) > 0)) {
+    return undefined;
+  }
+  // The guard above guarantees a positive HomeValue past this point.
+  const threshold = PMI_LTV_THRESHOLD * loan.HomeValue!;
+  const horizon = getDefaultHorizon([loan], [], today);
+  const series = forecastLoan(loan, horizon, 0, today);
+  return series.find((point) => point.Value <= threshold)?.Date;
+};

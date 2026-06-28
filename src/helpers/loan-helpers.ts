@@ -159,3 +159,36 @@ export const generateAmortizationSchedule = (
 
   return schedule;
 };
+
+// "True monthly payment" support (Phase 8.3). PMI (private mortgage insurance) is
+// charged only while the loan-to-value ratio is above this line; at or below it
+// the lender must drop PMI — the 80% threshold of the federal Homeowners
+// Protection Act.
+export const PMI_LTV_THRESHOLD = 0.8;
+
+// Loan-to-value ratio (balance ÷ home value), or undefined when there is no
+// positive home value to measure against. A pure ratio: 0.8 is 80% LTV.
+export const loanToValue = (
+  balance: number,
+  homeValue: number | undefined
+): number | undefined =>
+  homeValue !== undefined && homeValue > 0 ? balance / homeValue : undefined;
+
+// The monthly escrow portion of a payment: annual property tax plus homeowners
+// insurance, spread over twelve months and rounded to cents. Zero when neither
+// is set, so a loan without escrow is unaffected.
+export const getMonthlyEscrow = (loan: Loan): number =>
+  Math.round(
+    (((loan.PropertyTaxAnnual ?? 0) + (loan.HomeInsuranceAnnual ?? 0)) / 12) *
+      100
+  ) / 100;
+
+// Whether PMI is currently owed: a positive premium, a home value to measure
+// against, and today's balance still above the 80%-LTV line. At or below the
+// line the lender drops PMI, so it adds nothing to the true payment.
+export const isPmiActive = (loan: Loan): boolean => {
+  const ltv = loanToValue(loan.CurrentAmount, loan.HomeValue);
+  return (
+    (loan.MonthlyPmi ?? 0) > 0 && ltv !== undefined && ltv > PMI_LTV_THRESHOLD
+  );
+};

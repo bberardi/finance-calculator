@@ -421,6 +421,29 @@ describe('exportToJson and importFromJson', () => {
     );
   });
 
+  it('round-trips the true-monthly-payment fields on a Loan (#8.3)', () => {
+    const loanWithHousing: Loan = {
+      ...testLoan,
+      HomeValue: 300000,
+      PropertyTaxAnnual: 3600,
+      HomeInsuranceAnnual: 1200,
+      MonthlyPmi: 150,
+    };
+    const json = exportToJson([loanWithHousing], []);
+    const { loans } = importFromJson(json);
+    expect(loans[0].HomeValue).toBe(300000);
+    expect(loans[0].PropertyTaxAnnual).toBe(3600);
+    expect(loans[0].HomeInsuranceAnnual).toBe(1200);
+    expect(loans[0].MonthlyPmi).toBe(150);
+  });
+
+  it('rejects a negative housing-cost field on a loan import (#8.3)', () => {
+    const json = exportToJson([{ ...testLoan, PropertyTaxAnnual: -5 }], []);
+    expect(() => importFromJson(json)).toThrow(
+      "Invalid value for 'PropertyTaxAnnual'"
+    );
+  });
+
   it('should reject a file with schemaVersion: 1 as a legacy version', () => {
     const json = JSON.stringify({
       schemaVersion: 1,

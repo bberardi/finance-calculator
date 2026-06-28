@@ -135,6 +135,36 @@ describe('validateLoan — errors', () => {
     ).toBeUndefined();
   });
 
+  it('rejects negative or non-finite housing-cost fields; absent or valid ones pass (#8.3)', () => {
+    // Absent → no error (the fields are optional).
+    const baseline = validateLoan(validLoan()).errors;
+    expect(baseline.HomeValue).toBeUndefined();
+    expect(baseline.MonthlyPmi).toBeUndefined();
+    // Present and valid → still valid.
+    expect(
+      isLoanValid({
+        ...validLoan(),
+        HomeValue: 300000,
+        PropertyTaxAnnual: 3600,
+        HomeInsuranceAnnual: 1200,
+        MonthlyPmi: 150,
+      })
+    ).toBe(true);
+    // Negative → error.
+    expect(
+      validateLoan({ ...validLoan(), PropertyTaxAnnual: -5 }).errors
+        .PropertyTaxAnnual
+    ).toBeDefined();
+    // Non-finite → error.
+    expect(
+      validateLoan({ ...validLoan(), HomeValue: NaN }).errors.HomeValue
+    ).toBeDefined();
+    expect(
+      validateLoan({ ...validLoan(), HomeInsuranceAnnual: Infinity }).errors
+        .HomeInsuranceAnnual
+    ).toBeDefined();
+  });
+
   it('isLoanValid is false whenever any error is present', () => {
     expect(isLoanValid({ ...validLoan(), Name: '' })).toBe(false);
     expect(isLoanValid({ ...validLoan(), Principal: 0 })).toBe(false);
@@ -215,6 +245,22 @@ describe('validateLoan — warnings (non-blocking)', () => {
       MonthlyPayment: 1000.01,
     };
     expect(validateLoan(amortizing).warnings.MonthlyPayment).toBeUndefined();
+  });
+
+  it('warns when PMI is set without a home value to size the 80% line (#8.3)', () => {
+    const noBasis = { ...validLoan(), MonthlyPmi: 150 };
+    const result = validateLoan(noBasis);
+    expect(result.warnings.MonthlyPmi).toContain('home value');
+    // Non-blocking: a missing basis is a nudge, not an error.
+    expect(result.errors.MonthlyPmi).toBeUndefined();
+    expect(isLoanValid(noBasis)).toBe(true);
+    // With a home value, no warning.
+    expect(
+      validateLoan({ ...validLoan(), MonthlyPmi: 150, HomeValue: 300000 })
+        .warnings.MonthlyPmi
+    ).toBeUndefined();
+    // No PMI at all, no warning.
+    expect(validateLoan(validLoan()).warnings.MonthlyPmi).toBeUndefined();
   });
 });
 

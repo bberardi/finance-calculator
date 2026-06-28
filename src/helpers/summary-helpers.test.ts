@@ -59,6 +59,21 @@ describe('summarizePositions', () => {
     expect(summary.monthlyCommitments).toBe(800);
   });
 
+  it('includes escrow and active PMI in the true monthly payment (#8.3)', () => {
+    // LTV 6000/7000 ≈ 0.857 > 0.8 → PMI applies. Escrow = (1200+600)/12 = 150.
+    // True payment = 500 P&I + 150 escrow + 75 PMI = 725.
+    const escrowLoan: Loan = {
+      ...loan,
+      HomeValue: 7000,
+      PropertyTaxAnnual: 1200,
+      HomeInsuranceAnnual: 600,
+      MonthlyPmi: 75,
+    };
+    expect(summarizePositions([escrowLoan], [], TODAY).monthlyCommitments).toBe(
+      725
+    );
+  });
+
   it('normalizes non-monthly contribution cadences to a monthly amount', () => {
     const quarterly: Investment = {
       ...investment,

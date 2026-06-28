@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormHelperText,
   Slider,
   Stack,
@@ -117,6 +118,39 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
     newLoan.StartDate,
     newLoan.EndDate,
   ]);
+
+  // An optional dollar input for the "true monthly payment" fields (Phase 8.3).
+  // An empty field clears back to undefined so the loan stays without the field
+  // (absent = $0), rather than persisting a literal 0.
+  const optionalDollarField = (
+    field:
+      | 'HomeValue'
+      | 'PropertyTaxAnnual'
+      | 'HomeInsuranceAnnual'
+      | 'MonthlyPmi',
+    label: string
+  ) => (
+    <NumericFormat
+      label={label}
+      value={newLoan[field] ?? ''}
+      thousandSeparator
+      decimalScale={2}
+      prefix={'$'}
+      allowNegative={false}
+      customInput={TextField}
+      fullWidth
+      placeholder="$0"
+      onValueChange={(vs) =>
+        setNewLoan({
+          ...newLoan,
+          [field]: vs.value === '' ? undefined : Number(vs.value),
+        })
+      }
+      onBlur={() => touch(field)}
+      error={Boolean(errorFor(field))}
+      helperText={fieldHelperText(errorFor(field), warningFor(field))}
+    />
+  );
 
   return (
     <ResponsiveDialog open={props.open} onClose={props.onClose}>
@@ -347,6 +381,19 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
               Reset
             </Button>
           </Stack>
+
+          <Divider textAlign="left">Housing costs (escrow &amp; PMI)</Divider>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: -1 }}>
+            Optional. Property tax, insurance, and PMI form the “true monthly
+            payment” shown in your monthly commitments — they don’t pay down the
+            balance, and PMI drops off at 80% loan-to-value.
+          </Typography>
+          {optionalDollarField('HomeValue', 'Home value')}
+          <Stack direction="row" spacing={1}>
+            {optionalDollarField('PropertyTaxAnnual', 'Property tax (annual)')}
+            {optionalDollarField('HomeInsuranceAnnual', 'Insurance (annual)')}
+          </Stack>
+          {optionalDollarField('MonthlyPmi', 'PMI (monthly)')}
         </Box>
       </DialogContent>
       <Box sx={{ px: 3 }}>
