@@ -26,6 +26,7 @@ import { formatCurrency, formatNetWorthDelta } from '../helpers/format-helpers';
 import { useFinanceData } from '../state/use-finance-data';
 import { useOptimizer } from './use-optimizer';
 import { CustomSplitBuilder } from './custom-split-builder';
+import { StrategyPresets } from './strategy-presets';
 import {
   HORIZON_OPTIONS,
   HorizonKey,
@@ -222,6 +223,19 @@ export const OptimizerPanel = ({
               )}
             </TableBody>
           </Table>
+
+          {hasPositions && (
+            <StrategyPresets
+              loans={loans}
+              investments={investments}
+              assets={assets}
+              monthlyExtra={monthlyExtra}
+              today={today}
+              horizon={horizon}
+              mode={mode}
+              onViewAsScenario={onViewAsScenario}
+            />
+          )}
 
           {hasPositions && (
             <CustomSplitBuilder

@@ -9,6 +9,20 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.9.0] — Allocation strategy presets
+
+### Added
+
+- **Pre-built allocation strategies in the "next dollar" optimizer (Phase 8.4).**
+  Alongside the ranked suggestions and the custom split builder, the optimizer now
+  shows named, one-click strategies for your extra budget — **Debt-focused**
+  (everything to the highest-rate loan), **Investment-focused** (everything to the
+  highest-return holding), and **Balanced by rate** (split across every position
+  in proportion to its rate) — each scored against the baseline (net worth added,
+  interest saved, debt-free change) and chartable as a scenario. They respect the
+  per-month / one-time toggle, so you can compare whole strategies for a recurring
+  amount or a lump sum at a glance.
+
 ## [1.8.0] — True monthly payment (escrow & PMI)
 
 ### Added
