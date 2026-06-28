@@ -349,7 +349,9 @@ describe('suggestPlans', () => {
       Name: `Loan ${i}`,
     }));
     // Short horizon → each per-composition forecast is cheap, so even the bounded
-    // worst-case grid runs fast under coverage instrumentation.
+    // worst-case grid stays small. It still runs a few hundred instrumented
+    // forecasts, which can brush the default 20s timeout on a loaded CI runner
+    // (observed ~20.3s), so this case carries an explicit, generous timeout below.
     const horizon = new Date(2025, 3, 1);
 
     const plans = suggestPlans(
@@ -370,7 +372,9 @@ describe('suggestPlans', () => {
       expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(600, 2);
       expect(Object.keys(plan.plan.allocations).length).toBeLessThanOrEqual(4);
     }
-  });
+    // 60s (3× the observed CI worst case) so the bounded-but-instrumented search
+    // can't flake on a slow runner. A real regression would blow past this too.
+  }, 60000);
 });
 
 describe('rebalanceAllocation', () => {
