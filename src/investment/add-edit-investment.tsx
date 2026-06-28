@@ -2,9 +2,12 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  FormControlLabel,
   TextField,
   MenuItem,
   FormControl,
@@ -33,6 +36,10 @@ import { useFieldTracking } from '../hooks/use-field-tracking';
 export const AddEditInvestment = (props: AddEditInvestmentProps) => {
   const [newInvestment, setNewInvestment] =
     useState<Investment>(emptyInvestment);
+  // Opt-in toggle for the employer-match fields (ROADMAP 8.1). Independent of
+  // recurring contributions, so the optimizer can be told about a match on a
+  // 401(k) the user isn't funding yet but might.
+  const [hasEmployerMatch, setHasEmployerMatch] = useState(false);
 
   const hasRecurringContribution =
     typeof newInvestment.RecurringContribution === 'number' &&
@@ -75,11 +82,30 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
     // Edit reuses the passed entity; an import seeds add-mode from
     // `initialValues` (name/provider/starting balance pre-filled); a plain add
     // starts empty.
-    setNewInvestment(
-      props.investment ?? props.initialValues ?? emptyInvestment
+    const seeded = props.investment ?? props.initialValues ?? emptyInvestment;
+    setNewInvestment(seeded);
+    setHasEmployerMatch(
+      Boolean(
+        seeded.EmployerMatchRate ||
+        seeded.EmployerMatchLimitPct ||
+        seeded.AnnualSalary
+      )
     );
     resetTracking();
   }, [props.investment, props.initialValues, props.open, resetTracking]);
+
+  // Toggling the match off clears its inputs so nothing partial is saved.
+  const onToggleEmployerMatch = (checked: boolean) => {
+    setHasEmployerMatch(checked);
+    if (!checked) {
+      setNewInvestment((prev) => ({
+        ...prev,
+        EmployerMatchRate: undefined,
+        EmployerMatchLimitPct: undefined,
+        AnnualSalary: undefined,
+      }));
+    }
+  };
 
   return (
     <ResponsiveDialog open={props.open} onClose={props.onClose}>
@@ -356,6 +382,93 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                 warningFor('ContributionStepUpAmount')
               )}
             />
+          )}
+
+          <Divider sx={{ my: 1 }} />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={hasEmployerMatch}
+                onChange={(e) => onToggleEmployerMatch(e.target.checked)}
+              />
+            }
+            label="Employer 401(k) match"
+          />
+          {hasEmployerMatch && (
+            <>
+              <NumericFormat
+                label="Employer match"
+                value={newInvestment.EmployerMatchRate ?? ''}
+                thousandSeparator
+                decimalScale={2}
+                suffix={'%'}
+                allowNegative={false}
+                customInput={TextField}
+                onValueChange={(vs) =>
+                  setNewInvestment({
+                    ...newInvestment,
+                    EmployerMatchRate: vs.value ? Number(vs.value) : undefined,
+                  })
+                }
+                onBlur={() => touch('EmployerMatchRate')}
+                error={Boolean(errorFor('EmployerMatchRate'))}
+                helperText={
+                  fieldHelperText(
+                    errorFor('EmployerMatchRate'),
+                    warningFor('EmployerMatchRate')
+                  ) ?? 'Employer adds this % of your contributions.'
+                }
+              />
+              <NumericFormat
+                label="Up to this % of salary"
+                value={newInvestment.EmployerMatchLimitPct ?? ''}
+                thousandSeparator
+                decimalScale={2}
+                suffix={'%'}
+                allowNegative={false}
+                customInput={TextField}
+                onValueChange={(vs) =>
+                  setNewInvestment({
+                    ...newInvestment,
+                    EmployerMatchLimitPct: vs.value
+                      ? Number(vs.value)
+                      : undefined,
+                  })
+                }
+                onBlur={() => touch('EmployerMatchLimitPct')}
+                error={Boolean(errorFor('EmployerMatchLimitPct'))}
+                helperText={
+                  fieldHelperText(
+                    errorFor('EmployerMatchLimitPct'),
+                    warningFor('EmployerMatchLimitPct')
+                  ) ??
+                  'The match applies to your contributions up to this share of salary each year.'
+                }
+              />
+              <NumericFormat
+                label="Annual salary"
+                value={newInvestment.AnnualSalary ?? ''}
+                thousandSeparator
+                decimalScale={2}
+                prefix={'$'}
+                allowNegative={false}
+                customInput={TextField}
+                onValueChange={(vs) =>
+                  setNewInvestment({
+                    ...newInvestment,
+                    AnnualSalary: vs.value ? Number(vs.value) : undefined,
+                  })
+                }
+                onBlur={() => touch('AnnualSalary')}
+                error={Boolean(errorFor('AnnualSalary'))}
+                helperText={
+                  fieldHelperText(
+                    errorFor('AnnualSalary'),
+                    warningFor('AnnualSalary')
+                  ) ?? 'Used only to size the match cap — not stored as income.'
+                }
+              />
+            </>
           )}
         </Box>
       </DialogContent>

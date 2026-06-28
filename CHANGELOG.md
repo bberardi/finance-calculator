@@ -9,6 +9,20 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.6.0] — Employer 401(k) match in the optimizer
+
+### Added
+
+- **Employer 401(k) match, fed into the "next dollar" optimizer (Phase 8.1).** An
+  investment can now carry an employer match — the employer adds a percentage of
+  your contributions, up to a percentage of your salary each year. The match (on
+  both your recurring contributions and any extra the optimizer allocates, accrued
+  against the annual cap) flows through the forecast, so funding a matched account
+  is finally valued correctly against paying down debt — the founding "pay the 6%
+  loan vs. fund the 401(k) with a 50% match" question the optimizer was previously
+  blind to. Set it via an opt-in toggle on the investment form; the salary input
+  is used only to size the match cap and is never stored as income.
+
 ## [1.5.0] — Type editors at Monarch import
 
 ### Added

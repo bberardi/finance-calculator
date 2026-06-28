@@ -153,7 +153,10 @@ export type InvestmentField =
   | 'RecurringContribution'
   | 'ContributionFrequency'
   | 'ContributionStepUpAmount'
-  | 'CurrentValue';
+  | 'CurrentValue'
+  | 'EmployerMatchRate'
+  | 'EmployerMatchLimitPct'
+  | 'AnnualSalary';
 
 export const validateInvestment = (
   investment: Investment
@@ -207,6 +210,26 @@ export const validateInvestment = (
   ) {
     errors.CurrentValue = 'Current value cannot be negative.';
   }
+  // Employer-match inputs (ROADMAP 8.1): reject negatives when present, mirroring
+  // the import boundary so the form and import agree.
+  if (
+    typeof investment.EmployerMatchRate === 'number' &&
+    investment.EmployerMatchRate < 0
+  ) {
+    errors.EmployerMatchRate = 'Employer match rate cannot be negative.';
+  }
+  if (
+    typeof investment.EmployerMatchLimitPct === 'number' &&
+    investment.EmployerMatchLimitPct < 0
+  ) {
+    errors.EmployerMatchLimitPct = 'Employer match limit cannot be negative.';
+  }
+  if (
+    typeof investment.AnnualSalary === 'number' &&
+    investment.AnnualSalary < 0
+  ) {
+    errors.AnnualSalary = 'Salary cannot be negative.';
+  }
 
   // --- Non-blocking sanity warnings ---
   // A $0 starting balance is valid, but $0 AND no recurring contribution
@@ -254,6 +277,18 @@ export const validateInvestment = (
   ) {
     warnings.ContributionFrequency =
       'Contributions are more frequent than compounding — the forecast may understate growth between compounding dates.';
+  }
+
+  // An employer match needs all three inputs to do anything; a partial setup
+  // silently no-ops, so warn rather than block. (ROADMAP 8.1)
+  const matchInputsSet = [
+    investment.EmployerMatchRate,
+    investment.EmployerMatchLimitPct,
+    investment.AnnualSalary,
+  ].filter((value) => typeof value === 'number' && value > 0).length;
+  if (matchInputsSet > 0 && matchInputsSet < 3) {
+    warnings.EmployerMatchRate =
+      'Employer match needs a match rate, a salary %, and a salary — it is ignored until all three are set.';
   }
 
   return { errors, warnings, formErrors };

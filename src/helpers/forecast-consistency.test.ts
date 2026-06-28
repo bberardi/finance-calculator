@@ -388,3 +388,75 @@ describe('Consistency: step-up anniversary attribution (reconciled, ROADMAP §8.
     }
   });
 });
+
+describe('Consistency: forecastInvestment matches growth WITH an employer match (ROADMAP 8.1)', () => {
+  // The employer match accrues against an annual cap per investment-year in both
+  // engines. Contributions here ($12k/yr) cross the $6k cap (6% of a $100k salary)
+  // mid-year, so the taper to zero AND the per-year reset are both exercised over
+  // the 10-year span; the engines must still agree to the cent at every
+  // compounding boundary (the match is money in that telescopes identically across
+  // the monthly grid and the period engine).
+  const start = new Date(2020, 0, 1);
+  const end = new Date(2030, 0, 1);
+  const match = {
+    EmployerMatchRate: 50,
+    EmployerMatchLimitPct: 6,
+    AnnualSalary: 100000,
+  };
+  const cases: Array<{ name: string; inv: Investment }> = [
+    {
+      name: 'monthly compounding, monthly contributions',
+      inv: makeInvestment({
+        ...match,
+        RecurringContribution: 1000,
+        ContributionFrequency: CompoundingFrequency.Monthly,
+      }),
+    },
+    {
+      name: 'quarterly compounding, monthly contributions',
+      inv: makeInvestment({
+        ...match,
+        CompoundingPeriod: CompoundingFrequency.Quarterly,
+        RecurringContribution: 1000,
+        ContributionFrequency: CompoundingFrequency.Monthly,
+      }),
+    },
+    {
+      name: 'annual compounding, quarterly contributions',
+      inv: makeInvestment({
+        ...match,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+        RecurringContribution: 3000,
+        ContributionFrequency: CompoundingFrequency.Quarterly,
+      }),
+    },
+    {
+      name: 'monthly, with a yearly step-up (match tracks stepped-up contributions)',
+      inv: makeInvestment({
+        ...match,
+        RecurringContribution: 1000,
+        ContributionFrequency: CompoundingFrequency.Monthly,
+        ContributionStepUpAmount: 10,
+        ContributionStepUpType: StepUpType.Percentage,
+      }),
+    },
+  ];
+
+  cases.forEach(({ name, inv }) => {
+    it(`agrees at every boundary: ${name}`, () => {
+      const growth = generateInvestmentGrowth(inv, end);
+      const forecast = forecastInvestment(inv, end, 0, start);
+      const interval = 12 / getPeriodsPerYear(inv.CompoundingPeriod);
+
+      expect(cents(forecast[0].Value)).toBe(cents(growth[0].TotalValue));
+
+      for (let period = 1; period < growth.length; period++) {
+        const month = period * interval;
+        if (month >= forecast.length) break;
+        expect(cents(forecast[month].Value)).toBe(
+          cents(growth[period].TotalValue)
+        );
+      }
+    });
+  });
+});

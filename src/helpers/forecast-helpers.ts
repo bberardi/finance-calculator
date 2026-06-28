@@ -6,6 +6,7 @@ import { ForecastPoint, ScenarioInput } from '../models/forecast-model';
 import { getMonthlyPayment } from './loan-helpers';
 import { assetNetWorthSign, forecastAsset } from './asset-helpers';
 import {
+  employerMatchOnContribution,
   generateInvestmentGrowth,
   getContributionForYear,
   getInvestmentYear,
@@ -225,6 +226,10 @@ export const forecastInvestment = (
   // Contributions added since today within the still-open first period; these
   // earn the full period rate, separate from the carried anchor's correction.
   let partialPeriodContributions = 0;
+  // Employer-match accrual state (ROADMAP 8.1): matchable contribution used this
+  // investment-year, reset at year boundaries so the annual cap holds.
+  let matchYear = 0;
+  let matchCumThisYear = 0;
 
   let value = anchorValue;
   const points: ForecastPoint[] = [
@@ -242,6 +247,10 @@ export const forecastInvestment = (
     // Contributions added before the first compounding boundary belong to the
     // open period and earn the full period rate there.
     let contributionThisMonth = 0;
+    // The base contribution's canonical investment-year (set only when it fires),
+    // used to attribute the employer match to a year consistently with the period
+    // growth engine.
+    let baseContributionYear: number | undefined;
 
     if (
       baseContribution > 0 &&
@@ -268,10 +277,33 @@ export const forecastInvestment = (
         investment.ContributionStepUpAmount,
         investment.ContributionStepUpType
       );
+      baseContributionYear = yearNumber;
     }
 
     if (extraMonthlyContribution > 0) {
       contributionThisMonth += extraMonthlyContribution;
+    }
+
+    // Employer match (ROADMAP 8.1) on this month's total contribution (recurring
+    // + any optimizer extra), accrued against the annual cap per investment-year.
+    // Attribute to the base contribution's canonical year when it fires (matching
+    // generateInvestmentGrowth), else this grid month's year. Folded into the
+    // month's money-in so it earns the period rate like any contribution.
+    if (contributionThisMonth > 0) {
+      const contributionYear =
+        baseContributionYear ??
+        getInvestmentYear(monthDate.toDate(), investment.StartDate);
+      if (contributionYear !== matchYear) {
+        matchYear = contributionYear;
+        matchCumThisYear = 0;
+      }
+      const employerMatch = employerMatchOnContribution(
+        matchCumThisYear,
+        contributionThisMonth,
+        investment
+      );
+      matchCumThisYear += contributionThisMonth;
+      contributionThisMonth += employerMatch;
     }
 
     value += contributionThisMonth;

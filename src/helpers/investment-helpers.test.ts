@@ -11,6 +11,7 @@ import {
   getContributionsWithStepUp,
   getAnniversaryDate,
   hasPassedAnniversary,
+  employerMatchOnContribution,
 } from './investment-helpers';
 import {
   Investment,
@@ -964,5 +965,119 @@ describe('Investment Helpers', () => {
         expect(finalValue).toBeCloseTo(13734, 0);
       });
     });
+  });
+});
+
+describe('employerMatchOnContribution (ROADMAP 8.1)', () => {
+  // 50% match, up to 6% of a $100k salary → a $6,000 matchable cap per year.
+  const matched: Investment = {
+    Id: 'm',
+    Provider: '',
+    Name: '',
+    StartDate: new Date(2020, 0, 1),
+    StartingBalance: 0,
+    AverageReturnRate: 0,
+    CompoundingPeriod: CompoundingFrequency.Annually,
+    EmployerMatchRate: 50,
+    EmployerMatchLimitPct: 6,
+    AnnualSalary: 100000,
+  };
+
+  it('matches the configured rate while under the cap (reference)', () => {
+    // 50% of a $1,000 contribution, nothing used yet → $500.
+    expect(employerMatchOnContribution(0, 1000, matched)).toBe(500);
+    // 50% of a $2,000 contribution starting from $1,000 already used → $1,000.
+    expect(employerMatchOnContribution(1000, 2000, matched)).toBe(1000);
+  });
+
+  it('tapers to zero as cumulative contributions cross the annual cap', () => {
+    // From $5,000 used, a $2,000 contribution: only $1,000 is still under the
+    // $6,000 cap → 50% × $1,000 = $500.
+    expect(employerMatchOnContribution(5000, 2000, matched)).toBe(500);
+    // At or over the cap, no further match.
+    expect(employerMatchOnContribution(6000, 1000, matched)).toBe(0);
+    expect(employerMatchOnContribution(8000, 1000, matched)).toBe(0);
+  });
+
+  it('is zero unless rate, limit %, salary, and a contribution are all set', () => {
+    expect(
+      employerMatchOnContribution(0, 1000, { ...matched, EmployerMatchRate: 0 })
+    ).toBe(0);
+    expect(
+      employerMatchOnContribution(0, 1000, {
+        ...matched,
+        EmployerMatchLimitPct: 0,
+      })
+    ).toBe(0);
+    expect(
+      employerMatchOnContribution(0, 1000, { ...matched, AnnualSalary: 0 })
+    ).toBe(0);
+    expect(employerMatchOnContribution(0, 0, matched)).toBe(0);
+    // A plain investment with the fields absent entirely → no match.
+    const plain: Investment = { ...matched };
+    delete plain.EmployerMatchRate;
+    delete plain.EmployerMatchLimitPct;
+    delete plain.AnnualSalary;
+    expect(employerMatchOnContribution(0, 1000, plain)).toBe(0);
+  });
+
+  it('a full year earns rate% of the cap (100% up to 6% of $100k = $6k)', () => {
+    const full: Investment = { ...matched, EmployerMatchRate: 100 };
+    // Contribute $12k in one step: matchable capped at $6k → 100% × $6k = $6k.
+    expect(employerMatchOnContribution(0, 12000, full)).toBe(6000);
+  });
+});
+
+describe('generateInvestmentGrowth with an employer match (ROADMAP 8.1)', () => {
+  // 0% return isolates the contributions + match. Cap = 6% of $100k = $6,000/yr
+  // at a 50% match. Annual compounding + annual contributions keeps it
+  // hand-checkable.
+  const annual = (contribution: number): Investment => ({
+    Id: 'a',
+    Provider: '',
+    Name: '',
+    StartDate: new Date(2020, 0, 1),
+    StartingBalance: 0,
+    AverageReturnRate: 0,
+    CompoundingPeriod: CompoundingFrequency.Annually,
+    RecurringContribution: contribution,
+    ContributionFrequency: CompoundingFrequency.Annually,
+    EmployerMatchRate: 50,
+    EmployerMatchLimitPct: 6,
+    AnnualSalary: 100000,
+  });
+
+  it('adds rate% of the matchable contribution each year, capped, resetting annually', () => {
+    // $12k/yr crosses the $6k cap → match $3k/yr. Money in = $15k/yr (0% growth).
+    const growth = generateInvestmentGrowth(
+      annual(12000),
+      new Date(2023, 0, 1)
+    );
+    expect(growth[1].ContributionAmount).toBe(15000);
+    expect(growth[1].TotalValue).toBe(15000);
+    expect(growth[2].TotalValue).toBe(30000); // the cap resets each year
+    expect(growth[3].TotalValue).toBe(45000);
+  });
+
+  it('matches only the contributed amount when below the cap', () => {
+    // $4k/yr is under the $6k cap → match $2k/yr. Money in $6k/yr.
+    const growth = generateInvestmentGrowth(annual(4000), new Date(2022, 0, 1));
+    expect(growth[1].ContributionAmount).toBe(6000);
+    expect(growth[2].TotalValue).toBe(12000);
+  });
+
+  it('accrues the annual cap across monthly contributions (front-loaded, then resets)', () => {
+    // $1,000/mo, monthly compounding, 0% return. Year 1: months 1–6 matched
+    // ($500 each → $3k), months 7–12 unmatched. Money in year 1 = $12k + $3k.
+    const monthly: Investment = {
+      ...annual(0),
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+      RecurringContribution: 1000,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    };
+    const growth = generateInvestmentGrowth(monthly, new Date(2021, 0, 1));
+    expect(growth[growth.length - 1].TotalValue).toBe(15000);
+    const totalIn = growth.reduce((sum, g) => sum + g.ContributionAmount, 0);
+    expect(totalIn).toBe(15000);
   });
 });
