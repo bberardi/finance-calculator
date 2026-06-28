@@ -2,15 +2,20 @@ import {
   Box,
   DialogContent,
   DialogTitle,
+  Divider,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { defaultPit, Loan, PitLoan } from '../models/loan-model';
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
 import { getPitCalculation, getTerms } from '../helpers/loan-helpers';
+import {
+  getMonthlyPaymentBreakdown,
+  getPmiEndDate,
+} from '../helpers/forecast-helpers';
 import { formatCurrency } from '../helpers/format-helpers';
 import { NumericFormat } from 'react-number-format';
 import { ResponsiveDialog } from '../components/responsive-dialog';
@@ -38,6 +43,24 @@ export const PitPopout = (props: PitPopoutProps) => {
       setPitLoan(getPitCalculation(props.loan, selectedDate));
     }
   }, [props.loan, selectedDate]);
+
+  // "True monthly payment" breakdown + PMI drop-off (Phase 8.3), a current
+  // snapshot (today) independent of the projection date above. Only shown when
+  // the loan carries any escrow/PMI fields, so a plain loan is unchanged.
+  const today = useMemo(() => new Date(), []);
+  const breakdown = useMemo(
+    () => getMonthlyPaymentBreakdown(props.loan, today),
+    [props.loan, today]
+  );
+  const pmiEndDate = useMemo(
+    () => getPmiEndDate(props.loan, today),
+    [props.loan, today]
+  );
+  const hasHousingCosts =
+    (props.loan.HomeValue ?? 0) > 0 ||
+    (props.loan.PropertyTaxAnnual ?? 0) > 0 ||
+    (props.loan.HomeInsuranceAnnual ?? 0) > 0 ||
+    (props.loan.MonthlyPmi ?? 0) > 0;
 
   return (
     <ResponsiveDialog open={!!props.loan} onClose={props.onClose}>
@@ -84,6 +107,37 @@ export const PitPopout = (props: PitPopoutProps) => {
           <Typography>{`Remaining Principal: ${formatCurrency(
             pitLoan.RemainingPrincipal
           )}`}</Typography>
+
+          {hasHousingCosts && (
+            <>
+              <Divider textAlign="left">True monthly payment</Divider>
+              <Typography>{`Principal & Interest: ${formatCurrency(
+                breakdown.principalAndInterest
+              )}`}</Typography>
+              {breakdown.escrow > 0 && (
+                <Typography>{`Escrow (tax + insurance): ${formatCurrency(
+                  breakdown.escrow
+                )}`}</Typography>
+              )}
+              {(props.loan.MonthlyPmi ?? 0) > 0 && (
+                <Typography>{`PMI: ${
+                  breakdown.pmi > 0
+                    ? formatCurrency(breakdown.pmi)
+                    : '— (LTV at/below 80%)'
+                }`}</Typography>
+              )}
+              <Typography sx={{ fontWeight: 600 }}>{`Total: ${formatCurrency(
+                breakdown.total
+              )}/mo`}</Typography>
+              {pmiEndDate && breakdown.pmi > 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {`PMI drops off around ${dayjs(pmiEndDate).format(
+                    'MMM YYYY'
+                  )}`}
+                </Typography>
+              )}
+            </>
+          )}
         </Box>
       </DialogContent>
     </ResponsiveDialog>

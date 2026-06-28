@@ -4,7 +4,7 @@ import { Asset } from '../models/asset-model';
 import {
   currentInvestmentValue,
   forecastLoan,
-  getEffectiveMonthlyPayment,
+  getMonthlyPaymentBreakdown,
 } from './forecast-helpers';
 import { getPeriodsPerYear } from './investment-helpers';
 import { getAssetValueToday, isAssetLiability } from './asset-helpers';
@@ -58,11 +58,14 @@ export const summarizePositions = (
     ) + assetHoldings.reduce((sum, asset) => sum + getAssetValueToday(asset), 0)
   );
 
-  // Use the engine's effective payment (the same value forecastLoan applies),
-  // so a loan with an unset/0 MonthlyPayment that the forecast amortizes still
-  // contributes its derived payment to the commitment total. (#91)
+  // The full "true monthly payment" (Phase 8.3): principal & interest plus escrow
+  // (tax + insurance) and any active PMI, so the commitments card reflects the
+  // real monthly outflow, not just P&I. The P&I term is the engine's effective
+  // payment (the same value forecastLoan applies), so a loan with an unset/0
+  // MonthlyPayment that the forecast amortizes still contributes its derived
+  // payment. (#91) A loan with no escrow/PMI fields contributes P&I alone.
   const loanCommitments = loans.reduce(
-    (sum, loan) => sum + getEffectiveMonthlyPayment(loan, today),
+    (sum, loan) => sum + getMonthlyPaymentBreakdown(loan, today).total,
     0
   );
   const investmentCommitments = investments.reduce((sum, investment) => {

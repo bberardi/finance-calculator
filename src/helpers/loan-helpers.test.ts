@@ -4,8 +4,30 @@ import {
   getMonthlyPayment,
   getPitCalculation,
   generateAmortizationSchedule,
+  PMI_LTV_THRESHOLD,
+  loanToValue,
+  getMonthlyEscrow,
+  isPmiActive,
 } from './loan-helpers';
 import { defaultPit, Loan } from '../models/loan-model';
+
+// A loan carrying the Phase 8.3 "true monthly payment" fields, overridable.
+const housingLoan = (overrides: Partial<Loan> = {}): Loan => ({
+  Id: 'loan-1',
+  Provider: 'Bank',
+  Name: 'Mortgage',
+  InterestRate: 5,
+  StartDate: new Date(2024, 0, 1),
+  EndDate: new Date(2054, 0, 1),
+  Principal: 300000,
+  CurrentAmount: 270000,
+  MonthlyPayment: 1610,
+  HomeValue: 300000,
+  PropertyTaxAnnual: 3600,
+  HomeInsuranceAnnual: 1200,
+  MonthlyPmi: 150,
+  ...overrides,
+});
 
 describe('Loan Helpers', () => {
   describe('getMonthlyPayment', () => {
@@ -378,6 +400,63 @@ describe('Loan Helpers', () => {
     it('should handle very large principal', () => {
       const payment = getMonthlyPayment(10000000, 3.5, 360);
       expect(payment).toBeGreaterThan(0);
+    });
+  });
+
+  // Phase 8.3 — "true monthly payment" inner helpers.
+  describe('loanToValue', () => {
+    it('is balance ÷ home value', () => {
+      expect(loanToValue(80000, 100000)).toBeCloseTo(0.8, 10);
+    });
+
+    it('is undefined without a positive home value to measure against', () => {
+      expect(loanToValue(80000, undefined)).toBeUndefined();
+      expect(loanToValue(80000, 0)).toBeUndefined();
+    });
+  });
+
+  describe('getMonthlyEscrow', () => {
+    it('spreads annual tax + insurance over twelve months, rounded to cents', () => {
+      // (3600 + 1200) / 12 = 400.00
+      expect(getMonthlyEscrow(housingLoan())).toBe(400);
+      // 1000 / 12 = 83.333… → 83.33
+      expect(
+        getMonthlyEscrow(
+          housingLoan({ PropertyTaxAnnual: 1000, HomeInsuranceAnnual: 0 })
+        )
+      ).toBe(83.33);
+    });
+
+    it('is zero when no escrow fields are set', () => {
+      expect(
+        getMonthlyEscrow(
+          housingLoan({
+            PropertyTaxAnnual: undefined,
+            HomeInsuranceAnnual: undefined,
+          })
+        )
+      ).toBe(0);
+    });
+  });
+
+  describe('isPmiActive', () => {
+    it('is active while LTV is above the 80% line', () => {
+      // 270000 / 300000 = 0.9 > 0.8
+      expect(isPmiActive(housingLoan())).toBe(true);
+    });
+
+    it('is inactive at exactly 80% LTV (the drop-off boundary)', () => {
+      expect(isPmiActive(housingLoan({ CurrentAmount: 240000 }))).toBe(false);
+    });
+
+    it('is inactive without a premium or without a home value', () => {
+      expect(isPmiActive(housingLoan({ MonthlyPmi: 0 }))).toBe(false);
+      expect(isPmiActive(housingLoan({ MonthlyPmi: undefined }))).toBe(false);
+      expect(isPmiActive(housingLoan({ HomeValue: undefined }))).toBe(false);
+    });
+
+    it('uses the documented 80% threshold', () => {
+      expect(PMI_LTV_THRESHOLD).toBe(0.8);
     });
   });
 });

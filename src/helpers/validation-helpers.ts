@@ -61,7 +61,11 @@ export type LoanField =
   | 'InterestRate'
   | 'StartDate'
   | 'EndDate'
-  | 'MonthlyPayment';
+  | 'MonthlyPayment'
+  | 'HomeValue'
+  | 'PropertyTaxAnnual'
+  | 'HomeInsuranceAnnual'
+  | 'MonthlyPmi';
 
 export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   const errors: Partial<Record<LoanField, string>> = {};
@@ -135,6 +139,26 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   ) {
     warnings.MonthlyPayment =
       'Monthly payment does not exceed the first month’s interest — it will never pay the loan off.';
+  }
+
+  // "True monthly payment" fields (Phase 8.3): each is optional, but when present
+  // must be a finite, non-negative amount.
+  const nonNegativeOptionalFields: [LoanField, number | undefined][] = [
+    ['HomeValue', loan.HomeValue],
+    ['PropertyTaxAnnual', loan.PropertyTaxAnnual],
+    ['HomeInsuranceAnnual', loan.HomeInsuranceAnnual],
+    ['MonthlyPmi', loan.MonthlyPmi],
+  ];
+  for (const [field, value] of nonNegativeOptionalFields) {
+    if (value !== undefined && !(Number.isFinite(value) && value >= 0)) {
+      errors[field] = 'Enter a non-negative amount.';
+    }
+  }
+  // PMI can only drop off when there's a home value to size the 80%-LTV line
+  // against; flag a premium set without one so it doesn't silently never end.
+  if ((loan.MonthlyPmi ?? 0) > 0 && !((loan.HomeValue ?? 0) > 0)) {
+    warnings.MonthlyPmi =
+      'Set a home value so PMI can drop off at 80% loan-to-value.';
   }
 
   return { errors, warnings, formErrors };

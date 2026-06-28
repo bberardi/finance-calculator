@@ -5,7 +5,9 @@ import {
   forecastInvestment,
   forecastNetWorth,
   getDefaultHorizon,
+  getMonthlyPaymentBreakdown,
   getPayoffDate,
+  getPmiEndDate,
 } from './forecast-helpers';
 import { Loan } from '../models/loan-model';
 import {
@@ -714,6 +716,93 @@ describe('Forecast Helpers', () => {
       });
       const series = forecastLoan(loan, monthsFromToday(12), 0, today);
       expect(getPayoffDate(series)).toBeUndefined();
+    });
+  });
+
+  describe('getMonthlyPaymentBreakdown (#8.3)', () => {
+    it('is principal & interest alone for a loan with no escrow/PMI (backward compatible)', () => {
+      const breakdown = getMonthlyPaymentBreakdown(makeLoan(), today);
+      expect(breakdown).toEqual({
+        principalAndInterest: 500,
+        escrow: 0,
+        pmi: 0,
+        total: 500,
+      });
+    });
+
+    it('adds escrow and active PMI to the true monthly payment', () => {
+      // LTV 9000/10000 = 0.9 > 0.8 → PMI applies; escrow = (1200+600)/12 = 150.
+      const loan = makeLoan({
+        CurrentAmount: 9000,
+        HomeValue: 10000,
+        PropertyTaxAnnual: 1200,
+        HomeInsuranceAnnual: 600,
+        MonthlyPmi: 80,
+      });
+      expect(getMonthlyPaymentBreakdown(loan, today)).toEqual({
+        principalAndInterest: 500,
+        escrow: 150,
+        pmi: 80,
+        total: 730,
+      });
+    });
+
+    it('drops PMI from the total once LTV is at/below 80%', () => {
+      const loan = makeLoan({
+        CurrentAmount: 8000, // 8000/10000 = 0.8, at the line
+        HomeValue: 10000,
+        MonthlyPmi: 80,
+      });
+      const breakdown = getMonthlyPaymentBreakdown(loan, today);
+      expect(breakdown.pmi).toBe(0);
+      expect(breakdown.total).toBe(500);
+    });
+  });
+
+  describe('getPmiEndDate (#8.3)', () => {
+    it('is undefined when the loan has no PMI or no home value', () => {
+      expect(getPmiEndDate(makeLoan(), today)).toBeUndefined();
+      expect(
+        getPmiEndDate(makeLoan({ MonthlyPmi: 80 }), today)
+      ).toBeUndefined();
+    });
+
+    it('returns the first month the balance reaches 80% of home value', () => {
+      // 0% interest, $500/mo: 90000 → 80000 takes exactly 20 months.
+      const loan = makeLoan({
+        InterestRate: 0,
+        CurrentAmount: 90000,
+        Principal: 100000,
+        MonthlyPayment: 500,
+        HomeValue: 100000,
+        MonthlyPmi: 80,
+      });
+      expect(getPmiEndDate(loan, today)!.getTime()).toBe(
+        monthsFromToday(20).getTime()
+      );
+    });
+
+    it('returns today when the balance is already at/below 80% LTV', () => {
+      const loan = makeLoan({
+        CurrentAmount: 70000,
+        Principal: 100000,
+        HomeValue: 100000,
+        MonthlyPmi: 80,
+      });
+      expect(getPmiEndDate(loan, today)!.getTime()).toBe(today.getTime());
+    });
+
+    it('is undefined when an under-amortizing loan never builds 20% equity', () => {
+      // Payment below the monthly interest → balance grows, never crossing 80%.
+      const loan = makeLoan({
+        InterestRate: 12,
+        CurrentAmount: 90000,
+        Principal: 100000,
+        MonthlyPayment: 50,
+        HomeValue: 100000,
+        MonthlyPmi: 80,
+      });
+      expect(getPmiEndDate(loan, today)).toBeUndefined();
     });
   });
 });
