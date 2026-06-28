@@ -179,21 +179,12 @@ category; the rationale column says why each earns a slot.
 
 ---
 
-### Phase 14 — Storage Resilience & Dashboard Insight — _target v2.3_
+### Phase 14 — Dashboard Insight — _target v2.3_
 
-Surfaced by a June 2026 follow-up UX/codebase review. Phase 13 closed the
-_persistence-off_ data-loss gap (13.1); this phase closes two _persistence-on_
-resilience gaps that survive it, and adds the one read-only dashboard view the
-"where is my money?" story is still missing. Each item passes the §5 non-goal
-filters (client-side, data stays on device, not a budgeting app); the rationale
-column says why each earns a slot.
-
-**Data safety (UX)**
-
-| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 14.1 | **Discarded-data recovery notice** | When on-device persistence is **on** but the saved blob is corrupt or unmigratable, `loadData` silently drops it with only a `console.warn` and starts clean (`storage-helpers.ts` ~L96) — the user is never told their data was discarded and gets no chance to recover it. Surface a non-blocking notice and offer to download the raw rejected blob _before_ clearing, so a parse failure no longer equals invisible data loss. Complements 13.1, which covers the persistence-_off_ case, not this one. |
-| 14.2 | **Cross-tab synchronization**      | There is no `storage`-event (or `BroadcastChannel`) listener anywhere, so two open tabs each autosave independently and the last to write silently clobbers the other's newer data. Listen for cross-tab storage changes so edits in one tab reflect in the others and a stale tab can't overwrite fresher data — pure browser API, no backend, directly protects on-device data the app already trusts.                                                                                                  |
+Surfaced by a June 2026 follow-up UX/codebase review. This phase adds the one
+read-only dashboard view the "where is my money?" story is still missing. The
+item passes the §5 non-goal filters (client-side, data stays on device, not a
+budgeting app); the rationale column says why it earns a slot.
 
 **Dashboard insight (UX / visualization)**
 
@@ -230,10 +221,10 @@ Phase 10 From Calculator to Plan          v1.4
 Phase 11 Beyond Personal                  v2.0
 Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
-Phase 14 Storage Resilience & Dashboard Insight  v2.3
+Phase 14 Dashboard Insight                v2.3
 ```
 
-Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a storage-resilience and dashboard-insight follow-up that hardens the persistence layer Phase 13 began and adds the last read-only "where is my money?" view.
+Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view.
 
 ---
 
