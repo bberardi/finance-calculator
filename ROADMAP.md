@@ -179,6 +179,21 @@ category; the rationale column says why each earns a slot.
 
 ---
 
+### Phase 14 — Dashboard Insight — _target v2.3_
+
+Surfaced by a June 2026 follow-up UX/codebase review. This phase adds the one
+read-only dashboard view the "where is my money?" story is still missing. The
+item passes the §5 non-goal filters (client-side, data stays on device, not a
+budgeting app); the rationale column says why it earns a slot.
+
+**Dashboard insight (UX / visualization)**
+
+| #    | Work item                            | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 14.3 | **Net-worth composition breakdown**  | The dashboard today is four scalar cards (`net-worth-summary.tsx`) and a time-series forecast chart; there is no _composition_ view answering "what is my money in **right now**?" Add a derived allocation breakdown (donut or stacked bar) of current net worth across investments / cash / property / other assets vs. debt. Purely derived from `summarizePositions`, no engine or schema change, and it directly serves the founding "where does my next dollar go?" framing by showing where the dollars already are. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -206,9 +221,10 @@ Phase 10 From Calculator to Plan          v1.4
 Phase 11 Beyond Personal                  v2.0
 Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
+Phase 14 Dashboard Insight                v2.3
 ```
 
-Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review.
+Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view.
 
 ---
 
