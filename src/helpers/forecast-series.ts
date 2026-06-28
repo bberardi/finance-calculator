@@ -61,7 +61,8 @@ export const buildForecastChartData = (
       loan,
       horizon,
       scenario?.ExtraLoanPayments?.[loan.Id] ?? 0,
-      today
+      today,
+      scenario?.OneTimeLoanPayments?.[loan.Id] ?? 0
     )
   );
   const investmentForecasts = investments.map((investment) =>
@@ -69,7 +70,8 @@ export const buildForecastChartData = (
       investment,
       horizon,
       scenario?.ExtraContributions?.[investment.Id] ?? 0,
-      today
+      today,
+      scenario?.OneTimeContributions?.[investment.Id] ?? 0
     )
   );
   const assetForecasts = assets.map((asset) =>

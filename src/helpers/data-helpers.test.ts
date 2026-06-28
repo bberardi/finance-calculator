@@ -847,6 +847,22 @@ describe('scenario import/export (schema v3)', () => {
     expect(importFromJson(json).scenarios).toEqual(scenarios);
   });
 
+  it('round-trips a scenario carrying one-time lump maps (#8.2)', () => {
+    const scenarios = [
+      {
+        Id: 's1',
+        Name: 'One-time — All to Car Loan',
+        ExtraLoanPayments: {},
+        ExtraContributions: {},
+        OneTimeLoanPayments: { 'loan-1': 5000 },
+        OneTimeContributions: { 'inv-1': 2000 },
+      },
+    ];
+    const json = exportToJson([], scenarios);
+    // The optional one-time maps survive export and re-import unchanged.
+    expect(importFromJson(json).scenarios).toEqual(scenarios);
+  });
+
   it('imports a v2 file forward with no scenarios', () => {
     const v2 = JSON.stringify({
       schemaVersion: 2,

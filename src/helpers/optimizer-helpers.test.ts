@@ -101,6 +101,24 @@ describe('evaluatePlan', () => {
     );
   });
 
+  it('scores a one-time lump to a loan by interest saved (#8.2)', () => {
+    // In one-time mode the allocation is a single lump applied now, so a lump on
+    // a loan still avoids future interest — the loan-payoff signal the optimizer
+    // must value for "where does a $4k bonus go?".
+    const evaluation = evaluatePlan(
+      [loan],
+      [investment],
+      { label: 'All to Car Loan', allocations: { 'loan-1': 4000 } },
+      TODAY,
+      undefined,
+      [],
+      'oneTime'
+    );
+    expect(evaluation.interestSaved).toBeGreaterThan(0);
+    expect(evaluation.payoffMonthsEarlier).toBeGreaterThan(0);
+    expect(evaluation.score).toBeGreaterThan(0);
+  });
+
   it('an empty plan has zero impact and score', () => {
     const evaluation = evaluatePlan(
       [loan],
@@ -155,6 +173,22 @@ describe('splitAllocations', () => {
     });
     expect(result.ExtraLoanPayments).toEqual({ 'loan-1': 200 });
     expect(result.ExtraContributions).toEqual({ 'inv-1': 150 });
+    // The one-time maps are empty in the default (monthly) mode.
+    expect(result.OneTimeLoanPayments).toEqual({});
+    expect(result.OneTimeContributions).toEqual({});
+  });
+
+  it('routes amounts to the OneTime maps in one-time mode (#8.2)', () => {
+    const result = splitAllocations(
+      [loan, loan2],
+      { 'loan-1': 200, 'inv-1': 150, 'loan-2': 0 },
+      'oneTime'
+    );
+    expect(result.OneTimeLoanPayments).toEqual({ 'loan-1': 200 });
+    expect(result.OneTimeContributions).toEqual({ 'inv-1': 150 });
+    // ...and the recurring maps stay empty.
+    expect(result.ExtraLoanPayments).toEqual({});
+    expect(result.ExtraContributions).toEqual({});
   });
 });
 
@@ -280,6 +314,27 @@ describe('suggestPlans', () => {
     for (const plan of plans) {
       expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(300, 2);
     }
+  });
+
+  it('ranks one-time lump plans, each summing to the budget (#8.2)', () => {
+    // One-time mode reuses the whole search; only the scenario maps differ. A
+    // lump across two loans still yields singles + a split grid, all summing to
+    // the budget, with the strongest plan scoring positively (interest saved).
+    const plans = suggestPlans(
+      [loan, loan2],
+      [],
+      5000,
+      {},
+      TODAY,
+      undefined,
+      [],
+      'oneTime'
+    );
+    expect(plans.length).toBeGreaterThan(2);
+    for (const plan of plans) {
+      expect(sumAllocations(plan.plan.allocations)).toBeCloseTo(5000, 2);
+    }
+    expect(plans[0].score).toBeGreaterThan(0);
   });
 
   it('clamps maxCandidates and floors stepPercent so aggressive options cannot blow up the search (#134)', () => {

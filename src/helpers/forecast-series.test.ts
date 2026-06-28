@@ -135,6 +135,33 @@ describe('buildForecastChartData', () => {
     // More toward principal ⇒ a lower balance next month.
     expect(extraLoan.values[1]).toBeLessThan(baseLoan.values[1]);
   });
+
+  it('applies one-time lump scenarios to the matching loan and investment (#8.2)', () => {
+    const baseline = buildForecastChartData(
+      [loan],
+      [investment],
+      HORIZON,
+      undefined,
+      TODAY
+    );
+    const withLumps = buildForecastChartData(
+      [loan],
+      [investment],
+      HORIZON,
+      {
+        OneTimeLoanPayments: { 'loan-1': 1000 },
+        OneTimeContributions: { 'inv-1': 1000 },
+      },
+      TODAY
+    );
+    const baseLoan = baseline.series.find((s) => s.id === 'loan-1')!;
+    const lumpLoan = withLumps.series.find((s) => s.id === 'loan-1')!;
+    const baseInv = baseline.series.find((s) => s.id === 'inv-1')!;
+    const lumpInv = withLumps.series.find((s) => s.id === 'inv-1')!;
+    // The lump lands at month 1: lower loan balance, higher investment value.
+    expect(lumpLoan.values[1]).toBeLessThan(baseLoan.values[1]);
+    expect(lumpInv.values[1]).toBeGreaterThan(baseInv.values[1]);
+  });
 });
 
 describe('sliceForecastChartData', () => {

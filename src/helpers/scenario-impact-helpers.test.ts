@@ -62,6 +62,46 @@ describe('computeScenarioImpact', () => {
     expect(impact.payoffMonthsEarlier).toBe(0);
   });
 
+  it('a one-time loan lump saves interest and moves up the payoff date (#8.2)', () => {
+    const impact = computeScenarioImpact(
+      [loan],
+      [],
+      { OneTimeLoanPayments: { 'loan-1': 4000 } },
+      TODAY
+    );
+    expect(impact.interestSaved).toBeGreaterThan(0);
+    expect(impact.payoffMonthsEarlier).toBeGreaterThan(0);
+    expect(impact.netWorthDelta).toBeGreaterThanOrEqual(0);
+  });
+
+  it('a smaller one-time lump saves less interest than a larger one (#8.2)', () => {
+    const small = computeScenarioImpact(
+      [loan],
+      [],
+      { OneTimeLoanPayments: { 'loan-1': 1000 } },
+      TODAY
+    );
+    const big = computeScenarioImpact(
+      [loan],
+      [],
+      { OneTimeLoanPayments: { 'loan-1': 5000 } },
+      TODAY
+    );
+    expect(big.interestSaved).toBeGreaterThan(small.interestSaved);
+  });
+
+  it('a one-time contribution raises net worth without touching loan metrics (#8.2)', () => {
+    const impact = computeScenarioImpact(
+      [loan],
+      [investment],
+      { OneTimeContributions: { 'inv-1': 3000 } },
+      TODAY
+    );
+    expect(impact.netWorthDelta).toBeGreaterThan(0);
+    expect(impact.interestSaved).toBe(0);
+    expect(impact.payoffMonthsEarlier).toBe(0);
+  });
+
   it('an empty scenario has no impact', () => {
     const impact = computeScenarioImpact([loan], [investment], {}, TODAY);
     expect(impact.netWorthDelta).toBe(0);
@@ -158,6 +198,14 @@ describe('computeScenarioImpactWithBaseline', () => {
     {
       name: 'an extra contribution',
       scenario: { ExtraContributions: { 'inv-1': 200 } },
+    },
+    {
+      name: 'a one-time loan lump',
+      scenario: { OneTimeLoanPayments: { 'loan-1': 4000 } },
+    },
+    {
+      name: 'a one-time contribution',
+      scenario: { OneTimeContributions: { 'inv-1': 3000 } },
     },
     { name: 'an empty scenario', scenario: {} },
   ];

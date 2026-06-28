@@ -53,26 +53,46 @@ interface Target {
   name: string;
 }
 
+// What the budget being optimized represents: a recurring monthly extra
+// ('monthly', Phase 5) or a single lump sum applied now ('oneTime', Phase 8.2 —
+// "where does a $5k bonus go?"). The search, baseline, and scoring are identical
+// across modes; only which scenario maps the allocations land in differs.
+export type AllocationMode = 'monthly' | 'oneTime';
+
 // Split a plan's allocations into the engine's loan/contribution maps, dropping
 // non-positive amounts. An Id that matches no loan is treated as a contribution
-// target (and simply does nothing if it matches no investment either). Exported
-// so the UI can turn a chosen plan into a Scenario without duplicating the rule.
+// target (and simply does nothing if it matches no investment either). In
+// 'oneTime' mode the amounts land in the OneTime* maps (a lump applied at the
+// first forecast month) instead of the recurring Extra* maps. The unused pair is
+// always returned empty so the result is a complete ScenarioInput. Exported so
+// the UI can turn a chosen plan into a Scenario without duplicating the rule.
 export const splitAllocations = (
   loans: Loan[],
-  allocations: Record<string, number>
+  allocations: Record<string, number>,
+  mode: AllocationMode = 'monthly'
 ): Required<ScenarioInput> => {
   const loanIds = new Set(loans.map((loan) => loan.Id));
   const ExtraLoanPayments: Record<string, number> = {};
   const ExtraContributions: Record<string, number> = {};
+  const OneTimeLoanPayments: Record<string, number> = {};
+  const OneTimeContributions: Record<string, number> = {};
+  const loanMap = mode === 'oneTime' ? OneTimeLoanPayments : ExtraLoanPayments;
+  const contributionMap =
+    mode === 'oneTime' ? OneTimeContributions : ExtraContributions;
   for (const [id, amount] of Object.entries(allocations)) {
     if (!(amount > 0)) continue;
     if (loanIds.has(id)) {
-      ExtraLoanPayments[id] = amount;
+      loanMap[id] = amount;
     } else {
-      ExtraContributions[id] = amount;
+      contributionMap[id] = amount;
     }
   }
-  return { ExtraLoanPayments, ExtraContributions };
+  return {
+    ExtraLoanPayments,
+    ExtraContributions,
+    OneTimeLoanPayments,
+    OneTimeContributions,
+  };
 };
 
 // Assemble a PlanEvaluation from a plan and its computed impact, applying the
@@ -95,9 +115,10 @@ export const evaluatePlan = (
   plan: AllocationPlan,
   today: Date = new Date(),
   horizon?: Date,
-  assets: Asset[] = []
+  assets: Asset[] = [],
+  mode: AllocationMode = 'monthly'
 ): PlanEvaluation => {
-  const scenario = splitAllocations(loans, plan.allocations);
+  const scenario = splitAllocations(loans, plan.allocations, mode);
   const impact = computeScenarioImpact(
     loans,
     investments,
@@ -234,7 +255,11 @@ export const suggestPlans = (
   options: SuggestOptions = {},
   today: Date = new Date(),
   horizon?: Date,
-  assets: Asset[] = []
+  assets: Asset[] = [],
+  // Whether `monthlyExtra` is a recurring monthly amount or a one-time lump
+  // (Phase 8.2). Only changes which scenario maps each plan targets; the search,
+  // baseline, scoring, and ranking are mode-agnostic.
+  mode: AllocationMode = 'monthly'
 ): PlanEvaluation[] => {
   if (!(monthlyExtra > 0)) return [];
 
@@ -266,7 +291,7 @@ export const suggestPlans = (
   );
 
   const evaluate = (plan: AllocationPlan): PlanEvaluation => {
-    const scenario = splitAllocations(loans, plan.allocations);
+    const scenario = splitAllocations(loans, plan.allocations, mode);
     const impact = computeScenarioImpactWithBaseline(
       loans,
       investments,

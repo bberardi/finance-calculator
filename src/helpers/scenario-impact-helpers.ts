@@ -34,9 +34,16 @@ const totalLoanInterest = (
   loan: Loan,
   horizon: Date,
   extraMonthlyPayment: number,
-  today: Date
+  today: Date,
+  oneTimePayment: number = 0
 ): number => {
-  const series = forecastLoan(loan, horizon, extraMonthlyPayment, today);
+  const series = forecastLoan(
+    loan,
+    horizon,
+    extraMonthlyPayment,
+    today,
+    oneTimePayment
+  );
   const monthlyRate = loan.InterestRate / 100 / 12;
   let total = 0;
   for (let month = 1; month < series.length; month++) {
@@ -60,7 +67,8 @@ const debtFreeMonth = (
       loan,
       horizon,
       scenario?.ExtraLoanPayments?.[loan.Id] ?? 0,
-      today
+      today,
+      scenario?.OneTimeLoanPayments?.[loan.Id] ?? 0
     )
   );
   for (let month = 0; month < length; month++) {
@@ -173,7 +181,8 @@ export const computeScenarioImpactWithBaseline = (
         loan,
         baseline.longHorizon,
         scenario.ExtraLoanPayments?.[loan.Id] ?? 0,
-        today
+        today,
+        scenario.OneTimeLoanPayments?.[loan.Id] ?? 0
       ),
     0
   );

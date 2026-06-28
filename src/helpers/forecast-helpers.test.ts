@@ -183,6 +183,41 @@ describe('Forecast Helpers', () => {
       expect(fastPayoff!.getTime()).toBeLessThan(basePayoff!.getTime());
     });
 
+    it('applies a one-time lump at month 1 only, leaving the anchor untouched (#8.2)', () => {
+      const loan = makeLoan({
+        InterestRate: 0,
+        CurrentAmount: 1200,
+        MonthlyPayment: 100,
+      });
+      const series = forecastLoan(loan, monthsFromToday(6), 0, today, 300);
+      // Anchor (today) is unchanged so baseline and scenario agree at month 0.
+      expect(series[0].Value).toBe(1200);
+      // Month 1 drops by the regular payment AND the lump: 1200 − 100 − 300.
+      expect(series[1].Value).toBe(800);
+      // Month 2 onward drops by the regular payment only (the lump never recurs).
+      expect(series[2].Value).toBe(700);
+    });
+
+    it('a one-time lump pays a loan off sooner than no lump', () => {
+      const loan = makeLoan({
+        InterestRate: 5,
+        CurrentAmount: 10000,
+        MonthlyPayment: 500,
+      });
+      const horizon = monthsFromToday(36);
+      const baseline = forecastLoan(loan, horizon, 0, today);
+      const withLump = forecastLoan(loan, horizon, 0, today, 3000);
+      const basePayoff = getPayoffDate(baseline);
+      const lumpPayoff = getPayoffDate(withLump);
+      expect(basePayoff).toBeDefined();
+      expect(lumpPayoff).toBeDefined();
+      expect(lumpPayoff!.getTime()).toBeLessThan(basePayoff!.getTime());
+      // The lump never makes any month's balance higher than the baseline.
+      withLump.forEach((point, index) =>
+        expect(point.Value).toBeLessThanOrEqual(baseline[index].Value)
+      );
+    });
+
     it('should return all zeros for an already paid-off loan', () => {
       const loan = makeLoan({ CurrentAmount: 0 });
       const series = forecastLoan(loan, monthsFromToday(12), 0, today);
@@ -420,6 +455,51 @@ describe('Forecast Helpers', () => {
       expect(series[12].Value).toBe(1000 + 12 * 100 + 12 * 50);
     });
 
+    it('adds a one-time lump contribution once at month 1 (#8.2)', () => {
+      // 0% return, no recurring contribution: the lump lands at month 1 and the
+      // value holds flat thereafter — proving it is applied exactly once.
+      const investment = makeInvestment({ CurrentValue: 1000 });
+      const series = forecastInvestment(
+        investment,
+        monthsFromToday(12),
+        0,
+        today,
+        500
+      );
+      expect(series[0].Value).toBe(1000);
+      expect(series[1].Value).toBe(1500);
+      expect(series[12].Value).toBe(1500);
+    });
+
+    it('a one-time 401(k) lump earns the employer match up to the annual cap (#8.2)', () => {
+      // 100% match up to 6% of $100k = a $6,000/yr cap. A $3,000 lump is under the
+      // cap, so the employer adds another $3,000 in the same month — exactly like
+      // the recurring/extra contributions the match already covers (ROADMAP 8.1).
+      const base = makeInvestment({ CurrentValue: 1000 });
+      const matched: Investment = {
+        ...base,
+        EmployerMatchRate: 100,
+        EmployerMatchLimitPct: 6,
+        AnnualSalary: 100000,
+      };
+      const unmatched = forecastInvestment(
+        base,
+        monthsFromToday(2),
+        0,
+        today,
+        3000
+      );
+      const withMatch = forecastInvestment(
+        matched,
+        monthsFromToday(2),
+        0,
+        today,
+        3000
+      );
+      expect(unmatched[1].Value).toBe(4000); // 1000 + 3000 lump, no match
+      expect(withMatch[1].Value).toBe(7000); // + 3000 employer match
+    });
+
     it('should apply the yearly step-up at the investment anniversary', () => {
       const investment = makeInvestment({
         StartDate: today,
@@ -546,6 +626,52 @@ describe('Forecast Helpers', () => {
       );
 
       expect(scenario[12].Value).toBeGreaterThan(baseline[12].Value);
+    });
+
+    it('applies a one-time loan payment from a scenario (#8.2)', () => {
+      const loan = makeLoan({
+        InterestRate: 12,
+        CurrentAmount: 10000,
+        MonthlyPayment: 200,
+      });
+      const horizon = monthsFromToday(12);
+
+      const baseline = forecastNetWorth([loan], [], horizon, undefined, today);
+      const scenario = forecastNetWorth(
+        [loan],
+        [],
+        horizon,
+        { OneTimeLoanPayments: { 'loan-1': 3000 } },
+        today
+      );
+
+      // Anchors agree (the lump lands at month 1, not month 0).
+      expect(scenario[0].Value).toBe(baseline[0].Value);
+      // Less debt from month 1 on → higher (less negative) net worth at horizon.
+      expect(scenario[12].Value).toBeGreaterThan(baseline[12].Value);
+    });
+
+    it('applies a one-time contribution from a scenario (#8.2)', () => {
+      const investment = makeInvestment({ CurrentValue: 5000 });
+      const horizon = monthsFromToday(12);
+
+      const baseline = forecastNetWorth(
+        [],
+        [investment],
+        horizon,
+        undefined,
+        today
+      );
+      const scenario = forecastNetWorth(
+        [],
+        [investment],
+        horizon,
+        { OneTimeContributions: { 'inv-1': 2000 } },
+        today
+      );
+
+      expect(scenario[0].Value).toBe(baseline[0].Value);
+      expect(scenario[12].Value).toBeCloseTo(baseline[12].Value + 2000, 2);
     });
 
     it('should ignore scenario entries whose IDs match nothing', () => {

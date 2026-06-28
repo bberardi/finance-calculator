@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
-import { PlanEvaluation } from '../helpers/optimizer-helpers';
+import { AllocationMode, PlanEvaluation } from '../helpers/optimizer-helpers';
 import type { OptimizerRequest, OptimizerResponse } from './optimizer.worker';
 
 interface UseOptimizerArgs {
@@ -12,6 +12,8 @@ interface UseOptimizerArgs {
   today: Date;
   horizon: Date;
   assets: Asset[];
+  // Recurring monthly extra vs. one-time lump (Phase 8.2).
+  mode: AllocationMode;
 }
 
 interface OptimizerResult {
@@ -36,6 +38,7 @@ export const useOptimizer = ({
   today,
   horizon,
   assets,
+  mode,
 }: UseOptimizerArgs): OptimizerResult => {
   const [plans, setPlans] = useState<PlanEvaluation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,6 +109,7 @@ export const useOptimizer = ({
         today,
         horizon,
         assets,
+        mode,
       };
       try {
         worker.postMessage(request);
@@ -119,7 +123,7 @@ export const useOptimizer = ({
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
-  }, [loans, investments, monthlyExtra, today, horizon, assets]);
+  }, [loans, investments, monthlyExtra, today, horizon, assets, mode]);
 
   return { plans, loading, error };
 };
