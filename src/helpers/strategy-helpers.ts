@@ -1,5 +1,10 @@
+import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
+import { Asset } from '../models/asset-model';
+import { forecastInvestment, forecastLoan } from './forecast-helpers';
+import { NetWorthMilestone, computeMilestones } from './milestone-helpers';
+import { AllocationMode, splitAllocations } from './optimizer-helpers';
 
 // Allocation strategy presets (ROADMAP 8.4): named, pre-built ways to divide a
 // monthly extra (or one-time lump) across positions — the counterpart to the
@@ -128,4 +133,93 @@ export const buildStrategyPlans = (
   }
 
   return plans;
+};
+
+// One strategy's outcome in the side-by-side comparison (ROADMAP 8.5).
+export interface StrategyComparison {
+  // The strategy, or 'baseline' for the do-nothing reference column.
+  kind: StrategyKind | 'baseline';
+  label: string;
+  // Net worth at +5y / +10y / +30y (absolute), straight from computeMilestones so
+  // it agrees with the dashboard's milestones.
+  netWorthAt: NetWorthMilestone[];
+  // Projected debt-free date under the strategy, or undefined if debt isn't
+  // cleared within the milestone horizon (or there are no loans).
+  debtFreeDate?: Date;
+  // The end-state split that actually differs by strategy: investment value vs.
+  // debt remaining at the +30y horizon (passive assets are identical across
+  // strategies, so they are a constant backdrop and omitted here).
+  finalInvestments: number;
+  finalDebt: number;
+}
+
+// Compare the baseline against every applicable strategy preset (ROADMAP 8.5):
+// for each, net worth at +5/+10/+30y, the debt-free date, and the final
+// investments-vs-debt split — so a user can weigh whole strategies side by side.
+// Reuses computeMilestones (net worth + debt-free) and the same forecast engine
+// the chart and optimizer use, so the figures match everywhere. Pure (D7).
+// Returns [] for a non-positive budget.
+export const compareStrategies = (
+  loans: Loan[],
+  investments: Investment[],
+  assets: Asset[],
+  budget: number,
+  mode: AllocationMode,
+  today: Date = new Date()
+): StrategyComparison[] => {
+  if (!(budget > 0)) return [];
+
+  const horizon = dayjs(today).add(30, 'year').toDate();
+
+  const plans: {
+    kind: StrategyKind | 'baseline';
+    label: string;
+    allocations: Record<string, number>;
+  }[] = [
+    { kind: 'baseline', label: 'Baseline (no extra)', allocations: {} },
+    ...buildStrategyPlans(loans, investments, budget),
+  ];
+
+  return plans.map((plan) => {
+    const scenario = splitAllocations(loans, plan.allocations, mode);
+    const { netWorthAt, debtFreeDate } = computeMilestones(
+      loans,
+      investments,
+      today,
+      assets,
+      scenario
+    );
+    const finalInvestments = roundToCents(
+      investments.reduce((sum, investment) => {
+        const series = forecastInvestment(
+          investment,
+          horizon,
+          scenario.ExtraContributions[investment.Id] ?? 0,
+          today,
+          scenario.OneTimeContributions[investment.Id] ?? 0
+        );
+        return sum + series[series.length - 1].Value;
+      }, 0)
+    );
+    const finalDebt = roundToCents(
+      loans.reduce((sum, loan) => {
+        const series = forecastLoan(
+          loan,
+          horizon,
+          scenario.ExtraLoanPayments[loan.Id] ?? 0,
+          today,
+          scenario.OneTimeLoanPayments[loan.Id] ?? 0
+        );
+        return sum + series[series.length - 1].Value;
+      }, 0)
+    );
+    return {
+      kind: plan.kind,
+      label: plan.label,
+      netWorthAt,
+      debtFreeDate,
+      finalInvestments,
+      finalDebt,
+    };
+  });
 };

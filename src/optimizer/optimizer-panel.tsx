@@ -27,6 +27,7 @@ import { useFinanceData } from '../state/use-finance-data';
 import { useOptimizer } from './use-optimizer';
 import { CustomSplitBuilder } from './custom-split-builder';
 import { StrategyPresets } from './strategy-presets';
+import { StrategyComparison } from './strategy-comparison';
 import {
   HORIZON_OPTIONS,
   HorizonKey,
@@ -234,6 +235,17 @@ export const OptimizerPanel = ({
               horizon={horizon}
               mode={mode}
               onViewAsScenario={onViewAsScenario}
+            />
+          )}
+
+          {hasPositions && (
+            <StrategyComparison
+              loans={loans}
+              investments={investments}
+              assets={assets}
+              monthlyExtra={monthlyExtra}
+              today={today}
+              mode={mode}
             />
           )}
 

@@ -73,4 +73,39 @@ describe('computeMilestones', () => {
     const { debtFreeDate } = computeMilestones([neverPays], [], TODAY);
     expect(debtFreeDate).toBeUndefined();
   });
+
+  // A loan slow enough that a scenario visibly moves its payoff: 12000 at
+  // $1000/mo, 0% → 12 months baseline.
+  const midLoan: Loan = {
+    ...shortLoan,
+    Id: 'loan-mid',
+    CurrentAmount: 12000,
+    MonthlyPayment: 1000,
+    EndDate: new Date(2030, 0, 1),
+  };
+
+  it('reflects an extra-payment scenario: the debt-free date arrives sooner (#8.5)', () => {
+    const base = computeMilestones([midLoan], [], TODAY).debtFreeDate!;
+    const scenario = computeMilestones([midLoan], [], TODAY, [], {
+      ExtraLoanPayments: { 'loan-mid': 1000 },
+    }).debtFreeDate!;
+    expect(scenario.getTime()).toBeLessThan(base.getTime());
+  });
+
+  it('reflects a one-time lump scenario: the debt-free date arrives sooner (#8.5)', () => {
+    const base = computeMilestones([midLoan], [], TODAY).debtFreeDate!;
+    const scenario = computeMilestones([midLoan], [], TODAY, [], {
+      OneTimeLoanPayments: { 'loan-mid': 6000 },
+    }).debtFreeDate!;
+    expect(scenario.getTime()).toBeLessThan(base.getTime());
+  });
+
+  it('raises net worth at the horizon under a contribution scenario (#8.5)', () => {
+    const base = computeMilestones([], [investment], TODAY).netWorthAt;
+    const scenario = computeMilestones([], [investment], TODAY, [], {
+      ExtraContributions: { 'inv-1': 200 },
+    }).netWorthAt;
+    // The +30y net worth is higher with an extra monthly contribution.
+    expect(scenario[2].value).toBeGreaterThan(base[2].value);
+  });
 });
