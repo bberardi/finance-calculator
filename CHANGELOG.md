@@ -9,6 +9,19 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.11.0] — Monte Carlo mode
+
+### Added
+
+- **Monte Carlo mode on the forecast chart (Phase 9.1).** A new toggle replaces
+  the single average-return net-worth line with a volatility-driven **fan chart** —
+  a shaded 10th–90th-percentile band around a median path — so a long-horizon
+  projection shows a range instead of false precision. It overlays a
+  geometric-Brownian-motion shock on the existing deterministic forecast (only
+  investments carry market risk), is **seeded and reproducible**, and at zero
+  volatility collapses exactly to today's forecast line. Computed inline and
+  memoized; no new inputs and no engine changes.
+
 ## [1.10.0] — Strategy comparison view
 
 ### Added
