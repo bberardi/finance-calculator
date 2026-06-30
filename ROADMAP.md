@@ -10,13 +10,13 @@
 
 **The destination — reached at v1.0.0, extended through v1.1**: PathWise already shows all of someone's loans, investments, and assets in one place, persists that data on-device, visualizes every position and overall net worth over time, overlays what-if scenarios on those projections, and — the founding question — ranks where an extra $X/month does the most good. The per-release record of how it got here is in the [CHANGELOG](./CHANGELOG.md).
 
-Everything past this point (Phases 8–11) is forward-looking expansion, sequenced but revisitable.
+Everything past this point (Phases 9–14) is forward-looking expansion, sequenced but revisitable.
 
 ---
 
-## 2. Current State (v1.1 — Phases 0–7 shipped)
+## 2. Current State (v1.2 — Phases 0–8 shipped)
 
-PathWise is feature-complete against its founding vision (v1.0.0) and now holds a whole-balance-sheet net worth (v1.1, Phase 7). The shipped, per-release history lives in [CHANGELOG.md](./CHANGELOG.md), and the current feature list in [README.md](./README.md); what follows is the forward-looking plan.
+PathWise is feature-complete against its founding vision (v1.0.0), holds a whole-balance-sheet net worth (v1.1, Phase 7), and has sharpened the optimizer's answers across Phase 8 — employer match, one-time lump sums, true monthly payment, and allocation strategy presets & comparison (v1.2). The shipped, per-release history lives in [CHANGELOG.md](./CHANGELOG.md), and the current feature list in [README.md](./README.md); what follows is the forward-looking plan.
 
 ---
 
@@ -61,30 +61,16 @@ Each layer catches a class of error the others miss; all five are required for t
 
 ## 5. Phased Roadmap
 
-Everything shipped through **v1.1 (Phase 7)** now lives in the [CHANGELOG](./CHANGELOG.md) — this section tracks only what is still planned. Phases keep their original numbers for continuity with the shipped history.
+Everything shipped through **v1.2 (Phase 8)** now lives in the [CHANGELOG](./CHANGELOG.md) — this section tracks only what is still planned. Phases keep their original numbers for continuity with the shipped history.
 
 ### Non-goals (identity guardrails for all phases below)
 
-Declared once, up front, so future feature debates have a reference point. Every Phase 8–11 item passes three filters: it serves the core question (forecasting net worth and deciding where money goes), it works with no backend (client-side, data stays on device), and it doesn't turn PathWise into a budgeting app.
+Declared once, up front, so future feature debates have a reference point. Every Phase 9–14 item passes three filters: it serves the core question (forecasting net worth and deciding where money goes), it works with no backend (client-side, data stays on device), and it doesn't turn PathWise into a budgeting app.
 
 - **No transaction/expense tracking, categorization, or budgets** — the BLUF says not a budgeting app; this is the line.
 - **No bank account linking** (Plaid etc.) — requires a backend and credentials; would destroy the privacy story.
 - **No real-time market data** — PathWise models average rates, not tickers; keeps results deterministic and avoids API keys. (The exploratory holdings/property context item in Phase 9 stays within this line: any news feed is user-supplied and opt-in, stored on device, never hosted by PathWise.)
 - **No tax advice** — computing someone's tax return is out of scope.
-
----
-
-### Phase 8 — Better Answers — _target v1.2_
-
-Sharpen the optimizer with the inputs that most change its rankings, and let users compare whole strategies.
-
-| #   | Work item                                           | Notes / acceptance                                                                                                                                                                                                                                                                                                              |
-| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 8.1 | **Employer match** ✅ _shipped v1.6.0_              | Employer matches a % of your contributions up to a % of salary, fed into the optimizer so a matched contribution is valued correctly — the founding "pay the 6% loan vs. fund the 401(k) with a 50% match" case.                                                                                                                |
-| 8.2 | **One-time lump-sum payments** ✅ _shipped v1.7.0_  | "Where does a $5k bonus go?" — a Per month / One-time toggle runs the same optimizer over a lump applied now: on a loan it drops principal (interest saved, earlier payoff), on an investment it compounds from month one and earns the match up to the remaining cap. Additive scenario-engine fields, no schema bump.         |
-| 8.3 | **True monthly payment** ✅ _shipped v1.8.0_        | Escrow (property tax + insurance) and PMI roll into a "true monthly payment" that feeds the monthly-commitments total and a per-loan breakdown, with PMI auto-dropping at 80% LTV (original-value basis) and a projected drop-off date. P&I still amortizes the balance; the new fields are additive/optional (no schema bump). |
-| 8.4 | **Allocation strategy presets** ✅ _shipped v1.9.0_ | Named, one-click strategies in the optimizer — debt-focused (highest-rate loan), investment-focused (highest-return holding), balanced (split by rate), plus the existing custom split — each scored vs. baseline and chartable, respecting the per-month / one-time toggle.                                                    |
-| 8.5 | **Strategy comparison view**                        | Side-by-side dashboard: net worth at +5y/+10y/+30y, debt-free date, final asset allocation across the presets.                                                                                                                                                                                                                  |
 
 ---
 
@@ -212,10 +198,9 @@ the decision is explicit and these aren't re-proposed without new justification.
 
 ## 6. Sequencing at a Glance
 
-Phases 0–7 have shipped (v0.7.0 → v1.1); the per-release record is in the [CHANGELOG](./CHANGELOG.md). What remains:
+Phases 0–8 have shipped (v0.7.0 → v1.2); the per-release record is in the [CHANGELOG](./CHANGELOG.md). What remains:
 
 ```
-Phase 8  Better Answers                   v1.2
 Phase 9  Honest Uncertainty               v1.3   (builds on the Phase 7 property model)
 Phase 10 From Calculator to Plan          v1.4
 Phase 11 Beyond Personal                  v2.0
@@ -224,7 +209,7 @@ Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
 ```
 
-Rationale for the order: completeness (the true net-worth line) already shipped in Phase 7, so what's left is answer quality, then statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view.
 
 ---
 

@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
+import { ScenarioInput } from '../models/forecast-model';
 import {
   forecastLoan,
   forecastNetWorth,
@@ -30,7 +31,11 @@ export const computeMilestones = (
   loans: Loan[],
   investments: Investment[],
   today: Date = new Date(),
-  assets: Asset[] = []
+  assets: Asset[] = [],
+  // Optional what-if extras (Phase 8.5): when supplied, the milestones reflect the
+  // scenario (e.g. an allocation strategy's extra payments/contributions) instead
+  // of the baseline. Omitted by the dashboard, which shows baseline milestones.
+  scenario?: ScenarioInput
 ): Milestones => {
   // Extend the horizon to at least 30 years so the +30y milestone always exists,
   // while still covering a longer loan schedule for the debt-free date.
@@ -47,7 +52,7 @@ export const computeMilestones = (
     loans,
     investments,
     horizon,
-    undefined,
+    scenario,
     today,
     assets
   );
@@ -61,7 +66,13 @@ export const computeMilestones = (
   let debtFreeDate: Date | undefined;
   if (loans.length > 0) {
     const loanSeries = loans.map((loan) =>
-      forecastLoan(loan, horizon, 0, today)
+      forecastLoan(
+        loan,
+        horizon,
+        scenario?.ExtraLoanPayments?.[loan.Id] ?? 0,
+        today,
+        scenario?.OneTimeLoanPayments?.[loan.Id] ?? 0
+      )
     );
     for (let month = 0; month < netWorth.length; month++) {
       const totalDebt = loanSeries.reduce(

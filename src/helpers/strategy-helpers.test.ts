@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildStrategyPlans, StrategyPlan } from './strategy-helpers';
+import {
+  buildStrategyPlans,
+  compareStrategies,
+  StrategyPlan,
+} from './strategy-helpers';
+import { computeMilestones } from './milestone-helpers';
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, Investment } from '../models/investment-model';
 
@@ -131,5 +136,94 @@ describe('buildStrategyPlans', () => {
     const balanced = byKind(plans, 'balanced')!;
     expect(sum(balanced)).toBe(100);
     expect(balanced.allocations.l3).toBeCloseTo(66.66, 2);
+  });
+});
+
+describe('compareStrategies', () => {
+  const TODAY = new Date(2025, 0, 1);
+  // One slow-paying loan (8000 at $200/mo, 9%) so debt-focused visibly moves its
+  // payoff, plus one investment that only grows from its balance (no recurring
+  // contribution) so an extra clearly raises the final invested amount.
+  const loans = [makeLoan('l1', 9)];
+  const investments = [makeInvestment('i1', 6)];
+
+  it('returns nothing for a non-positive budget', () => {
+    expect(
+      compareStrategies(loans, investments, [], 0, 'monthly', TODAY)
+    ).toEqual([]);
+  });
+
+  it('compares the baseline against every preset, baseline first', () => {
+    const rows = compareStrategies(
+      loans,
+      investments,
+      [],
+      500,
+      'monthly',
+      TODAY
+    );
+    expect(rows.map((r) => r.kind)).toEqual([
+      'baseline',
+      'debt',
+      'invest',
+      'balanced',
+    ]);
+    for (const row of rows) {
+      expect(row.netWorthAt.map((m) => m.years)).toEqual([5, 10, 30]);
+    }
+  });
+
+  it('baseline net worth matches the dashboard milestones (no scenario)', () => {
+    const rows = compareStrategies(
+      loans,
+      investments,
+      [],
+      500,
+      'monthly',
+      TODAY
+    );
+    const baseline = rows.find((r) => r.kind === 'baseline')!;
+    expect(baseline.netWorthAt).toEqual(
+      computeMilestones(loans, investments, TODAY).netWorthAt
+    );
+  });
+
+  it('debt-focused clears the loan sooner; investment-focused ends with more invested', () => {
+    const rows = compareStrategies(
+      loans,
+      investments,
+      [],
+      500,
+      'monthly',
+      TODAY
+    );
+    const baseline = rows.find((r) => r.kind === 'baseline')!;
+    const debt = rows.find((r) => r.kind === 'debt')!;
+    const invest = rows.find((r) => r.kind === 'invest')!;
+    expect(debt.debtFreeDate!.getTime()).toBeLessThan(
+      baseline.debtFreeDate!.getTime()
+    );
+    expect(invest.finalInvestments).toBeGreaterThan(baseline.finalInvestments);
+  });
+
+  it('threads one-time mode through to the strategies', () => {
+    const rows = compareStrategies(
+      loans,
+      investments,
+      [],
+      6000,
+      'oneTime',
+      TODAY
+    );
+    expect(rows.map((r) => r.kind)).toEqual([
+      'baseline',
+      'debt',
+      'invest',
+      'balanced',
+    ]);
+    const baseline = rows.find((r) => r.kind === 'baseline')!;
+    const invest = rows.find((r) => r.kind === 'invest')!;
+    // A one-time lump into investments still ends with more invested at +30y.
+    expect(invest.finalInvestments).toBeGreaterThan(baseline.finalInvestments);
   });
 });

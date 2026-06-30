@@ -9,6 +9,21 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.10.0] — Strategy comparison view
+
+### Added
+
+- **Compare allocation strategies side by side (Phase 8.5).** A new "Compare
+  strategies side by side" section in the optimizer lays the baseline and every
+  preset (debt-focused, investment-focused, balanced by rate) next to each other,
+  with **net worth at +5y / +10y / +30y**, the **debt-free date**, and the
+  **final investments-vs-debt split** at +30y for each — and flags the strategy
+  with the highest long-run net worth. The figures come from the same forecast
+  engine the chart and dashboard use (and the milestones now accept a what-if
+  scenario), so they agree everywhere. It respects the per-month / one-time
+  toggle and only computes once expanded, keeping the optimizer's default view
+  focused.
+
 ## [1.9.0] — Allocation strategy presets
 
 ### Added
