@@ -29,6 +29,20 @@ export enum AssetType {
   CustomLiability = 'custom-liability',
 }
 
+// Holdings & property context (ROADMAP 9.4). A user-curated reference the app
+// stores but never fetches: company/fund research for an investment, or
+// local-market and area links for a property. The URL is untrusted input — it is
+// kept safe (http/https only) by research-helpers before it is ever rendered as
+// a clickable anchor.
+export interface ResearchLink {
+  // Short human label, e.g. "Morningstar", "Zillow area report", "Q3 earnings".
+  Label: string;
+  // Destination; always an http(s) URL once validated on entry and on import.
+  Url: string;
+  // Optional freeform note, e.g. "watch the expense ratio", "comps look soft".
+  Note?: string;
+}
+
 export interface Asset {
   Id: string;
   Provider: string;
@@ -66,6 +80,9 @@ export interface Asset {
   EmployerMatchRate?: number;
   EmployerMatchLimitPct?: number;
   AnnualSalary?: number;
+  // Holdings & property context (ROADMAP 9.4): user-curated research/reference
+  // links attached to this holding. On-device only, never fetched. Absent = none.
+  ResearchLinks?: ResearchLink[];
 }
 
 export const emptyAsset: Asset = {

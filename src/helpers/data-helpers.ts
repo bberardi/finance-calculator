@@ -1,8 +1,9 @@
 import { Loan } from '../models/loan-model';
 import { CompoundingFrequency, StepUpType } from '../models/investment-model';
-import { Asset, AssetType } from '../models/asset-model';
+import { Asset, AssetType, ResearchLink } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { CURRENT_SCHEMA_VERSION, RawData, migrate } from './migrate-helpers';
+import { isSafeResearchUrl } from './research-helpers';
 import packageJson from '../../package.json';
 
 // Schema v5 (the investment fold): inputs only — loans, named scenarios, and
@@ -230,6 +231,48 @@ const parseScenarios = (value: unknown): Scenario[] => {
  * loan/investment validation. Picks fields explicitly so unknown properties are
  * dropped at the import boundary.
  */
+/**
+ * Validate an asset's optional research links (ROADMAP 9.4). A missing value
+ * imports as no links; a present value must be an array of { Label, Url, Note? }
+ * where Label is a non-empty string and Url is a safe http(s) URL — rejecting a
+ * javascript:/data: URL that would be unsafe to render as an anchor, the same
+ * bar the editor enforces on entry. Malformed entries throw, matching the rest
+ * of import validation.
+ */
+const parseResearchLinks = (
+  value: unknown,
+  index: number
+): ResearchLink[] | undefined => {
+  if (value == null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error(
+      `Invalid 'ResearchLinks' in asset at index ${index}: expected an array.`
+    );
+  }
+  return value.map((raw, linkIndex) => {
+    const where = `research link at index ${linkIndex} of asset at index ${index}`;
+    if (!isPlainObject(raw)) {
+      throw new Error(`Invalid ${where}: expected an object.`);
+    }
+    if (typeof raw.Label !== 'string' || raw.Label.trim() === '') {
+      throw new Error(
+        `Invalid 'Label' in ${where}: expected a non-empty string.`
+      );
+    }
+    if (typeof raw.Url !== 'string' || !isSafeResearchUrl(raw.Url)) {
+      throw new Error(`Invalid 'Url' in ${where}: expected an http(s) URL.`);
+    }
+    const link: ResearchLink = { Label: raw.Label, Url: raw.Url };
+    if (raw.Note != null) {
+      if (typeof raw.Note !== 'string') {
+        throw new Error(`Invalid 'Note' in ${where}: expected a string.`);
+      }
+      link.Note = raw.Note;
+    }
+    return link;
+  });
+};
+
 const parseAssets = (value: unknown): Asset[] => {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) {
@@ -424,6 +467,7 @@ const parseAssets = (value: unknown): Asset[] => {
       EmployerMatchRate: raw.EmployerMatchRate as number | undefined,
       EmployerMatchLimitPct: raw.EmployerMatchLimitPct as number | undefined,
       AnnualSalary: raw.AnnualSalary as number | undefined,
+      ResearchLinks: parseResearchLinks(raw.ResearchLinks, index),
     };
   });
 };

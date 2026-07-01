@@ -9,6 +9,22 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.14.0] — Holdings & property context (research links)
+
+### Added
+
+- **On-device research links per holding (Phase 9.4).** Investment and property
+  rows gain a **Research & context** action: attach your own reference links —
+  company/fund research and filings for an investment, local-market and area
+  reports for a property — each with an optional note. Links are stored on the
+  holding (and travel with JSON export/import) and rendered as clickable anchors,
+  but **the app never fetches them** — it stays fully offline, deterministic, and
+  key-free, exactly as the roadmap's "user-supplied, on-device, never hosted"
+  guardrail requires. Because a stored URL ends up in an `<a href>`, every link is
+  normalized (a bare `zillow.com` becomes `https://zillow.com`) and checked to be
+  a safe `http(s)` URL (`research-helpers`) before it can be added or imported —
+  a `javascript:`/`data:` URL is rejected on both paths.
+
 ## [1.13.0] — Enhancement ROI ("is this improvement worth it?")
 
 ### Added

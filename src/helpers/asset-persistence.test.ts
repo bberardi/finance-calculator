@@ -274,6 +274,109 @@ describe('importFromJson — assets (parseAssets)', () => {
   });
 });
 
+// Research links (ROADMAP 9.4): the import boundary validates the optional
+// user-curated links, and — critically — rejects any URL that isn't a safe
+// http(s) link, since a stored link is rendered as a clickable anchor.
+describe('importFromJson — asset research links (parseResearchLinks)', () => {
+  const withLinks = (links: unknown): string =>
+    makeJson([
+      {
+        Id: 'a1',
+        Provider: 'Bank',
+        Name: 'Home',
+        AssetType: AssetType.Property,
+        Balance: 100,
+        GrowthRate: 1,
+        ResearchLinks: links,
+      },
+    ]);
+
+  it('round-trips an asset carrying research links (label, url, note) through export and import', () => {
+    const asset = validAsset({
+      AssetType: AssetType.Property,
+      Balance: 400000,
+      GrowthRate: 3,
+      ResearchLinks: [
+        {
+          Label: 'Zillow area report',
+          Url: 'https://www.zillow.com/austin-tx',
+          Note: 'comps look soft',
+        },
+      ],
+    });
+    const json = exportToJson([], [], [asset]);
+    expect(importFromJson(json).assets).toEqual([asset]);
+  });
+
+  it('imports a link without a note, leaving Note undefined', () => {
+    const { assets } = importFromJson(
+      withLinks([{ Label: 'Morningstar', Url: 'https://www.morningstar.com' }])
+    );
+    expect(assets[0].ResearchLinks).toEqual([
+      { Label: 'Morningstar', Url: 'https://www.morningstar.com' },
+    ]);
+    expect(assets[0].ResearchLinks?.[0].Note).toBeUndefined();
+  });
+
+  it('treats a missing ResearchLinks value as no links', () => {
+    const { assets } = importFromJson(
+      makeJson([
+        {
+          Id: 'a1',
+          Provider: 'Bank',
+          Name: 'Home',
+          AssetType: AssetType.Property,
+          Balance: 100,
+          GrowthRate: 1,
+        },
+      ])
+    );
+    expect(assets[0].ResearchLinks).toBeUndefined();
+  });
+
+  it('rejects a ResearchLinks value that is not an array', () => {
+    expect(() => importFromJson(withLinks('nope'))).toThrow(
+      "Invalid 'ResearchLinks' in asset at index 0: expected an array"
+    );
+  });
+
+  it('rejects a non-object link entry', () => {
+    expect(() => importFromJson(withLinks([42]))).toThrow('expected an object');
+  });
+
+  it('rejects a link with a non-string label', () => {
+    expect(() => importFromJson(withLinks([{ Url: 'https://x.com' }]))).toThrow(
+      "Invalid 'Label'"
+    );
+  });
+
+  it('rejects a link with a blank label', () => {
+    expect(() =>
+      importFromJson(withLinks([{ Label: '   ', Url: 'https://x.com' }]))
+    ).toThrow("Invalid 'Label'");
+  });
+
+  it('rejects a link with a non-string url', () => {
+    expect(() => importFromJson(withLinks([{ Label: 'X' }]))).toThrow(
+      "Invalid 'Url'"
+    );
+  });
+
+  it('rejects a link with an unsafe (non-http) url', () => {
+    expect(() =>
+      importFromJson(withLinks([{ Label: 'X', Url: 'javascript:alert(1)' }]))
+    ).toThrow('expected an http(s) URL');
+  });
+
+  it('rejects a link whose note is not a string', () => {
+    expect(() =>
+      importFromJson(
+        withLinks([{ Label: 'X', Url: 'https://x.com', Note: 42 }])
+      )
+    ).toThrow("Invalid 'Note'");
+  });
+});
+
 // Investment-type assets (the fold): the import boundary must validate and
 // round-trip the investment-only fields (StartDate, recurring contributions,
 // step-ups, current value) that ride along on an AssetType.Investment.
