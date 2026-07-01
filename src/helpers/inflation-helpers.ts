@@ -13,8 +13,10 @@ const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 export const DEFAULT_INFLATION_PCT = 3;
 
 // Discount a nominal value by `years` of inflation to today's dollars. `years`
-// may be fractional; 0 (or a negative, i.e. the present/past) leaves it unchanged
-// when inflation is non-negative. Not rounded, so callers can round once at the end.
+// may be fractional: 0 leaves it unchanged, a positive (future) horizon shrinks it
+// toward real terms, and a negative one — a past date — scales it up, which is the
+// correct today's-dollars value of a past amount. In practice the app only ever
+// passes years >= 0. Not rounded, so callers can round once at the end.
 export const toRealValueOverYears = (
   nominal: number,
   years: number,
