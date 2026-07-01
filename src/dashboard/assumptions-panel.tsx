@@ -24,9 +24,9 @@ const ASSUMPTIONS: { title: string; detail: string }[] = [
       'Investments grow at a single average rate. Real markets vary year to year; this is a midpoint, not a promise.',
   },
   {
-    title: 'No taxes or inflation',
+    title: 'Nominal and pre-tax by default',
     detail:
-      'Values are nominal and pre-tax. After-tax and real (inflation-adjusted) views are planned, not yet applied.',
+      "Values are nominal and pre-tax. Toggle “today's dollars” to discount future projections at 3%/yr inflation (a real view); an after-tax view is still planned.",
   },
   {
     title: 'Anchored to today',

@@ -26,6 +26,10 @@ import {
   formatCurrencyCompact,
 } from '../helpers/format-helpers';
 import {
+  DEFAULT_INFLATION_PCT,
+  toRealSeries,
+} from '../helpers/inflation-helpers';
+import {
   NET_WORTH_COLOR,
   SCENARIO_SERIES_SUFFIX,
   baseSeriesId,
@@ -41,6 +45,9 @@ interface ForecastChartProps {
   assets?: Asset[];
   scenario?: ScenarioInput;
   height?: number;
+  // When true, every projected value is shown in today's dollars
+  // (inflation-adjusted, Phase 9.2).
+  inflationAdjusted?: boolean;
 }
 
 type TimeRange = '5y' | '10y' | '30y' | 'full';
@@ -72,6 +79,7 @@ export const ForecastChart = ({
   assets,
   scenario,
   height,
+  inflationAdjusted = false,
 }: ForecastChartProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -154,6 +162,17 @@ export const ForecastChart = ({
 
   const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
 
+  // Real mode (9.2): deflate every displayed value to today's dollars by its
+  // date. Applied to the chart lines and the table alike; the Monte Carlo fan
+  // deflates its own percentile arrays below. Cheap post-process, recomputed with
+  // visibleSeries.
+  const displaySeries = inflationAdjusted
+    ? visibleSeries.map((s) => ({
+        ...s,
+        values: toRealSeries(s.values, dates, today, DEFAULT_INFLATION_PCT),
+      }))
+    : visibleSeries;
+
   // Per-series line styling: thicken any net-worth line, dash scenario overlays.
   // x-charts v9 tags each line path with `data-series-id` (there is no per-series
   // class), so target that attribute under the shared line class.
@@ -199,9 +218,15 @@ export const ForecastChart = ({
       mcBands.bands
         .find((band) => band.percentile === percentile)!
         .values.slice(0, count);
-    const p10 = valuesAt(10);
-    const p50 = valuesAt(50);
-    const p90 = valuesAt(90);
+    // Deflate the percentiles to today's dollars in real mode (9.2), so the fan
+    // and its tooltip stay consistent with the deterministic lines.
+    const deflate = (values: number[]) =>
+      inflationAdjusted
+        ? toRealSeries(values, dates, today, DEFAULT_INFLATION_PCT)
+        : values;
+    const p10 = deflate(valuesAt(10));
+    const p50 = deflate(valuesAt(50));
+    const p90 = deflate(valuesAt(90));
     return [
       {
         id: 'mc-p10-base',
@@ -238,7 +263,7 @@ export const ForecastChart = ({
           value === null ? '' : formatCurrency(value),
       },
     ];
-  }, [mcBands, dates.length]);
+  }, [mcBands, dates, today, inflationAdjusted]);
 
   return (
     <Box>
@@ -294,7 +319,7 @@ export const ForecastChart = ({
         </ToggleButtonGroup>
       </Stack>
       {view === 'table' ? (
-        <ForecastDataTable dates={dates} series={visibleSeries} />
+        <ForecastDataTable dates={dates} series={displaySeries} />
       ) : showMonteCarlo && fanSeries ? (
         <LineChart
           height={chartHeight}
@@ -325,7 +350,7 @@ export const ForecastChart = ({
           yAxis={[
             { valueFormatter: (value: number) => formatCurrencyCompact(value) },
           ]}
-          series={visibleSeries.map((s) => ({
+          series={displaySeries.map((s) => ({
             id: s.id,
             data: s.values,
             label: s.label,
