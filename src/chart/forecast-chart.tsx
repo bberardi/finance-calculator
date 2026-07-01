@@ -8,6 +8,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
@@ -25,12 +26,14 @@ import {
   formatCurrencyCompact,
 } from '../helpers/format-helpers';
 import {
+  NET_WORTH_COLOR,
   SCENARIO_SERIES_SUFFIX,
   baseSeriesId,
   getSeriesColor,
 } from './series-colors';
 import { ChartLegend } from './chart-legend';
 import { ForecastDataTable } from './forecast-data-table';
+import { simulateNetWorthBands } from '../helpers/monte-carlo-helpers';
 
 interface ForecastChartProps {
   loans: Loan[];
@@ -172,6 +175,70 @@ export const ForecastChart = ({
   }, [series]);
 
   const [view, setView] = useState<'chart' | 'table'>('chart');
+  const [monteCarlo, setMonteCarlo] = useState(false);
+  // Monte Carlo is a chart-only overlay; in table view it has no effect.
+  const showMonteCarlo = monteCarlo && view === 'chart';
+
+  // Monte Carlo net-worth bands (9.1), computed over the full horizon only when
+  // the mode is on, then sliced to the selected range below. Seeded, so the fan
+  // is stable across re-renders.
+  const mcBands = useMemo(() => {
+    if (!showMonteCarlo) return null;
+    const horizon = getDefaultHorizon(loans, investments, today);
+    return simulateNetWorthBands(loans, investments, assetList, horizon, today);
+  }, [showMonteCarlo, loans, investments, assetList, today]);
+
+  // Build the fan as a transparent p10 base + a shaded p10→p90 band (stacked-area
+  // trick — x-charts has no native range series) + a solid p50 median line, all
+  // windowed to the current range. The band's tooltip reconstructs the real
+  // p10–p90 range from its delta data.
+  const fanSeries = useMemo(() => {
+    if (!mcBands) return null;
+    const count = dates.length;
+    const valuesAt = (percentile: number) =>
+      mcBands.bands
+        .find((band) => band.percentile === percentile)!
+        .values.slice(0, count);
+    const p10 = valuesAt(10);
+    const p50 = valuesAt(50);
+    const p90 = valuesAt(90);
+    return [
+      {
+        id: 'mc-p10-base',
+        data: p10,
+        area: true,
+        stack: 'mc-fan',
+        color: 'transparent',
+        showMark: false,
+        valueFormatter: () => '',
+      },
+      {
+        id: 'mc-band',
+        data: p90.map((value, index) => value - p10[index]),
+        area: true,
+        stack: 'mc-fan',
+        color: alpha(NET_WORTH_COLOR, 0.18),
+        showMark: false,
+        label: 'Net worth range (P10–P90)',
+        valueFormatter: (
+          _value: number | null,
+          context: { dataIndex: number }
+        ) =>
+          `${formatCurrency(p10[context.dataIndex])} – ${formatCurrency(
+            p90[context.dataIndex]
+          )}`,
+      },
+      {
+        id: 'mc-p50',
+        data: p50,
+        color: NET_WORTH_COLOR,
+        showMark: false,
+        label: 'Net worth (median)',
+        valueFormatter: (value: number | null) =>
+          value === null ? '' : formatCurrency(value),
+      },
+    ];
+  }, [mcBands, dates.length]);
 
   return (
     <Box>
@@ -184,22 +251,34 @@ export const ForecastChart = ({
           gap: 1,
         }}
       >
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={view}
-          onChange={(_, next: 'chart' | 'table' | null) =>
-            next && setView(next)
-          }
-          aria-label="Forecast view"
-        >
-          <ToggleButton value="chart" aria-label="View as chart">
-            Chart
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={view}
+            onChange={(_, next: 'chart' | 'table' | null) =>
+              next && setView(next)
+            }
+            aria-label="Forecast view"
+          >
+            <ToggleButton value="chart" aria-label="View as chart">
+              Chart
+            </ToggleButton>
+            <ToggleButton value="table" aria-label="View as table">
+              Table
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButton
+            size="small"
+            value="monte-carlo"
+            selected={monteCarlo}
+            onChange={() => setMonteCarlo((prev) => !prev)}
+            disabled={view === 'table'}
+            aria-label="Monte Carlo mode"
+          >
+            Monte Carlo
           </ToggleButton>
-          <ToggleButton value="table" aria-label="View as table">
-            Table
-          </ToggleButton>
-        </ToggleButtonGroup>
+        </Stack>
         <ToggleButtonGroup
           size="small"
           exclusive
@@ -216,6 +295,22 @@ export const ForecastChart = ({
       </Stack>
       {view === 'table' ? (
         <ForecastDataTable dates={dates} series={visibleSeries} />
+      ) : showMonteCarlo && fanSeries ? (
+        <LineChart
+          height={chartHeight}
+          xAxis={[
+            {
+              data: dates,
+              scaleType: 'time',
+              valueFormatter: (value: Date) => dayjs(value).format('MMM YYYY'),
+            },
+          ]}
+          yAxis={[
+            { valueFormatter: (value: number) => formatCurrencyCompact(value) },
+          ]}
+          series={fanSeries}
+          margin={{ left: 64 }}
+        />
       ) : (
         <LineChart
           height={chartHeight}
@@ -243,12 +338,14 @@ export const ForecastChart = ({
           sx={lineStyles}
         />
       )}
-      <ChartLegend
-        items={legendItems}
-        hiddenIds={hiddenIds}
-        onToggle={toggleSeries}
-        onShowAll={showAll}
-      />
+      {!showMonteCarlo && (
+        <ChartLegend
+          items={legendItems}
+          hiddenIds={hiddenIds}
+          onToggle={toggleSeries}
+          onShowAll={showAll}
+        />
+      )}
     </Box>
   );
 };
