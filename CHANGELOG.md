@@ -9,6 +9,25 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.14.1] — Audit fixes
+
+### Fixed
+
+- **A depreciating asset with an extreme negative growth rate (beyond
+  -100%/yr for its compounding frequency, e.g. -150%/yr annually) could go
+  negative and oscillate in sign at each compounding boundary**, instead of
+  decaying toward — and staying at — zero as documented. `forecastAsset` now
+  floors the per-period factor at 0. `GrowthRate` is only warned on past
+  ±25%/yr, not blocked, so this was reachable through the normal UI/import
+  path. (#152)
+- **The v4→v5 schema migration silently dropped a folded investment's
+  employer 401(k)-match fields** (`EmployerMatchRate`, `EmployerMatchLimitPct`,
+  `AnnualSalary`), diverging from the canonical `investmentToAsset` converter
+  it's documented to mirror. A migrated forecast would have omitted the
+  employer match; real historical exports predate the match feature and were
+  unaffected, but a hand-edited or future v4 payload would have silently lost
+  the data. The migration step now carries all three fields. (#153)
+
 ## [1.14.0] — Holdings & property context (research links)
 
 ### Added

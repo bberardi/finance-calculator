@@ -149,6 +149,31 @@ describe('forecastAsset', () => {
     expect(series[12].Value).toBeLessThan(20000);
   });
 
+  // Regression (#152): with annual compounding, the per-period factor is
+  // 1 + GrowthRate/100. At -100%/yr it's exactly 0; beyond that (e.g. -150%/yr)
+  // it goes negative, so an unclamped `value *= factor` flips sign every
+  // compounding boundary instead of decaying toward — and staying at — zero as
+  // documented. GrowthRate is only warned on past ±25%/yr, not blocked, so this
+  // is reachable through the normal UI/import path.
+  it('floors at zero rather than going negative for an extreme negative rate', () => {
+    const horizon = new Date(2030, 0, 1);
+    const series = forecastAsset(
+      baseAsset({
+        Balance: 10000,
+        GrowthRate: -150,
+        CompoundingPeriod: CompoundingFrequency.Annually,
+        AssetType: AssetType.CustomAsset,
+      }),
+      horizon,
+      TODAY
+    );
+    // Hits zero at the first annual boundary (month 12) and stays there — no
+    // sign flip, no bounce back above zero on later boundaries.
+    expect(series[12].Value).toBe(0);
+    expect(series[series.length - 1].Value).toBe(0);
+    expect(series.every((p) => p.Value >= 0)).toBe(true);
+  });
+
   it('returns only the anchor when the horizon is today', () => {
     const series = forecastAsset(baseAsset({ Balance: 7500 }), TODAY, TODAY);
     expect(series).toHaveLength(1);
@@ -156,15 +181,27 @@ describe('forecastAsset', () => {
   });
 
   // Property: a non-negative balance can never produce a negative value, for any
-  // rate above −100%/yr (the only regime where a monthly factor stays positive).
-  it('never goes negative for a non-negative balance (property)', () => {
+  // finite rate (#152) — including well past −100%/yr, where an unclamped
+  // per-period factor would go negative. The rate range and compounding
+  // frequencies together cover every regime: monthly's threshold (−1200%/yr) is
+  // the most extreme of the three, so −2000 safely crosses all of them.
+  it('never goes negative for a non-negative balance, even at extreme negative rates (property)', () => {
     fc.assert(
       fc.property(
         fc.double({ min: 0, max: 1_000_000, noNaN: true }),
-        fc.double({ min: -90, max: 90, noNaN: true }),
-        (balance, rate) => {
+        fc.double({ min: -2000, max: 90, noNaN: true }),
+        fc.constantFrom(
+          CompoundingFrequency.Monthly,
+          CompoundingFrequency.Quarterly,
+          CompoundingFrequency.Annually
+        ),
+        (balance, rate, compounding) => {
           const series = forecastAsset(
-            baseAsset({ Balance: balance, GrowthRate: rate }),
+            baseAsset({
+              Balance: balance,
+              GrowthRate: rate,
+              CompoundingPeriod: compounding,
+            }),
             new Date(2035, 0, 1),
             TODAY
           );

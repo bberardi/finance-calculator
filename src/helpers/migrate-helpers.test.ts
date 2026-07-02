@@ -98,6 +98,36 @@ describe('migrate (D8 migration ladder)', () => {
     });
   });
 
+  // Regression (#153): investmentToSerializedAsset is documented as mirroring
+  // the canonical investmentToAsset converter, which carries the employer-match
+  // fields — a pre-fix version of this step omitted them, so a v4→v5 fold would
+  // silently drop 401(k) match data even though the v5 import boundary fully
+  // supports it.
+  it('preserves employer-match fields when folding an investment into an asset', () => {
+    const migrated = migrate({
+      schemaVersion: 4,
+      loans: [],
+      scenarios: [],
+      investments: [
+        {
+          Id: 'inv1',
+          StartingBalance: 10000,
+          AverageReturnRate: 7,
+          RecurringContribution: 500,
+          EmployerMatchRate: 50,
+          EmployerMatchLimitPct: 6,
+          AnnualSalary: 100000,
+        },
+      ],
+    });
+    const assets = migrated.assets as Record<string, unknown>[];
+    expect(assets[0]).toMatchObject({
+      EmployerMatchRate: 50,
+      EmployerMatchLimitPct: 6,
+      AnnualSalary: 100000,
+    });
+  });
+
   it('tolerates a v4 payload with no assets key and folds malformed investment entries defensively', () => {
     const migrated = migrate({
       schemaVersion: 4,

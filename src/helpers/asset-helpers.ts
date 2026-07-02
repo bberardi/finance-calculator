@@ -60,7 +60,11 @@ export const forecastAsset = (
 
   for (let month = 1; month <= months; month++) {
     if (month % compoundingInterval === 0) {
-      value *= 1 + periodRate;
+      // Floor the per-period factor at 0: an extreme negative GrowthRate (below
+      // -100%/yr equivalent for this compounding frequency, e.g. -1200%/yr
+      // monthly) would otherwise make `1 + periodRate` negative, flipping the
+      // sign every boundary instead of decaying toward zero as documented. (#152)
+      value *= Math.max(0, 1 + periodRate);
     }
     points.push({
       Date: start.add(month, 'month').toDate(),
