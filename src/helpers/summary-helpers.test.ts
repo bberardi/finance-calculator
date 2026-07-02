@@ -3,7 +3,11 @@ import { summarizePositions } from './summary-helpers';
 import { currentInvestmentValue, forecastNetWorth } from './forecast-helpers';
 import { getMonthlyPayment } from './loan-helpers';
 import { Loan } from '../models/loan-model';
-import { CompoundingFrequency, Investment } from '../models/investment-model';
+import {
+  CompoundingFrequency,
+  Investment,
+  StepUpType,
+} from '../models/investment-model';
 
 const TODAY = new Date(2025, 0, 1);
 
@@ -93,6 +97,23 @@ describe('summarizePositions', () => {
     );
     expect(summarizePositions([], [annual], TODAY).monthlyCommitments).toBe(
       100
+    );
+  });
+
+  it('reflects the stepped-up contribution for the current investment year', () => {
+    // Started 2024 with $100/mo stepping up $50/yr: by TODAY (year 2) the
+    // engine contributes $150/mo, so the commitments card must say $150 — the
+    // year-one base would understate the real outflow the forecast applies.
+    const steppedUp: Investment = {
+      ...investment,
+      Id: 'inv-s',
+      RecurringContribution: 100,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+      ContributionStepUpAmount: 50,
+      ContributionStepUpType: StepUpType.Flat,
+    };
+    expect(summarizePositions([], [steppedUp], TODAY).monthlyCommitments).toBe(
+      150
     );
   });
 

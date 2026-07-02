@@ -15,6 +15,18 @@ describe('compareSortValues', () => {
     expect(compareSortValues(5, 5)).toBe(0);
     expect(compareSortValues('x', 'x')).toBe(0);
   });
+
+  it('orders strings case-insensitively', () => {
+    // Code-point comparison would put every capitalized name first ('Z' < 'a'),
+    // sinking a lowercase "chase savings" below the whole alphabet.
+    expect(compareSortValues('chase savings', 'Vanguard 401k')).toBe(-1);
+    expect(compareSortValues('Apple', 'apple')).toBe(0);
+  });
+
+  it('orders numbered names numerically', () => {
+    // "Loan 2" belongs before "Loan 10"; plain string comparison reverses them.
+    expect(compareSortValues('Loan 2', 'Loan 10')).toBe(-1);
+  });
 });
 
 describe('sortBy', () => {
