@@ -9,6 +9,21 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.13.0] — Enhancement ROI ("is this improvement worth it?")
+
+### Added
+
+- **Renovation / enhancement ROI calculator (Phase 9.3).** Property rows gain an
+  **Enhancement ROI** action that opens a small calculator: enter an improvement's
+  cost and the value it adds, and see how much of the cost it recoups, its
+  immediate effect on net worth, the added value grown to a chosen horizon, and —
+  as that added value appreciates with the home — when (if ever) it breaks even.
+  The appreciation rate is pre-filled from the asset. Pure closed-form math
+  (`evaluateEnhancement`): break-even solves `valueAdd·(1+g)^t = cost`, so it is 0
+  when the value added already covers the cost, a positive number of years when
+  appreciation gets it there, and "not at this rate" when it never will. Offered
+  only for appreciating property assets.
+
 ## [1.12.0] — Inflation toggle (real vs. nominal)
 
 ### Added

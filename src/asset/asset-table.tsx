@@ -6,15 +6,22 @@ import {
   Typography,
   Grid,
 } from '@mui/material';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Asset, AssetType } from '../models/asset-model';
 import { Loan } from '../models/loan-model';
 import { forecastHomeEquity } from '../helpers/forecast-helpers';
 import { isAssetLiability } from '../helpers/asset-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
-import { ContentCopy, Delete, Edit, SwapHoriz } from '@mui/icons-material';
+import {
+  Construction,
+  ContentCopy,
+  Delete,
+  Edit,
+  SwapHoriz,
+} from '@mui/icons-material';
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { HoldingColumn, HoldingTable } from '../components/holding-table';
+import { EnhancementPopout } from './enhancement-popout';
 
 // Human-readable labels for each asset type, used in the table and cards.
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
@@ -32,6 +39,9 @@ interface AssetRowHandlers {
   // Cross-model conversion (custom liability → loan). Optional: only the
   // Liabilities table wires it, so the action is hidden in the Assets table.
   onConvertToLoan?: (asset: Asset) => void;
+  // Open the "is this improvement worth it?" calculator (9.3). Offered only for
+  // appreciating property assets.
+  onEnhance?: (asset: Asset) => void;
 }
 
 // An asset plus its engine-derived display value: today's home equity for a
@@ -57,12 +67,26 @@ const assetActions = (
       onClick: () => handlers.onClone(asset),
     },
   ];
-  const { onConvertToLoan } = handlers;
+  const { onConvertToLoan, onEnhance } = handlers;
   if (onConvertToLoan) {
     actions.push({
       icon: <SwapHoriz />,
       title: 'Convert to loan',
       onClick: () => onConvertToLoan(asset),
+    });
+  }
+  // Enhancement ROI is only meaningful for an appreciating property — gated on
+  // GrowthRate > 0, not just the type, so a depreciating/flat property (where
+  // "appreciating -2.50%/yr" would read oddly) doesn't offer the action.
+  if (
+    onEnhance &&
+    asset.AssetType === AssetType.Property &&
+    asset.GrowthRate > 0
+  ) {
+    actions.push({
+      icon: <Construction />,
+      title: 'Enhancement ROI',
+      onClick: () => onEnhance(asset),
     });
   }
   actions.push({
@@ -165,11 +189,16 @@ export const AssetTable = (props: AssetTableProps) => {
     balanceHeader = 'Balance',
   } = props;
 
+  // Self-managed "enhancement ROI" popout (9.3): opened from a property row and
+  // closed here, so it needs no Body wiring.
+  const [enhanceAsset, setEnhanceAsset] = useState<Asset>();
+
   const handlers: AssetRowHandlers = {
     onEdit: props.onAssetEdit,
     onClone: props.onAssetClone,
     onDelete: props.onAssetDelete,
     onConvertToLoan: props.onAssetConvertToLoan,
+    onEnhance: setEnhanceAsset,
   };
 
   // Sortable data columns, built from props so the Type column can be dropped
@@ -253,33 +282,41 @@ export const AssetTable = (props: AssetTableProps) => {
   }, [props.assets, props.loans, today]);
 
   return (
-    <HoldingTable<AssetRow>
-      items={rows}
-      getRowId={assetRowId}
-      searchFields={assetSearchFields}
-      columns={columns}
-      getRowName={(r) => r.asset.Name}
-      rowActions={(r) => assetActions(r.asset, handlers)}
-      renderCard={({ item, selected, onSelect }) => (
-        <AssetCard
-          row={item}
-          handlers={handlers}
-          selected={selected}
-          onSelect={onSelect}
-          showType={showTypeColumn}
+    <>
+      <HoldingTable<AssetRow>
+        items={rows}
+        getRowId={assetRowId}
+        searchFields={assetSearchFields}
+        columns={columns}
+        getRowName={(r) => r.asset.Name}
+        rowActions={(r) => assetActions(r.asset, handlers)}
+        renderCard={({ item, selected, onSelect }) => (
+          <AssetCard
+            row={item}
+            handlers={handlers}
+            selected={selected}
+            onSelect={onSelect}
+            showType={showTypeColumn}
+          />
+        )}
+        defaultSortColumnId="Balance"
+        searchLabel={searchLabel}
+        itemLabel={itemLabel}
+        itemLabelPlural={itemLabelPlural}
+        onBulkDuplicate={(selected) =>
+          selected.forEach((r) => props.onAssetClone(r.asset))
+        }
+        onBulkDelete={(selected) =>
+          props.onAssetBulkDelete(selected.map((r) => r.asset))
+        }
+      />
+      {enhanceAsset && (
+        <EnhancementPopout
+          asset={enhanceAsset}
+          onClose={() => setEnhanceAsset(undefined)}
         />
       )}
-      defaultSortColumnId="Balance"
-      searchLabel={searchLabel}
-      itemLabel={itemLabel}
-      itemLabelPlural={itemLabelPlural}
-      onBulkDuplicate={(selected) =>
-        selected.forEach((r) => props.onAssetClone(r.asset))
-      }
-      onBulkDelete={(selected) =>
-        props.onAssetBulkDelete(selected.map((r) => r.asset))
-      }
-    />
+    </>
   );
 };
 
