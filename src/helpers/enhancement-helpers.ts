@@ -10,7 +10,9 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
 export interface EnhancementResult {
   // Value recouped per dollar spent, as a percent (valueAdd / cost × 100). The
   // classic renovation-ROI figure; 100% means the value added equals the cost.
-  recoupPercent: number;
+  // Undefined when cost is 0 — "recouped per dollar spent" is undefined when
+  // nothing was spent, not 0% (which would misleadingly read as no value back).
+  recoupPercent: number | undefined;
   // Immediate change to net worth: the value added minus what you paid. Positive
   // means the improvement is worth more than it cost the moment it's done.
   immediateEquityChange: number;
@@ -32,7 +34,7 @@ export const evaluateEnhancement = (
 ): EnhancementResult => {
   const growth = appreciationRatePct / 100;
 
-  const recoupPercent = cost > 0 ? round1((valueAdd / cost) * 100) : 0;
+  const recoupPercent = cost > 0 ? round1((valueAdd / cost) * 100) : undefined;
   const immediateEquityChange = roundToCents(valueAdd - cost);
   const addedValueAtYears = roundToCents(
     valueAdd * Math.pow(1 + growth, years)
@@ -44,7 +46,14 @@ export const evaluateEnhancement = (
     breakEvenYears = 0;
   } else if (valueAdd > 0 && growth > 0) {
     // valueAdd·(1 + growth)^t = cost  ⟹  t = ln(cost / valueAdd) / ln(1 + growth).
-    breakEvenYears = round1(Math.log(cost / valueAdd) / Math.log(1 + growth));
+    // This branch only runs when valueAdd < cost, so the true break-even is
+    // strictly positive; clamp the rounded result to the smallest representable
+    // tenth of a year so a tiny gap can't round down to 0 and collide with the
+    // valueAdd >= cost ("already broke even") sentinel above.
+    breakEvenYears = Math.max(
+      0.1,
+      round1(Math.log(cost / valueAdd) / Math.log(1 + growth))
+    );
   }
   // else: added value can never reach the cost (≤ 0, or no appreciation) → undefined.
 
