@@ -13,6 +13,7 @@ import { forecastHomeEquity } from '../helpers/forecast-helpers';
 import { isAssetLiability } from '../helpers/asset-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import {
+  Article,
   Construction,
   ContentCopy,
   Delete,
@@ -22,6 +23,7 @@ import {
 import { EntityRowActions, RowAction } from '../components/entity-row-actions';
 import { HoldingColumn, HoldingTable } from '../components/holding-table';
 import { EnhancementPopout } from './enhancement-popout';
+import { ResearchPopout } from './research-popout';
 
 // Human-readable labels for each asset type, used in the table and cards.
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
@@ -42,6 +44,9 @@ interface AssetRowHandlers {
   // Open the "is this improvement worth it?" calculator (9.3). Offered only for
   // appreciating property assets.
   onEnhance?: (asset: Asset) => void;
+  // Open the research/context links manager (9.4). Offered for investments and
+  // property (the holdings with external context worth tracking).
+  onResearch?: (asset: Asset) => void;
 }
 
 // An asset plus its engine-derived display value: today's home equity for a
@@ -67,7 +72,7 @@ const assetActions = (
       onClick: () => handlers.onClone(asset),
     },
   ];
-  const { onConvertToLoan, onEnhance } = handlers;
+  const { onConvertToLoan, onEnhance, onResearch } = handlers;
   if (onConvertToLoan) {
     actions.push({
       icon: <SwapHoriz />,
@@ -87,6 +92,18 @@ const assetActions = (
       icon: <Construction />,
       title: 'Enhancement ROI',
       onClick: () => onEnhance(asset),
+    });
+  }
+  // Research & context: investments (company/fund research) and property (area).
+  if (
+    onResearch &&
+    (asset.AssetType === AssetType.Investment ||
+      asset.AssetType === AssetType.Property)
+  ) {
+    actions.push({
+      icon: <Article />,
+      title: 'Research & context',
+      onClick: () => onResearch(asset),
     });
   }
   actions.push({
@@ -192,6 +209,9 @@ export const AssetTable = (props: AssetTableProps) => {
   // Self-managed "enhancement ROI" popout (9.3): opened from a property row and
   // closed here, so it needs no Body wiring.
   const [enhanceAsset, setEnhanceAsset] = useState<Asset>();
+  // Self-managed "research & context" popout (9.4): opened from an investment or
+  // property row; its edits persist through the normal onAssetEdit path.
+  const [researchAsset, setResearchAsset] = useState<Asset>();
 
   const handlers: AssetRowHandlers = {
     onEdit: props.onAssetEdit,
@@ -199,6 +219,7 @@ export const AssetTable = (props: AssetTableProps) => {
     onDelete: props.onAssetDelete,
     onConvertToLoan: props.onAssetConvertToLoan,
     onEnhance: setEnhanceAsset,
+    onResearch: setResearchAsset,
   };
 
   // Sortable data columns, built from props so the Type column can be dropped
@@ -314,6 +335,15 @@ export const AssetTable = (props: AssetTableProps) => {
         <EnhancementPopout
           asset={enhanceAsset}
           onClose={() => setEnhanceAsset(undefined)}
+        />
+      )}
+      {researchAsset && (
+        <ResearchPopout
+          asset={researchAsset}
+          onSave={(links) =>
+            props.onAssetEdit({ ...researchAsset, ResearchLinks: links })
+          }
+          onClose={() => setResearchAsset(undefined)}
         />
       )}
     </>
