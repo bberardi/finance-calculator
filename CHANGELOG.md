@@ -9,6 +9,19 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.12.0] — Inflation toggle (real vs. nominal)
+
+### Added
+
+- **See future values in today's dollars (Phase 9.2).** A dashboard toggle
+  recasts the forward-looking figures — the +5y/+10y/+30y net-worth milestones and
+  every line on the forecast chart (including the Monte Carlo fan) — from nominal
+  into **real** terms, discounting each value back to the present at an assumed
+  3%/yr inflation. It's pure post-processing on the already-computed forecast (no
+  engine change): each point is discounted by its own distance from today, so
+  today's anchor is unchanged and the gap widens with the horizon. The
+  assumptions panel notes the rate.
+
 ## [1.11.0] — Monte Carlo mode
 
 ### Added

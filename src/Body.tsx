@@ -5,11 +5,13 @@ import {
   Button,
   Container,
   Divider,
+  FormControlLabel,
   Menu,
   MenuItem,
   Paper,
   Skeleton,
   Snackbar,
+  Switch,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -195,6 +197,10 @@ export const Body = () => {
   const [pendingBulkDelete, setPendingBulkDelete] =
     useState<PendingBulkDelete>();
   const [bulkUndo, setBulkUndo] = useState<BulkUndo>();
+
+  // Real vs. nominal view (roadmap 9.2): when on, future projections (the
+  // milestones and the forecast chart) are discounted to today's dollars.
+  const [inflationAdjusted, setInflationAdjusted] = useState(false);
 
   const onLoadSampleData = () => loadSampleData(sampleLoans, sampleAssets);
 
@@ -566,12 +572,31 @@ export const Body = () => {
               assets={nonInvestmentAssets}
             />
             {/* Milestone callouts (roadmap 3.2): debt-free date + net worth at
-                +5y/+10y/+30y, cheap reads off the same engine series. */}
+                +5y/+10y/+30y, cheap reads off the same engine series. The
+                inflation toggle (9.2) recasts them — and the forecast chart
+                below — in today's dollars. */}
             <Box sx={{ marginTop: 2 }}>
               <MilestoneCallouts
                 loans={loans}
                 investments={investments}
                 assets={nonInvestmentAssets}
+                inflationAdjusted={inflationAdjusted}
+              />
+              <FormControlLabel
+                sx={{ marginTop: 1 }}
+                control={
+                  <Switch
+                    size="small"
+                    checked={inflationAdjusted}
+                    onChange={(e) => setInflationAdjusted(e.target.checked)}
+                  />
+                }
+                label={
+                  <Typography variant="body2" color="text.secondary">
+                    Show future values in today&apos;s dollars (adjust for
+                    inflation)
+                  </Typography>
+                }
               />
             </Box>
           </Box>
@@ -703,6 +728,7 @@ export const Body = () => {
                 investments={investments}
                 assets={nonInvestmentAssets}
                 scenario={activeScenario}
+                inflationAdjusted={inflationAdjusted}
               />
             </Suspense>
             {/* Scenario impact summary (roadmap 4.4): what the active scenario
