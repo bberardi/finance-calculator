@@ -3,7 +3,7 @@ import { CompoundingFrequency, StepUpType } from '../models/investment-model';
 import { Asset, AssetType, ResearchLink } from '../models/asset-model';
 import { Scenario } from '../models/scenario-model';
 import { CURRENT_SCHEMA_VERSION, RawData, migrate } from './migrate-helpers';
-import { isSafeResearchUrl } from './research-helpers';
+import { isSafeResearchUrl, normalizeResearchUrl } from './research-helpers';
 import packageJson from '../../package.json';
 
 // Schema v5 (the investment fold): inputs only — loans, named scenarios, and
@@ -234,10 +234,13 @@ const parseScenarios = (value: unknown): Scenario[] => {
 /**
  * Validate an asset's optional research links (ROADMAP 9.4). A missing value
  * imports as no links; a present value must be an array of { Label, Url, Note? }
- * where Label is a non-empty string and Url is a safe http(s) URL — rejecting a
- * javascript:/data: URL that would be unsafe to render as an anchor, the same
- * bar the editor enforces on entry. Malformed entries throw, matching the rest
- * of import validation.
+ * where Label is a non-empty string and Url — after the same normalization the
+ * editor applies (so a bare "zillow.com" or "localhost:3000" imports cleanly,
+ * not just a full https:// URL) — is a safe http(s) URL, rejecting a
+ * javascript:/data: URL that would be unsafe to render as an anchor. Label and
+ * Note are trimmed to match what the editor stores; a Note that is blank after
+ * trimming is dropped, same as leaving it empty in the editor. Malformed entries
+ * throw, matching the rest of import validation.
  */
 const parseResearchLinks = (
   value: unknown,
@@ -259,15 +262,20 @@ const parseResearchLinks = (
         `Invalid 'Label' in ${where}: expected a non-empty string.`
       );
     }
-    if (typeof raw.Url !== 'string' || !isSafeResearchUrl(raw.Url)) {
+    if (typeof raw.Url !== 'string') {
       throw new Error(`Invalid 'Url' in ${where}: expected an http(s) URL.`);
     }
-    const link: ResearchLink = { Label: raw.Label, Url: raw.Url };
+    const url = normalizeResearchUrl(raw.Url);
+    if (!isSafeResearchUrl(url)) {
+      throw new Error(`Invalid 'Url' in ${where}: expected an http(s) URL.`);
+    }
+    const link: ResearchLink = { Label: raw.Label.trim(), Url: url };
     if (raw.Note != null) {
       if (typeof raw.Note !== 'string') {
         throw new Error(`Invalid 'Note' in ${where}: expected a string.`);
       }
-      link.Note = raw.Note;
+      const note = raw.Note.trim();
+      if (note !== '') link.Note = note;
     }
     return link;
   });

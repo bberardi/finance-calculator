@@ -318,6 +318,35 @@ describe('importFromJson — asset research links (parseResearchLinks)', () => {
     expect(assets[0].ResearchLinks?.[0].Note).toBeUndefined();
   });
 
+  it('normalizes a schemeless URL (bare host or host:port) on import, matching the editor', () => {
+    // A hand-edited export file might carry a link the way a user would type
+    // it — no scheme — which the editor normalizes before ever saving it.
+    // Import must apply the same normalization, or a link the UI would have
+    // happily accepted gets rejected as "not an http(s) URL" on import.
+    const { assets } = importFromJson(
+      withLinks([
+        { Label: 'Zillow', Url: 'zillow.com' },
+        { Label: 'Local dev', Url: 'localhost:3000' },
+      ])
+    );
+    expect(assets[0].ResearchLinks).toEqual([
+      { Label: 'Zillow', Url: 'https://zillow.com' },
+      { Label: 'Local dev', Url: 'https://localhost:3000' },
+    ]);
+  });
+
+  it('trims Label and drops a whitespace-only Note on import, matching the editor', () => {
+    const { assets } = importFromJson(
+      withLinks([
+        { Label: '  Zillow  ', Url: 'https://zillow.com', Note: '   ' },
+      ])
+    );
+    expect(assets[0].ResearchLinks).toEqual([
+      { Label: 'Zillow', Url: 'https://zillow.com' },
+    ]);
+    expect(assets[0].ResearchLinks?.[0].Note).toBeUndefined();
+  });
+
   it('treats a missing ResearchLinks value as no links', () => {
     const { assets } = importFromJson(
       makeJson([

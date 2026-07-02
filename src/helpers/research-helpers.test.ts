@@ -9,6 +9,19 @@ describe('normalizeResearchUrl', () => {
     );
   });
 
+  it('prepends https:// to a bare host:port too, not mistaking the port for a scheme', () => {
+    // "localhost" / "example.com" up to the colon is itself a syntactically
+    // valid RFC 3986 scheme name, so a naive "has a scheme?" check misreads
+    // these as already-schemed ("localhost:", "example.com:") and never adds
+    // https:// — which then makes isSafeResearchUrl reject them outright.
+    expect(normalizeResearchUrl('localhost:3000')).toBe(
+      'https://localhost:3000'
+    );
+    expect(normalizeResearchUrl('example.com:8080/path')).toBe(
+      'https://example.com:8080/path'
+    );
+  });
+
   it('leaves an already-schemed URL untouched', () => {
     expect(normalizeResearchUrl('https://example.com')).toBe(
       'https://example.com'
