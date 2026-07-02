@@ -91,7 +91,11 @@ export const EnhancementPopout = ({
             onValueChange={(vs) => setYears(Number(vs.value))}
           />
 
-          <Typography>{`Recoups: ${recoupPercent}% of the cost`}</Typography>
+          <Typography>
+            {recoupPercent === undefined
+              ? 'Recoups: n/a (no cost entered)'
+              : `Recoups: ${recoupPercent}% of the cost`}
+          </Typography>
           <Typography>{`Net worth today: ${
             immediateEquityChange >= 0 ? '+' : ''
           }${formatCurrency(immediateEquityChange)}`}</Typography>

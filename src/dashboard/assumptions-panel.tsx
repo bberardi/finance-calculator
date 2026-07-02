@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { ExpandMore, InfoOutlined } from '@mui/icons-material';
+import { DEFAULT_INFLATION_PCT } from '../helpers/inflation-helpers';
 
 // What every forecast in the app assumes. A deterministic 30-year projection
 // implies false precision; stating the assumptions is the honest framing that
@@ -25,8 +26,7 @@ const ASSUMPTIONS: { title: string; detail: string }[] = [
   },
   {
     title: 'Nominal and pre-tax by default',
-    detail:
-      "Values are nominal and pre-tax. Toggle “today's dollars” to discount future projections at 3%/yr inflation (a real view); an after-tax view is still planned.",
+    detail: `Values are nominal and pre-tax. Toggle “today's dollars” to discount future projections at ${DEFAULT_INFLATION_PCT}%/yr inflation (a real view); an after-tax view is still planned.`,
   },
   {
     title: 'Anchored to today',

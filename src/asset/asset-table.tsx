@@ -42,7 +42,7 @@ interface AssetRowHandlers {
   // Liabilities table wires it, so the action is hidden in the Assets table.
   onConvertToLoan?: (asset: Asset) => void;
   // Open the "is this improvement worth it?" calculator (9.3). Offered only for
-  // property assets.
+  // appreciating property assets.
   onEnhance?: (asset: Asset) => void;
   // Open the research/context links manager (9.4). Offered for investments and
   // property (the holdings with external context worth tracking).
@@ -80,8 +80,14 @@ const assetActions = (
       onClick: () => onConvertToLoan(asset),
     });
   }
-  // Enhancement ROI is only meaningful for an appreciating property.
-  if (onEnhance && asset.AssetType === AssetType.Property) {
+  // Enhancement ROI is only meaningful for an appreciating property — gated on
+  // GrowthRate > 0, not just the type, so a depreciating/flat property (where
+  // "appreciating -2.50%/yr" would read oddly) doesn't offer the action.
+  if (
+    onEnhance &&
+    asset.AssetType === AssetType.Property &&
+    asset.GrowthRate > 0
+  ) {
     actions.push({
       icon: <Construction />,
       title: 'Enhancement ROI',
