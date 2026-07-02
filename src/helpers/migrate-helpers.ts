@@ -20,7 +20,9 @@ type MigrationStep = (data: RawData) => RawData;
 
 // Convert a serialized Investment into its serialized AssetType.Investment
 // shape (the field correspondence mirrors investmentToAsset): StartingBalance →
-// Balance, AverageReturnRate → GrowthRate, everything else by the same name.
+// Balance, AverageReturnRate → GrowthRate, everything else by the same name —
+// including the employer-match fields (#153), which a pre-fix version of this
+// step silently dropped despite every other converter carrying them.
 const investmentToSerializedAsset = (
   investment: unknown
 ): Record<string, unknown> => {
@@ -39,6 +41,9 @@ const investmentToSerializedAsset = (
     ContributionStepUpAmount: i.ContributionStepUpAmount,
     ContributionStepUpType: i.ContributionStepUpType,
     CurrentValue: i.CurrentValue,
+    EmployerMatchRate: i.EmployerMatchRate,
+    EmployerMatchLimitPct: i.EmployerMatchLimitPct,
+    AnnualSalary: i.AnnualSalary,
   };
 };
 
