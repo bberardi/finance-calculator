@@ -282,6 +282,12 @@ export const AddEditInvestment = (props: AddEditInvestmentProps) => {
                   : undefined,
               });
             }}
+            onBlur={() => touch('RecurringContribution')}
+            error={Boolean(errorFor('RecurringContribution'))}
+            helperText={fieldHelperText(
+              errorFor('RecurringContribution'),
+              warningFor('RecurringContribution')
+            )}
           />
           {hasRecurringContribution && (
             <FormControl fullWidth>

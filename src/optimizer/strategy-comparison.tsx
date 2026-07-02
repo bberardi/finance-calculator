@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
 } from '@mui/material';
@@ -90,71 +91,75 @@ export const StrategyComparison = ({
       </Button>
 
       <Collapse in={open} unmountOnExit>
+        {/* TableContainer lets the wide side-by-side table scroll in place on
+            narrow viewports instead of forcing page-level horizontal scroll. */}
         {comparison.length > 0 && (
-          <Table
-            size="small"
-            aria-label="Strategy comparison"
-            sx={{ marginTop: 1 }}
-          >
-            <TableHead>
-              <TableRow>
-                <TableCell />
-                {comparison.map((row, index) => (
-                  <TableCell key={row.kind} align="right">
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      sx={{
-                        justifyContent: 'flex-end',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <span>{row.label}</span>
-                      {index === bestIndex && (
-                        <Chip label="Best" color="primary" size="small" />
-                      )}
-                    </Stack>
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {horizonYears.map((years, horizonIndex) => (
-                <TableRow key={`nw-${years}`}>
-                  <TableCell>Net worth +{years}y</TableCell>
-                  {comparison.map((row) => (
+          <TableContainer>
+            <Table
+              size="small"
+              aria-label="Strategy comparison"
+              sx={{ marginTop: 1 }}
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell />
+                  {comparison.map((row, index) => (
                     <TableCell key={row.kind} align="right">
-                      {formatCurrency(row.netWorthAt[horizonIndex].value)}
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span>{row.label}</span>
+                        {index === bestIndex && (
+                          <Chip label="Best" color="primary" size="small" />
+                        )}
+                      </Stack>
                     </TableCell>
                   ))}
                 </TableRow>
-              ))}
-              <TableRow>
-                <TableCell>Debt-free</TableCell>
-                {comparison.map((row) => (
-                  <TableCell key={row.kind} align="right">
-                    {formatDate(row.debtFreeDate)}
-                  </TableCell>
+              </TableHead>
+              <TableBody>
+                {horizonYears.map((years, horizonIndex) => (
+                  <TableRow key={`nw-${years}`}>
+                    <TableCell>Net worth +{years}y</TableCell>
+                    {comparison.map((row) => (
+                      <TableCell key={row.kind} align="right">
+                        {formatCurrency(row.netWorthAt[horizonIndex].value)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-              <TableRow>
-                <TableCell>Investments (+30y)</TableCell>
-                {comparison.map((row) => (
-                  <TableCell key={row.kind} align="right">
-                    {formatCurrency(row.finalInvestments)}
-                  </TableCell>
-                ))}
-              </TableRow>
-              <TableRow>
-                <TableCell>Debt left (+30y)</TableCell>
-                {comparison.map((row) => (
-                  <TableCell key={row.kind} align="right">
-                    {formatCurrency(row.finalDebt)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableBody>
-          </Table>
+                <TableRow>
+                  <TableCell>Debt-free</TableCell>
+                  {comparison.map((row) => (
+                    <TableCell key={row.kind} align="right">
+                      {formatDate(row.debtFreeDate)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                <TableRow>
+                  <TableCell>Investments (+30y)</TableCell>
+                  {comparison.map((row) => (
+                    <TableCell key={row.kind} align="right">
+                      {formatCurrency(row.finalInvestments)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                <TableRow>
+                  <TableCell>Debt left (+30y)</TableCell>
+                  {comparison.map((row) => (
+                    <TableCell key={row.kind} align="right">
+                      {formatCurrency(row.finalDebt)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </Collapse>
     </Box>

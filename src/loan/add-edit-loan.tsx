@@ -313,6 +313,7 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
                       : newValue,
                   })
                 }
+                aria-label="Interest percentage"
                 valueLabelDisplay="auto"
                 step={0.25}
                 min={0}
@@ -362,6 +363,12 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
               onValueChange={(vs) => {
                 setNewLoan({ ...newLoan, MonthlyPayment: Number(vs.value) });
               }}
+              onBlur={() => touch('MonthlyPayment')}
+              error={Boolean(errorFor('MonthlyPayment'))}
+              helperText={fieldHelperText(
+                errorFor('MonthlyPayment'),
+                warningFor('MonthlyPayment')
+              )}
               sx={{ flex: 6 }}
               required
             />

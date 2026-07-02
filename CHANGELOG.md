@@ -9,6 +9,54 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.14.2] — Review fixes (math consistency & UX)
+
+### Fixed
+
+- **A forecast anchored mid-investment-year re-granted employer 401(k) match
+  the employer had already paid that year.** `forecastInvestment` started its
+  annual-cap accrual at zero, so for an investment whose contributions exceed
+  the match cap, every live forecast (always anchored at "today", almost never
+  an anniversary) over-credited the first partial year by up to the full annual
+  match — and the overstated value then compounded for the rest of the horizon,
+  inflating the chart, milestones, and optimizer scores relative to the
+  canonical growth engine. The forecast now seeds the cap with the
+  contributions modeled between the last anniversary and today, restoring
+  cross-engine consistency (Charter §4) at every anchor date.
+- **The dashboard's "Monthly commitments" ignored contribution step-ups.** An
+  investment several years into a yearly step-up contributes more per month
+  than its base amount, and the forecast applies that stepped-up amount — but
+  the commitments card kept reporting the year-one base, understating the real
+  outflow. It now reports the current investment-year's contribution, the same
+  figure the engine applies this month.
+- **Two form fields could block saving without ever showing why.** The loan
+  form's Monthly Payment and the investment form's Recurring Contribution had
+  validation rules but no error wiring, so an invalid value (e.g. a $0 payment
+  or a negative contribution) silently disabled Save behind the misleading
+  "Fill in all required fields" prompt. Both fields now reveal their specific
+  error on blur, like every other validated field (the #99 reachability fix,
+  extended to the two fields it missed).
+- **Deleting a scenario was instant and unrecoverable.** The chip's small "×"
+  deleted a scenario with no confirmation and no undo — the only destructive
+  action in the app without either. Scenario deletion now uses the same
+  confirm dialog and soft-undo snackbar as every other delete, and undo
+  restores the scenario (re-activating it if it was the active overlay).
+- **The loan form's interest-rate slider had no accessible name** (WCAG 4.1.2);
+  it now carries an `aria-label`, matching the custom-split builder's sliders.
+- Header tagline typo ("forecastor" → "forecaster"), and the forecast table
+  fallback's caption now mentions asset columns.
+
+### Changed
+
+- **Table name sorting is human-friendly:** case-insensitive (a lowercase name
+  no longer sinks below every capitalized one) and numeric-aware ("Loan 2"
+  sorts before "Loan 10").
+- **The optimizer's three tables scroll in place on narrow viewports** (ranked
+  plans, strategy presets, side-by-side comparison) instead of forcing
+  page-level horizontal scroll.
+- The amortization schedule's Date column uses the shared "MMM YYYY" format,
+  and percentage step-ups render through the shared percent formatter.
+
 ## [1.14.1] — Audit fixes
 
 ### Fixed

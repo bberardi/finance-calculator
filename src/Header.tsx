@@ -32,7 +32,7 @@ export const Header = () => {
             PathWise
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            Your financial calculator and forecastor
+            Your financial calculator and forecaster
           </Typography>
         </Stack>
       </Stack>

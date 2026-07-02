@@ -97,7 +97,7 @@ const formatContribution = (investment: Investment): string => {
   const stepUp =
     investment.ContributionStepUpType === StepUpType.Flat
       ? `+${formatCurrency(investment.ContributionStepUpAmount)}/yr`
-      : `+${investment.ContributionStepUpAmount}%/yr`;
+      : `+${formatPercent(investment.ContributionStepUpAmount)}/yr`;
   return `${base} (${stepUp})`;
 };
 
