@@ -70,7 +70,7 @@ Declared once, up front, so future feature debates have a reference point. Every
 - **No transaction/expense tracking, categorization, or budgets** — the BLUF says not a budgeting app; this is the line.
 - **No bank account linking** (Plaid etc.) — requires a backend and credentials; would destroy the privacy story.
 - **No real-time market data** — PathWise models average rates, not tickers; keeps results deterministic and avoids API keys. (The exploratory holdings/property context item in Phase 9 stays within this line: any news feed is user-supplied and opt-in, stored on device, never hosted by PathWise.)
-- **No tax advice** — computing someone's tax return is out of scope.
+- **No tax advice** — computing someone's tax _return_ is out of scope. (A flat, user-set effective-tax-rate haircut on investment gains — post-processing in the same vein as the inflation toggle — stays in-bounds and is tracked as Phase 15.1; it discounts a projection, it does not compute anyone's taxes.)
 
 ---
 
@@ -180,6 +180,35 @@ budgeting app); the rationale column says why it earns a slot.
 
 ---
 
+### Phase 15 — Credibility & Accessibility Follow-ups — _target v2.4_
+
+Surfaced by a July 2026 UX/codebase review. Two items close a stated-but-unplanned
+gap and a chart-accessibility gap the earlier reviews left open; two extend the
+honesty and onboarding stories. Each passes the §5 non-goal filters (client-side,
+data stays on device, not a budgeting app); the rationale column says why each
+earns a slot.
+
+**Credibility (extends Phase 9 — Honest Uncertainty)**
+
+| #    | Work item                                   | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 15.1 | **After-tax view toggle**                   | A dashboard toggle applies a flat, user-set _effective_ tax rate to investment **gains** (not principal, and not a tax return), completing the nominal → today's-dollars → after-tax honesty trio. The assumptions panel already advertises this — `assumptions-panel.tsx` reads "an after-tax view is still planned" — but nothing on the roadmap tracks it. Pure post-processing on the nominal forecast, exactly like the Phase 9.2 inflation toggle; no engine change. Resolves the mismatch between the in-app copy and the plan, and stops pre-tax growth from overstating what a taxable account is actually worth. |
+| 15.2 | **Assumption sensitivity ("tornado") view** | Deterministic single-variable sweeps: nudge one assumption at a time (return rate, appreciation, inflation) by ±X and rank the levers by how much each moves net worth at the horizon. Monte Carlo (9.1) shows the _random_ spread of outcomes; this shows _which assumption matters most_ — a complementary form of honesty about a fixed-rate projection, telling a user which input is worth getting right. Reuses the existing forecast engine over a small parameter grid; memoized, no Web Worker needed.                                                                                                            |
+
+**Accessibility & visualization (extends Phase 12)**
+
+| #    | Work item                                | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 15.3 | **Perceptually-accessible chart series** | Chart lines are told apart by **color alone** today — `series-colors.ts` cycles a 10-hue palette by an id hash. Add colorblind-safe hues **and** a non-color channel (dash pattern or per-series marker), and make the legend's hidden/visible state not color-only. Roughly 8% of users can't reliably separate color-only series, and the distinction vanishes in grayscale print (paired with the Phase 11.3/11.6 report/image export). Phase 12 covered motion, keyboard, and live regions but not chart perceptibility. |
+
+**Onboarding UX**
+
+| #    | Work item                                | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 15.4 | **Guided first-run & starter templates** | Beyond today's sample data + first-visit notice, offer one-click starter templates ("renter with student loans," "homeowner with a mortgage," "near-retiree") and a short guided tour of the optimizer. The empty state is the highest-friction moment: a multi-position forecast is the product's whole point, and a template lets a newcomer _see_ one — and reach the "where should my next dollar go?" answer — before typing in their own numbers. Purely client-side seed data reusing the sample-data path. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -207,9 +236,10 @@ Phase 11 Beyond Personal                  v2.0
 Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
+Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, and finally a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier.
 
 ---
 
