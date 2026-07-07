@@ -6,7 +6,11 @@ import {
   forecastLoan,
   getMonthlyPaymentBreakdown,
 } from './forecast-helpers';
-import { getPeriodsPerYear } from './investment-helpers';
+import {
+  getContributionForYear,
+  getInvestmentYear,
+  getPeriodsPerYear,
+} from './investment-helpers';
 import { getAssetValueToday, isAssetLiability } from './asset-helpers';
 
 // "Today" net-worth summary metrics for the dashboard (Phase 3.1). Debt and
@@ -69,13 +73,24 @@ export const summarizePositions = (
     0
   );
   const investmentCommitments = investments.reduce((sum, investment) => {
-    // Contributions only count when a cadence is set (mirrors the engine).
-    if (!investment.ContributionFrequency) {
+    // Contributions only count when both an amount and a cadence are set
+    // (mirrors the engine).
+    const base = investment.RecurringContribution ?? 0;
+    if (!investment.ContributionFrequency || !(base > 0)) {
       return sum;
     }
+    // The contribution actually being made now — the base stepped up to the
+    // current investment year — so the card reflects the same outflow the
+    // forecast applies this month, not the year-one amount. (#91-style
+    // cross-consistency, for step-ups.)
+    const current = getContributionForYear(
+      base,
+      getInvestmentYear(today, investment.StartDate),
+      investment.ContributionStepUpAmount,
+      investment.ContributionStepUpType
+    );
     const perYear =
-      (investment.RecurringContribution ?? 0) *
-      getPeriodsPerYear(investment.ContributionFrequency);
+      current * getPeriodsPerYear(investment.ContributionFrequency);
     return sum + perYear / 12;
   }, 0);
 

@@ -63,7 +63,7 @@ export const AmortizationPopout = (props: AmortizationPopoutProps) => {
                     <TableCell>
                       {dayjs(startDate)
                         .add(entry.Term - 1, 'months')
-                        .format('YYYY/MM (MMM)')}
+                        .format('MMM YYYY')}
                     </TableCell>
                     <TableCell>
                       {formatCurrency(

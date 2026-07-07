@@ -10,6 +10,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   TextField,
@@ -169,61 +170,67 @@ export const OptimizerPanel = ({
               adjusting your inputs.
             </Alert>
           )}
-          <Table size="small" aria-label="Ranked allocation plans">
-            <TableHead>
-              <TableRow>
-                <TableCell>Plan</TableCell>
-                <TableCell align="right">Net worth added at horizon</TableCell>
-                <TableCell align="right">Interest saved</TableCell>
-                <TableCell align="right">Debt-free</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {topPlans.map((evaluation, index) => (
-                <TableRow key={planKey(evaluation.plan)} hover>
-                  <TableCell>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ alignItems: 'center' }}
-                    >
-                      {index === 0 && (
-                        <Chip label="Best" color="primary" size="small" />
-                      )}
-                      <span>{evaluation.plan.label}</span>
-                    </Stack>
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatNetWorthDelta(evaluation.netWorthDelta)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(evaluation.interestSaved)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatPayoffSooner(evaluation.payoffMonthsEarlier)}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      onClick={() => onViewAsScenario(evaluation.plan)}
-                    >
-                      View as scenario
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!loading && topPlans.length === 0 && (
+          {/* TableContainer lets the 5-column table scroll in place on narrow
+              viewports instead of forcing page-level horizontal scroll. */}
+          <TableContainer>
+            <Table size="small" aria-label="Ranked allocation plans">
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={5}>
-                    <Typography variant="body2" color="text.secondary">
-                      No positions to fund yet — add a loan or investment.
-                    </Typography>
+                  <TableCell>Plan</TableCell>
+                  <TableCell align="right">
+                    Net worth added at horizon
                   </TableCell>
+                  <TableCell align="right">Interest saved</TableCell>
+                  <TableCell align="right">Debt-free</TableCell>
+                  <TableCell />
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {topPlans.map((evaluation, index) => (
+                  <TableRow key={planKey(evaluation.plan)} hover>
+                    <TableCell>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: 'center' }}
+                      >
+                        {index === 0 && (
+                          <Chip label="Best" color="primary" size="small" />
+                        )}
+                        <span>{evaluation.plan.label}</span>
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatNetWorthDelta(evaluation.netWorthDelta)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatCurrency(evaluation.interestSaved)}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatPayoffSooner(evaluation.payoffMonthsEarlier)}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        size="small"
+                        onClick={() => onViewAsScenario(evaluation.plan)}
+                      >
+                        View as scenario
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!loading && topPlans.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5}>
+                      <Typography variant="body2" color="text.secondary">
+                        No positions to fund yet — add a loan or investment.
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
           {hasPositions && (
             <StrategyPresets

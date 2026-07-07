@@ -5,6 +5,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   Typography,
@@ -75,42 +76,46 @@ export const StrategyPresets = ({
         {mode === 'oneTime' ? '' : '/month'} — compare them, then send any to
         the chart.
       </Typography>
-      <Table
-        size="small"
-        aria-label="Allocation strategy presets"
-        sx={{ marginTop: 1 }}
-      >
-        <TableHead>
-          <TableRow>
-            <TableCell>Strategy</TableCell>
-            <TableCell align="right">Net worth added at horizon</TableCell>
-            <TableCell align="right">Interest saved</TableCell>
-            <TableCell align="right">Debt-free</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {evaluations.map(({ plan, evaluation }) => (
-            <TableRow key={plan.kind} hover>
-              <TableCell>{plan.label}</TableCell>
-              <TableCell align="right">
-                {formatNetWorthDelta(evaluation.netWorthDelta)}
-              </TableCell>
-              <TableCell align="right">
-                {formatCurrency(evaluation.interestSaved)}
-              </TableCell>
-              <TableCell align="right">
-                {formatPayoffSooner(evaluation.payoffMonthsEarlier)}
-              </TableCell>
-              <TableCell align="right">
-                <Button size="small" onClick={() => onViewAsScenario(plan)}>
-                  View as scenario
-                </Button>
-              </TableCell>
+      {/* TableContainer lets the 5-column table scroll in place on narrow
+          viewports instead of forcing page-level horizontal scroll. */}
+      <TableContainer>
+        <Table
+          size="small"
+          aria-label="Allocation strategy presets"
+          sx={{ marginTop: 1 }}
+        >
+          <TableHead>
+            <TableRow>
+              <TableCell>Strategy</TableCell>
+              <TableCell align="right">Net worth added at horizon</TableCell>
+              <TableCell align="right">Interest saved</TableCell>
+              <TableCell align="right">Debt-free</TableCell>
+              <TableCell />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHead>
+          <TableBody>
+            {evaluations.map(({ plan, evaluation }) => (
+              <TableRow key={plan.kind} hover>
+                <TableCell>{plan.label}</TableCell>
+                <TableCell align="right">
+                  {formatNetWorthDelta(evaluation.netWorthDelta)}
+                </TableCell>
+                <TableCell align="right">
+                  {formatCurrency(evaluation.interestSaved)}
+                </TableCell>
+                <TableCell align="right">
+                  {formatPayoffSooner(evaluation.payoffMonthsEarlier)}
+                </TableCell>
+                <TableCell align="right">
+                  <Button size="small" onClick={() => onViewAsScenario(plan)}>
+                    View as scenario
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Paper>
   );
 };

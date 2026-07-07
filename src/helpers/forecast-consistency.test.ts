@@ -459,4 +459,111 @@ describe('Consistency: forecastInvestment matches growth WITH an employer match 
       }
     });
   });
+
+  // A forecast is almost never anchored on an anniversary in the live app
+  // (today = new Date()), so contributions made earlier in the CURRENT
+  // investment-year have already consumed match-cap headroom in the canonical
+  // engine — and they're baked into the anchor value. The forecast must seed its
+  // accrual state with them; a fresh cum-0 start re-grants match the employer
+  // already paid, over-crediting the first partial year by up to the full
+  // annual match. 0% return isolates the match accounting: every value is an
+  // exact sum of contributions + match, so the engines must agree to the cent.
+  describe('anchored mid-investment-year, the annual cap stays consumed', () => {
+    const flat = makeInvestment({
+      StartingBalance: 0,
+      AverageReturnRate: 0,
+      RecurringContribution: 1000,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+      ...match, // 50% of the first $6k/yr → $3,000/yr, earned Jan–Jun only
+    });
+    const yearEnd = new Date(2027, 0, 1);
+    // Canonical to Jan 2027: 84 × $1000 contributed + 7 × $3000 match.
+    const canonicalAtYearEnd = 105000;
+
+    it('re-grants no match once the year cap is exhausted (anchor after June)', () => {
+      const growth = generateInvestmentGrowth(flat, yearEnd);
+      expect(growth[growth.length - 1].TotalValue).toBe(canonicalAtYearEnd);
+
+      const forecast = forecastInvestment(
+        flat,
+        yearEnd,
+        0,
+        new Date(2026, 6, 1)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(canonicalAtYearEnd);
+    });
+
+    it('grants only the remaining headroom when the cap is partly consumed', () => {
+      // Anchored Mar 1: Jan+Feb ($2000) already matched ($1000); only $4000 of
+      // headroom remains, so the forecast may add $2000 more match this year.
+      const forecast = forecastInvestment(
+        flat,
+        yearEnd,
+        0,
+        new Date(2026, 2, 1)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(canonicalAtYearEnd);
+    });
+
+    it('seeds the consumed cap for an off-cadence (mid-month) anchor too', () => {
+      // Anchored Jul 10, the grid runs day-shifted (each firing lands ~9 days
+      // after its canonical contribution date), so right around an anniversary
+      // the two engines momentarily disagree by one firing's worth — inherent
+      // month-grid granularity, not cap accounting. Compare at a settled date
+      // (Sep 2027, well past the January rollover): the anchor bakes in
+      // $100,000 (79 contributions + $21,000 match), the grid adds 14 firings
+      // and must add only year-2027's $3,000 of match — no re-grant of 2026's.
+      const forecast = forecastInvestment(
+        flat,
+        new Date(2027, 8, 1),
+        0,
+        new Date(2026, 6, 10)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(117000);
+    });
+
+    it('seeds from the PREVIOUS calendar year when the anniversary is still ahead', () => {
+      // Non-January anniversary: started Jul 1, anchored Mar 1 — the 2026
+      // anniversary hasn't happened yet, so the current investment-year opened
+      // at the 2025-07-01 anniversary. The seed must count Jul 2025–Feb 2026
+      // ($8,000, cap already consumed); seeding from the 2026 anniversary
+      // would find nothing and re-grant the whole year's match.
+      const julyStart: Investment = {
+        ...flat,
+        StartDate: new Date(2020, 6, 1),
+      };
+      // Canonical to Jul 2027: 84 × $1000 contributed + 7 × $3000 match.
+      const julyYearEnd = new Date(2027, 6, 1);
+      const growth = generateInvestmentGrowth(julyStart, julyYearEnd);
+      expect(growth[growth.length - 1].TotalValue).toBe(105000);
+
+      const forecast = forecastInvestment(
+        julyStart,
+        julyYearEnd,
+        0,
+        new Date(2026, 2, 1)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(105000);
+    });
+
+    it('grants and seeds no match when AnnualSalary is unset', () => {
+      // Rate + limit without a salary define no cap, so the canonical engine
+      // pays no match; the mid-year-anchored forecast must agree (pure
+      // contributions: 84 × $1000) rather than seed or grant anything.
+      const noSalary: Investment = {
+        ...flat,
+        AnnualSalary: undefined,
+      };
+      const growth = generateInvestmentGrowth(noSalary, yearEnd);
+      expect(growth[growth.length - 1].TotalValue).toBe(84000);
+
+      const forecast = forecastInvestment(
+        noSalary,
+        yearEnd,
+        0,
+        new Date(2026, 6, 1)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(84000);
+    });
+  });
 });

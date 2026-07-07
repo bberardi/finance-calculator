@@ -47,8 +47,8 @@ export const ForecastDataTable = ({
       <Table size="small" aria-label="Forecast values at yearly intervals">
         <caption>
           <Typography variant="caption" color="text.secondary">
-            Projected values at yearly intervals — loan balances, investment
-            values, and overall net worth.
+            Projected values at yearly intervals — loan balances, investment and
+            asset values, and overall net worth.
           </Typography>
         </caption>
         <TableHead>

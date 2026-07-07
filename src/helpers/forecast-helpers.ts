@@ -13,10 +13,13 @@ import { assetNetWorthSign, forecastAsset } from './asset-helpers';
 import {
   employerMatchOnContribution,
   generateInvestmentGrowth,
+  getAnniversaryDate,
   getContributionForYear,
+  getContributionsWithStepUp,
   getInvestmentYear,
   getNextCompoundingDate,
   getPeriodsPerYear,
+  hasPassedAnniversary,
 } from './investment-helpers';
 
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
@@ -250,6 +253,40 @@ export const forecastInvestment = (
   // investment-year, reset at year boundaries so the annual cap holds.
   let matchYear = 0;
   let matchCumThisYear = 0;
+
+  // Contributions made earlier in the CURRENT investment-year (from the last
+  // StartDate anniversary up to `today`) already consumed match-cap headroom in
+  // the canonical engine, and they're baked into the anchor value. Seed the
+  // accrual state with them — otherwise a mid-year-anchored forecast re-grants
+  // match the employer already paid this year, over-crediting the first partial
+  // year by up to the full annual match whenever contributions exceed the cap.
+  // The window [last anniversary, today) is exactly the set of contribution
+  // dates getInvestmentYear attributes to the current year (anniversaries are
+  // contribution dates, so no date between them and `today` changes year).
+  const matchActive =
+    (investment.EmployerMatchRate ?? 0) > 0 &&
+    (investment.EmployerMatchLimitPct ?? 0) > 0 &&
+    (investment.AnnualSalary ?? 0) > 0;
+  if (
+    matchActive &&
+    baseContribution > 0 &&
+    investment.ContributionFrequency &&
+    today > investment.StartDate
+  ) {
+    const anniversaryYear = hasPassedAnniversary(today, investment.StartDate)
+      ? today.getFullYear()
+      : today.getFullYear() - 1;
+    matchYear = getInvestmentYear(today, investment.StartDate);
+    matchCumThisYear = getContributionsWithStepUp(
+      getAnniversaryDate(investment.StartDate, anniversaryYear),
+      today,
+      investment.StartDate,
+      baseContribution,
+      investment.ContributionFrequency,
+      investment.ContributionStepUpAmount,
+      investment.ContributionStepUpType
+    );
+  }
 
   let value = anchorValue;
   const points: ForecastPoint[] = [
