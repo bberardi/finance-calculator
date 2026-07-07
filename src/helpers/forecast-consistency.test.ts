@@ -521,5 +521,49 @@ describe('Consistency: forecastInvestment matches growth WITH an employer match 
       );
       expect(forecast[forecast.length - 1].Value).toBe(117000);
     });
+
+    it('seeds from the PREVIOUS calendar year when the anniversary is still ahead', () => {
+      // Non-January anniversary: started Jul 1, anchored Mar 1 — the 2026
+      // anniversary hasn't happened yet, so the current investment-year opened
+      // at the 2025-07-01 anniversary. The seed must count Jul 2025–Feb 2026
+      // ($8,000, cap already consumed); seeding from the 2026 anniversary
+      // would find nothing and re-grant the whole year's match.
+      const julyStart: Investment = {
+        ...flat,
+        StartDate: new Date(2020, 6, 1),
+      };
+      // Canonical to Jul 2027: 84 × $1000 contributed + 7 × $3000 match.
+      const julyYearEnd = new Date(2027, 6, 1);
+      const growth = generateInvestmentGrowth(julyStart, julyYearEnd);
+      expect(growth[growth.length - 1].TotalValue).toBe(105000);
+
+      const forecast = forecastInvestment(
+        julyStart,
+        julyYearEnd,
+        0,
+        new Date(2026, 2, 1)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(105000);
+    });
+
+    it('grants and seeds no match when AnnualSalary is unset', () => {
+      // Rate + limit without a salary define no cap, so the canonical engine
+      // pays no match; the mid-year-anchored forecast must agree (pure
+      // contributions: 84 × $1000) rather than seed or grant anything.
+      const noSalary: Investment = {
+        ...flat,
+        AnnualSalary: undefined,
+      };
+      const growth = generateInvestmentGrowth(noSalary, yearEnd);
+      expect(growth[growth.length - 1].TotalValue).toBe(84000);
+
+      const forecast = forecastInvestment(
+        noSalary,
+        yearEnd,
+        0,
+        new Date(2026, 6, 1)
+      );
+      expect(forecast[forecast.length - 1].Value).toBe(84000);
+    });
   });
 });
