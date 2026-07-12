@@ -209,6 +209,40 @@ earns a slot.
 
 ---
 
+### Phase 16 — Modeling Fidelity & Parity — _target v2.5_
+
+Surfaced by a July 2026 follow-up review. The Phase 12–15 reviews looked at
+accessibility, dashboard insight, and post-processing honesty toggles; this one
+looked at the **loan engine's own modeling assumptions** and a couple of
+cross-position UX-parity gaps the earlier passes left open. Each item passes the
+§5 non-goal filters (client-side, data stays on device, not a budgeting app);
+the rationale column says why each earns a slot. Items 16.1–16.3 touch the
+forecast/amortization math, so the **Math Correctness Charter (§4)** applies —
+cited reference tests, upheld invariants, and 100% `src/helpers/**` coverage.
+
+**Modeling fidelity (new features)**
+
+| #    | Work item                                  | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.1 | **Adjustable / scheduled-rate loans**      | The `Loan` model carries a single `InterestRate`, and `assumptions-panel.tsx` already discloses the limitation to users: _"rates are held fixed for the whole projection — no rate changes, ARM resets, or promo expiries."_ Add an optional ordered list of dated rate changes so ARMs, promo-rate balance transfers, and HELOC resets amortize with the rate they will actually carry. Closes the app's own stated gap; deterministic and backend-free. Extends the D3 engine on the shared monthly axis.                                                       |
+| 16.2 | **Loan refinance modeling**                | Model replacing an existing loan with a new rate/term (optionally rolling closing costs into the balance) and compare payoff date, lifetime interest, and net worth at horizon **before vs. after** — the same _"is this worth it?"_ framing as the 9.3 enhancement-ROI calculator, applied to the most common household debt decision. Refinancing is distinct from the Phase 10.1 life-event timeline (windfalls/purchases/sales): it re-terms a position rather than adding a dated event. Reuses `forecastLoan` over the old and new terms; editor-flow only. |
+| 16.3 | **Biweekly / accelerated payment cadence** | The amortization and forecast engines assume a **monthly** payment cadence; a biweekly schedule (26 half-payments ≈ one extra monthly payment per year) is among the most common real payoff accelerators and today can only be faked by hand-inflating `MonthlyPayment`. Add a payment-frequency option to the loan and convert it to a monthly-equivalent on the existing axis, with charter reference tests against a published biweekly amortization table.                                                                                                   |
+
+**UX parity & control**
+
+| #    | Work item                                   | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.4 | **Include / exclude a position**            | A per-position _"include in net worth"_ toggle that keeps the row and its data but drops it from the projection, so a user can see net worth **with and without** a position — a car loan they are about to retire, a speculative holding — without deleting it and re-entering it later. Distinct from the planned 13.4 quick-filters, which filter the _table view_ rather than the _math_; purely derived, one boolean of new state, no engine change. |
+| 16.5 | **Notes & context parity for loans & cash** | The per-holding note / reference-link affordance (9.4) exists only for investments and property (`ResearchLinks` on `Asset`); loans and cash accounts have no freeform note for the context that actually governs them — _"0% until Mar 2027," "CD matures 2026-09," "recast after $10k principal."_ Extend the same on-device, never-fetched note/link model to every position type. Small, in-character, no math impact.                                |
+
+**Performance / technical**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.6 | **Shared memoized forecast cache** | The deterministic net-worth forecast is recomputed independently by the chart, milestones, Monte Carlo overlay, strategy comparison, and the planned tornado sweeps (15.2) — a redundancy that grows with every overlay Phase 15 adds. A single inputs-keyed memo layer over `forecastNetWorth` would cut the repeated recompute and keep interaction smooth on large position sets **without changing any result**. Upholds D3 (one engine); not user-visible. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -237,9 +271,10 @@ Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
 Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
+Phase 16 Modeling Fidelity & Parity          v2.5  (July 2026 follow-up review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, and finally a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier, and finally a modeling-fidelity follow-up that closes the loan engine's own stated fixed-rate/monthly-cadence limitations and squares a few cross-position UX-parity gaps.
 
 ---
 
