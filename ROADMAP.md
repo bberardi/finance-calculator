@@ -209,6 +209,45 @@ earns a slot.
 
 ---
 
+### Phase 16 — Deeper Control & Safer Data — _target v2.5_
+
+Surfaced by a July 2026 follow-up UX/codebase review. Where Phases 9–15 added new
+_views_ (uncertainty, planning, dashboard insight, after-tax honesty), this phase
+gives users more _control_ over the modeling they already do — editing and
+comparing what-ifs, tuning the assumptions behind a projection, reading the chart
+closely — and closes two data-safety/portability gaps at the import/backup
+boundary. Each item passes the §5 non-goal filters (client-side, data stays on
+device, not a budgeting app); the rationale column says why each earns a slot.
+
+**Scenario & what-if depth (new features)**
+
+| #    | Work item                            | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.1 | **Editable & duplicable scenarios**  | The reducer already has `UpdateScenario` and `ScenarioBuilderDialog` already supports an "Edit scenario" path, but `ScenarioBar` (`scenario-bar.tsx`) only wires create + delete — so the edit capability is unreachable dead code, and a hand-tuned split must be rebuilt from scratch to change one number. Asymmetric with loans/investments/assets, which all have Duplicate. Low-cost: surface the built-in edit path plus a duplicate action. |
+| 16.2 | **Multi-scenario overlay & compare** | `activeScenarioId` holds a single id and the chart overlays exactly one scenario's dotted lines, so a user who builds "aggressive payoff" and "max investing" can't see them together. Let the chart overlay 2+ saved scenarios (and/or a small compare table), turning isolated what-ifs into the head-to-head the founding "which path?" question asks for. Distinct from the optimizer's preset-allocation table (`strategy-comparison.tsx`).    |
+| 16.3 | **User-adjustable inflation rate**   | The "today's dollars" view deflates at a hardcoded `DEFAULT_INFLATION_PCT = 3`/yr that `assumptions-panel.tsx` even advertises, with no way to change it — a user who assumes 2% or 4% can't. A single rate input (pure post-processing on the nominal forecast, exactly like the Phase 9.2 toggle itself; no engine change) makes the real view honest to the user's own assumption. Extends Phase 9.2.                                            |
+
+**Optimizer control (new feature)**
+
+| #    | Work item                               | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.4 | **Combined & stepped optimizer budget** | The optimizer's budget is an exclusive toggle between "per month" and "one-time" (`optimizer-panel.tsx`), so a user with both a monthly surplus and a windfall ("$500/mo _plus_ a $10k bonus") can't rank them together, and the recurring amount can't grow — even though investments already model contribution step-ups. Let one search consider a recurring + one-time budget (optionally stepping up), matching how real surpluses arrive. |
+
+**Chart interaction (UX)**
+
+| #    | Work item                         | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 16.5 | **Zoom/pan & pinned date cursor** | The forecast chart's only time control is the fixed 5Y/10Y/30Y/Full toggle (`forecast-chart.tsx`); there is no drag-to-zoom, pan, or pinned vertical cursor to read every series' value at one chosen month. On a 30-year line users can't focus on years 12–15 or lock a readout at a specific date. Adds close-reading of the projection without leaving the app; distinct from the planned image export (11.6). |
+
+**Data safety & portability (UX)**
+
+| #    | Work item                                  | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.6 | **Backup staleness reminder**              | Data lives in `localStorage` and the only durable copy is a manual JSON export; nothing records or surfaces when the user last exported, so there is no nudge before browser-storage loss. A lightweight "last backed up N days ago · export now" indicator closes the gap between opt-in persistence and a real off-device copy. Complements the planned unsaved-changes guard (13.1), which only covers the persistence-**off** case.                                         |
+| 16.7 | **Selective import & conflict resolution** | JSON import commits the entire pending file at once (`data-manager.tsx`) and an Id collision always silently overwrites the existing entity — the preview dialog only _lists_ items, with no way to deselect them, so a file that shares one Id forces overwriting it to import anything else. Add per-item checkboxes and a keep-mine / keep-theirs / keep-both choice on collisions, so a merge can't clobber data the user meant to keep. Reuses the D8 validation boundary. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -237,9 +276,10 @@ Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
 Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
+Phase 16 Deeper Control & Safer Data          v2.5  (July 2026 follow-up review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, and finally a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier, and finally a control/safety follow-up that lets users edit and compare their what-ifs, tune the assumptions behind a projection, and read and back up their data more safely.
 
 ---
 
