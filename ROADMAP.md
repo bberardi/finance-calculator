@@ -209,6 +209,37 @@ earns a slot.
 
 ---
 
+### Phase 16 — Rate Realism & Plan Tracking — _target v2.5_
+
+Surfaced by a late-July 2026 review. These close a limitation the app **already
+advertises but the roadmap never scheduled**, turn the goal line into something
+that can be *solved for*, and add the one honesty view the "trust the numbers"
+thesis is still missing — a way to compare the plan against reality. Each item
+passes the §5 non-goal filters (client-side, data stays on device, not a
+budgeting app, no real-time market data); the rationale column says why each
+earns a slot.
+
+**Modeling realism (extends Phase 9 — Honest Uncertainty)**
+
+| #    | Work item                                       | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.1 | **Scheduled rate changes (ARM / promo expiry)** | The forecast holds every loan and investment rate fixed for the whole horizon (`forecastLoan` amortizes on a single `Loan.InterestRate`), and the assumptions panel openly says so — "no rate changes, ARM resets, or promo expiries" (`assumptions-panel.tsx:20`). That is an **advertised limitation with no roadmap item tracking it** — the same mismatch-with-in-app-copy that earned 15.1 its slot. Add an optional per-loan rate schedule (effective date → new rate) the engine steps through. Engine-touching, so it ships under the Charter §4 (reference + consistency tests); the fixed-rate case stays the default. |
+| 16.2 | **Refinance comparison ("keep vs. refinance")** | Refinancing a mortgage or auto loan is one of the highest-dollar "where does my money go?" decisions, and today it is only reachable by manually cloning a loan and eyeballing two rows — the code even calls clone the "refinance/what-if" path (`Body.tsx:238`). A focused side-by-side (current terms vs. a proposed rate/term, with closing costs and break-even month) answers the decision directly, reusing the loan math and the 16.1 rate model. Pairs with the strategy-comparison view already shipped for the optimizer.                                                                                        |
+
+**Planning & goals (extends Phase 13)**
+
+| #    | Work item                            | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.3 | **Goal contribution solver**         | The Phase 13.2 goal draws a target line and reports a projected hit/miss; the milestones (`milestone-helpers.ts`) are read-only projections. Users hit a goal by asking the **inverse** question — "what monthly contribution (or extra payment) reaches $X by date Y?" A closed-form/bisection solver over the existing engine answers it directly, turning a goal from a verdict into a plan and feeding the optimizer and FI mode (10.3). |
+
+**Progress tracking (honest "am I on track?")**
+
+| #    | Work item                                 | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.4 | **Net-worth snapshots & actuals overlay** | The dashboard shows four scalar cards (`net-worth-summary.tsx`) and a forward-looking forecast, but nothing records where net worth **actually was** over time, so a user can't tell whether they are tracking to plan. Let the user capture dated net-worth snapshots (opt-in, on-device) and plot them as points against the forecast line. This is a single scalar over time — **not** transactions, categories, or budgets — so it stays inside the §5 line, and it is distinct from the deferred "balance check-ins" (which re-anchors each position's balance); this compares plan vs. reality. Directly serves the "trust the numbers" thesis by closing the loop between projection and outcome. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -237,9 +268,10 @@ Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
 Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
+Phase 16 Rate Realism & Plan Tracking     v2.5   (late-July 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, and finally a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier, and finally a rate-realism/plan-tracking follow-up that retires the advertised fixed-rate limitation, makes goals solvable, and closes the loop between projection and reality.
 
 ---
 
