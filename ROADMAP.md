@@ -209,6 +209,33 @@ earns a slot.
 
 ---
 
+### Phase 16 — Cashflow Realism & What-If Depth — _target v2.5_
+
+Surfaced by an August 2026 UX/codebase review. Where the earlier reviews closed
+accessibility, credibility, and onboarding gaps, this one targets two things the
+prior phases left open: the forecast **drops freed cash flow** the moment a debt
+retires (a user-reported credibility gap, #168), and the **what-if surface is
+shallower than the optimizer's** — scenarios are additive-only, compare one at a
+time, and can't be edited from the UI. Each item passes the §5 non-goal filters
+(client-side, data stays on device, not a budgeting app); the rationale column
+says why each earns a slot.
+
+**Forecast credibility (extends Phase 9 — Honest Uncertainty)**
+
+| #    | Work item                                    | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 16.1 | **Freed-cashflow modeling after payoff**     | When a loan retires within the horizon, `forecastLoan` holds its balance at 0 (`forecast-helpers.ts:129`) but the freed monthly payment is redirected **nowhere** — so paying a debt off early shows no net-worth benefit beyond interest saved, which is why a user reported "my net worth ends the same" (#168). Redirect a retired loan's freed payment to a user-chosen destination (cash / a chosen investment / the next debt). Extends the Phase 10.2 snowball "freed-payment redirection" to the _terminal_ case (the last or only debt, and a standalone loan) and to a savings destination, and makes the optimizer's debt-vs-invest ranking value early payoff correctly. Math-touching → held to the §4 charter (reference + consistency + invariant tests). |
+| 16.2 | **Reduction / pause scenarios (negative Δ)** | Scenario inputs are additive-only — every field is an "extra" payment or contribution (`scenario-model.ts`, `ExtraLoanPayments` / `ExtraContributions`), so the builder can model a windfall but not a **cutback**. Allow a negative delta (down to pausing a contribution or lowering a payment) so a user can model a job loss, sabbatical, or 401(k) pause — the downside what-if that matters most for planning. Smaller and nearer-term than the Phase 10.1 life-event timeline, and reuses the existing scenario engine and impact summary.                                                                                                                                                                                                                        |
+
+**What-if depth (extends Phase 4 — Scenarios)**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 16.3 | **Compare scenarios side by side** | Only one scenario overlays the chart at a time (`activeScenarioId` is a single nullable id), and the impact summary compares that one against baseline. The optimizer already ships a side-by-side **strategy-comparison** view for its presets (`optimizer/strategy-comparison.tsx`); scenarios have no equivalent. Add multi-scenario overlay + a comparison table (net worth at +5/+10/+30y, interest saved, debt-free date) so a user weighing two hand-built what-ifs sees the trade-off numerically, not by eyeballing overlapping lines. Purely derived, no engine change.                                                                                                                                  |
+| 16.4 | **Surface scenario edit & clone**  | Scenario editing is already built end-to-end — the reducer's `UpdateScenario`, the context's `updateScenario`, and the builder dialog's edit mode (its optional `scenario` prop, "Edit scenario" / "Save scenario" labels) — but **nothing in the UI reaches it**: `scenario-bar.tsx` only creates, activates, and deletes, and never calls `updateScenario`. Wire an Edit affordance onto each scenario chip, and add clone. Every other first-class entity (loan / investment / asset) can be edited and duplicated; the scenario — which the app itself calls "real work" (`scenario-bar.tsx`) — is the one object a user must delete and rebuild to change one number. Cheap wiring of an existing capability. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -237,9 +264,10 @@ Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
 Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
+Phase 16 Cashflow Realism & What-If Depth    v2.5  (August 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, and finally a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier, and finally a cashflow-realism follow-up that credits the freed cash flow after a debt retires (#168) and deepens the what-if surface (negative scenarios, side-by-side compare, and reaching the already-built scenario edit).
 
 ---
 
