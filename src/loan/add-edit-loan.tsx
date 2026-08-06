@@ -124,10 +124,7 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   // (absent = $0), rather than persisting a literal 0.
   const optionalDollarField = (
     field:
-      | 'HomeValue'
-      | 'PropertyTaxAnnual'
-      | 'HomeInsuranceAnnual'
-      | 'MonthlyPmi',
+      'HomeValue' | 'PropertyTaxAnnual' | 'HomeInsuranceAnnual' | 'MonthlyPmi',
     label: string
   ) => (
     <NumericFormat
