@@ -10,7 +10,7 @@
 
 **The destination — reached at v1.0.0, extended through v1.1**: PathWise already shows all of someone's loans, investments, and assets in one place, persists that data on-device, visualizes every position and overall net worth over time, overlays what-if scenarios on those projections, and — the founding question — ranks where an extra $X/month does the most good. The per-release record of how it got here is in the [CHANGELOG](./CHANGELOG.md).
 
-Everything past this point (Phases 9–14) is forward-looking expansion, sequenced but revisitable.
+Everything past this point (Phases 9–18) is forward-looking expansion, sequenced but revisitable.
 
 ---
 
@@ -209,6 +209,101 @@ earns a slot.
 
 ---
 
+### Phase 16 — Cashflow & Rate Realism — _target v2.5_
+
+Consolidated from four July–August 2026 follow-up reviews (#171, #177, #181,
+#186), which each proposed a "Phase 16" and overlapped on several items; the
+union is de-duplicated and re-sequenced across Phases 16–18 by theme and size.
+This first phase is the **engine-touching** set: the forecast currently drops
+freed cash flow when a debt retires, holds every rate fixed for the whole
+horizon, and assumes a monthly cadence — limitations the app itself advertises
+in `assumptions-panel.tsx`, which is the same in-app-copy-vs-plan mismatch that
+earned 15.1 its slot. Each item passes the §5 non-goal filters (client-side,
+data stays on device, not a budgeting app); the rationale column says why each
+earns a slot. **Every item here touches the forecast/amortization math, so the
+Math Correctness Charter (§4) applies** — cited reference tests, upheld
+invariants, and 100% `src/helpers/**` coverage.
+
+**Forecast credibility (extends Phase 9 — Honest Uncertainty)**
+
+| #    | Work item                                  | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.1 | **Freed-cashflow modeling after payoff**   | When a loan retires within the horizon, `forecastLoan` holds its balance at 0 (`forecast-helpers.ts:129`) but the freed monthly payment is redirected **nowhere** — so paying a debt off early shows no net-worth benefit beyond interest saved, which is why a user reported "my net worth ends the same" (#168). Redirect a retired loan's freed payment to a user-chosen destination (cash / a chosen investment / the next debt). Extends the Phase 10.2 snowball "freed-payment redirection" to the _terminal_ case (the last or only debt, and a standalone loan) and to a savings destination, and makes the optimizer's debt-vs-invest ranking value early payoff correctly.                            |
+| 16.2 | **Scheduled rate changes (ARM/promo)**     | The forecast holds every loan rate fixed for the whole horizon (`forecastLoan` amortizes on a single `Loan.InterestRate`), and the assumptions panel openly says so — "no rate changes, ARM resets, or promo expiries" (`assumptions-panel.tsx:20`). That is an **advertised limitation with no roadmap item tracking it**. Add an optional ordered list of dated rate changes (effective date → new rate) the engine steps through, so ARMs, promo-rate balance transfers, and HELOC resets amortize with the rate they will actually carry. The fixed-rate case stays the default; deterministic, backend-free, on the shared monthly axis.                                                                   |
+| 16.3 | **Refinance comparison**                   | Refinancing a mortgage or auto loan is one of the highest-dollar "where does my money go?" decisions, and today it is only reachable by cloning a loan and eyeballing two rows — the code even calls clone the "refinance/what-if" path (`Body.tsx:238`). Model replacing a loan with a new rate/term (optionally rolling closing costs into the balance) and compare payoff date, lifetime interest, break-even month, and net worth at horizon **before vs. after** — the same _"is this worth it?"_ framing as the 9.3 enhancement-ROI calculator. Distinct from the Phase 10.1 life-event timeline: it re-terms a position rather than adding a dated event. Reuses `forecastLoan` and the 16.2 rate model. |
+| 16.4 | **Biweekly / accelerated payment cadence** | The amortization and forecast engines assume a **monthly** payment cadence; a biweekly schedule (26 half-payments ≈ one extra monthly payment per year) is among the most common real payoff accelerators and today can only be faked by hand-inflating `MonthlyPayment`. Add a payment-frequency option to the loan and convert it to a monthly-equivalent on the existing axis, with charter reference tests against a published biweekly amortization table.                                                                                                                                                                                                                                                 |
+
+**Planning & goals (extends Phase 13)**
+
+| #    | Work item                    | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.5 | **Goal contribution solver** | The Phase 13.2 goal draws a target line and reports a projected hit/miss; the milestones (`milestone-helpers.ts`) are read-only projections. Users hit a goal by asking the **inverse** question — "what monthly contribution (or extra payment) reaches $X by date Y?" A closed-form/bisection solver over the existing engine answers it directly, turning a goal from a verdict into a plan and feeding the optimizer and FI mode (10.3). |
+
+---
+
+### Phase 17 — Deeper What-Ifs — _target v2.6_
+
+The second consolidated slice: the what-if surface is **shallower than the
+optimizer's** — scenarios are additive-only, compare one at a time, can't be
+edited from the UI even though the edit path is already built, and the
+assumptions behind a projection aren't user-tunable. No item here changes the
+engine; all are wiring, post-processing, or derived views over results the
+engine already produces.
+
+**What-if depth (extends Phase 4 — Scenarios)**
+
+| #    | Work item                                    | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 17.1 | **Surface scenario edit & clone**            | Scenario editing is already built end-to-end — the reducer's `UpdateScenario`, the context's `updateScenario`, and the builder dialog's edit mode (its optional `scenario` prop, "Edit scenario" / "Save scenario" labels) — but **nothing in the UI reaches it**: `scenario-bar.tsx` only creates, activates, and deletes. Wire an Edit affordance onto each scenario chip and add clone. Every other first-class entity (loan / investment / asset) can be edited and duplicated; the scenario — which the app itself calls "real work" — is the one object a user must delete and rebuild to change one number. Cheap wiring of an existing capability. |
+| 17.2 | **Multi-scenario overlay & compare**         | `activeScenarioId` holds a single id and the chart overlays exactly one scenario's dotted lines, so a user who builds "aggressive payoff" and "max investing" can't see them together. Let the chart overlay 2+ saved scenarios and add a comparison table (net worth at +5/+10/+30y, interest saved, debt-free date), turning isolated what-ifs into the head-to-head the founding "which path?" question asks for. The optimizer already ships an equivalent for its presets (`optimizer/strategy-comparison.tsx`); scenarios have none. Purely derived, no engine change.                                                                               |
+| 17.3 | **Reduction / pause scenarios (negative Δ)** | Scenario inputs are additive-only — every field is an "extra" payment or contribution (`scenario-model.ts`, `ExtraLoanPayments` / `ExtraContributions`), so the builder can model a windfall but not a **cutback**. Allow a negative delta (down to pausing a contribution or lowering a payment) so a user can model a job loss, sabbatical, or 401(k) pause — the downside what-if that matters most for planning. Smaller and nearer-term than the Phase 10.1 life-event timeline, and reuses the existing scenario engine and impact summary.                                                                                                          |
+| 17.4 | **Combined & stepped optimizer budget**      | The optimizer's budget is an exclusive toggle between "per month" and "one-time" (`optimizer-panel.tsx`), so a user with both a monthly surplus and a windfall ("$500/mo _plus_ a $10k bonus") can't rank them together, and the recurring amount can't grow — even though investments already model contribution step-ups. Let one search consider a recurring + one-time budget (optionally stepping up), matching how real surpluses arrive.                                                                                                                                                                                                            |
+
+**Assumptions & reading the chart (extends Phase 9.2 / Phase 12)**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 17.5 | **User-adjustable inflation rate** | The "today's dollars" view deflates at a hardcoded `DEFAULT_INFLATION_PCT = 3`/yr that `assumptions-panel.tsx` even advertises, with no way to change it — a user who assumes 2% or 4% can't. A single rate input (pure post-processing on the nominal forecast, exactly like the Phase 9.2 toggle itself; no engine change) makes the real view honest to the user's own assumption. Extends Phase 9.2.           |
+| 17.6 | **Zoom/pan & pinned date cursor**  | The forecast chart's only time control is the fixed 5Y/10Y/30Y/Full toggle (`forecast-chart.tsx`); there is no drag-to-zoom, pan, or pinned vertical cursor to read every series' value at one chosen month. On a 30-year line users can't focus on years 12–15 or lock a readout at a specific date. Adds close-reading of the projection without leaving the app; distinct from the planned image export (11.6). |
+
+---
+
+### Phase 18 — Position Control, Tracking & Data Safety — _target v2.7_
+
+The remainder of the consolidated union: per-position control and context that
+never reached parity across position types, the one honesty view the "trust the
+numbers" thesis is still missing (plan vs. reality), two data-safety gaps at the
+import/backup boundary, and the performance work the growing overlay count
+implies.
+
+**Position control & context**
+
+| #    | Work item                                   | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 18.1 | **Include / exclude a position**            | A per-position _"include in net worth"_ toggle that keeps the row and its data but drops it from the projection, so a user can see net worth **with and without** a position — a car loan they are about to retire, a speculative holding — without deleting it and re-entering it later. Distinct from the planned 13.4 quick-filters, which filter the _table view_ rather than the _math_; purely derived, one boolean of new state, no engine change. |
+| 18.2 | **Notes & context parity for loans & cash** | The per-holding note / reference-link affordance (9.4) exists only for investments and property (`ResearchLinks` on `Asset`); loans and cash accounts have no freeform note for the context that actually governs them — _"0% until Mar 2027," "CD matures 2026-09," "recast after $10k principal."_ Extend the same on-device, never-fetched note/link model to every position type. Small, in-character, no math impact.                                |
+
+**Progress tracking (honest "am I on track?")**
+
+| #    | Work item                                 | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 18.3 | **Net-worth snapshots & actuals overlay** | The dashboard shows four scalar cards (`net-worth-summary.tsx`) and a forward-looking forecast, but nothing records where net worth **actually was** over time, so a user can't tell whether they are tracking to plan. Let the user capture dated net-worth snapshots (opt-in, on-device) and plot them as points against the forecast line. This is a single scalar over time — **not** transactions, categories, or budgets — so it stays inside the §5 line, and it is distinct from the deferred "balance check-ins" (which re-anchors each position's balance); this compares plan vs. reality. |
+
+**Data safety & portability**
+
+| #    | Work item                                  | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 18.4 | **Backup staleness reminder**              | Data lives in `localStorage` and the only durable copy is a manual JSON export; nothing records or surfaces when the user last exported, so there is no nudge before browser-storage loss. A lightweight "last backed up N days ago · export now" indicator closes the gap between opt-in persistence and a real off-device copy. Complements the planned unsaved-changes guard (13.1), which only covers the persistence-**off** case.                                         |
+| 18.5 | **Selective import & conflict resolution** | JSON import commits the entire pending file at once (`data-manager.tsx`) and an Id collision always silently overwrites the existing entity — the preview dialog only _lists_ items, with no way to deselect them, so a file that shares one Id forces overwriting it to import anything else. Add per-item checkboxes and a keep-mine / keep-theirs / keep-both choice on collisions, so a merge can't clobber data the user meant to keep. Reuses the D8 validation boundary. |
+
+**Performance / technical**
+
+| #    | Work item                          | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 18.6 | **Shared memoized forecast cache** | The deterministic net-worth forecast is recomputed independently by the chart, milestones, Monte Carlo overlay, strategy comparison, the planned tornado sweeps (15.2), and every scenario added to the 17.2 overlay — a redundancy that grows with each new view. A single inputs-keyed memo layer over `forecastNetWorth` would cut the repeated recompute and keep interaction smooth on large position sets **without changing any result**. Upholds D3 (one engine); not user-visible. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -237,9 +332,12 @@ Phase 12 Accessibility & Interaction Polish  v2.1
 Phase 13 Data Safety & Goal-Setting       v2.2
 Phase 14 Dashboard Insight                v2.3
 Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
+Phase 16 Cashflow & Rate Realism          v2.5   (Jul–Aug 2026 reviews)
+Phase 17 Deeper What-Ifs                  v2.6   (Jul–Aug 2026 reviews)
+Phase 18 Position Control, Tracking & Data Safety  v2.7  (Jul–Aug 2026 reviews)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, and finally a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile.
 
 ---
 
