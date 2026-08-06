@@ -44,8 +44,7 @@ const AddEditLoan = lazy(() =>
 // an Asset, so an import can yield both; an investment is stored as its
 // AssetType.Investment asset (the fold), so it rides in the asset arm.
 type Resolution =
-  | { kind: 'asset'; asset: Asset }
-  | { kind: 'loan'; loan: Loan };
+  { kind: 'asset'; asset: Asset } | { kind: 'loan'; loan: Loan };
 
 // "loan" is not an AssetType, so the row dropdown uses a synthetic option value
 // alongside the real asset types.

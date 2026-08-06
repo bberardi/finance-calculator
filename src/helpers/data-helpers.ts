@@ -458,19 +458,15 @@ const parseAssets = (value: unknown): Asset[] => {
       GrowthRate: raw.GrowthRate as number,
       LinkedLoanId: raw.LinkedLoanId as string | undefined,
       CompoundingPeriod: raw.CompoundingPeriod as
-        | CompoundingFrequency
-        | undefined,
+        CompoundingFrequency | undefined,
       StartDate: startDate,
       RecurringContribution: raw.RecurringContribution as number | undefined,
       ContributionFrequency: raw.ContributionFrequency as
-        | CompoundingFrequency
-        | undefined,
+        CompoundingFrequency | undefined,
       ContributionStepUpAmount: raw.ContributionStepUpAmount as
-        | number
-        | undefined,
+        number | undefined,
       ContributionStepUpType: raw.ContributionStepUpType as
-        | StepUpType
-        | undefined,
+        StepUpType | undefined,
       CurrentValue: raw.CurrentValue as number | undefined,
       EmployerMatchRate: raw.EmployerMatchRate as number | undefined,
       EmployerMatchLimitPct: raw.EmployerMatchLimitPct as number | undefined,

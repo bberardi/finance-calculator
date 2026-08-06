@@ -72,8 +72,7 @@ const AddEditAsset = lazy(() =>
 // (we need its name for the prompt). Investments are assets now, so they delete
 // through the 'asset' path.
 type PendingDelete =
-  | { kind: 'loan'; entity: Loan }
-  | { kind: 'asset'; entity: Asset };
+  { kind: 'loan'; entity: Loan } | { kind: 'asset'; entity: Asset };
 
 // A delete that just happened and can still be undone: the removed entity plus
 // the index it occupied, so undo can restore it exactly where it was.
@@ -83,8 +82,7 @@ type UndoableDelete =
 
 // A bulk delete pending confirmation: which kind, and the selected entities.
 type PendingBulkDelete =
-  | { kind: 'loan'; entities: Loan[] }
-  | { kind: 'asset'; entities: Asset[] };
+  { kind: 'loan'; entities: Loan[] } | { kind: 'asset'; entities: Asset[] };
 
 // A committed bulk delete that can still be undone: the pre-delete data
 // snapshot (restored wholesale) plus the snackbar message.
