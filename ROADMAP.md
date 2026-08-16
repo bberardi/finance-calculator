@@ -10,7 +10,7 @@
 
 **The destination — reached at v1.0.0, extended through v1.1**: PathWise already shows all of someone's loans, investments, and assets in one place, persists that data on-device, visualizes every position and overall net worth over time, overlays what-if scenarios on those projections, and — the founding question — ranks where an extra $X/month does the most good. The per-release record of how it got here is in the [CHANGELOG](./CHANGELOG.md).
 
-Everything past this point (Phases 9–18) is forward-looking expansion, sequenced but revisitable.
+Everything past this point (Phases 9–19) is forward-looking expansion, sequenced but revisitable.
 
 ---
 
@@ -304,6 +304,37 @@ implies.
 
 ---
 
+### Phase 19 — Privacy, Integrity & Insight — _target v2.8_
+
+Surfaced by an August 2026 codebase/UX review and grounded in the current open-issue
+set. Where Phases 16–18 deepened the _forecast_, this phase hardens the three things
+underneath it: the **privacy** promise the product leads with, the **data integrity**
+of the import/edit boundary (a recurring open-issue class), and one **read-only
+insight** the dashboard is still missing. Each item passes the §5 non-goal filters
+(client-side, data stays on device, not a budgeting app); the rationale column says
+why each earns a slot.
+
+**Privacy (hardens the founding "your numbers never leave your device" promise)**
+
+| #    | Work item                                         | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.1 | **Optional passphrase encryption for saved data** | On-device persistence writes **plaintext** JSON to `localStorage` (`storage-helpers.ts` — `exportToJson` straight into `setItem`). The privacy story guards against network exfiltration, but anyone with access to the same browser profile — a shared family or work computer — can read a full financial picture from dev-tools or a profile copy. Add an **opt-in** passphrase that encrypts the stored blob via the Web Crypto API (AES-GCM with a PBKDF2-derived key — the KDF Web Crypto provides natively); the key never leaves the page and is never stored. Backend-free and in-character, closing the one gap between "stays on your device" and "safe on your device." |
+
+**Data integrity (closes a recurring open-issue class)**
+
+| #    | Work item                                       | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.2 | **Unify the import & form validation contract** | The import boundary (`data-helpers.ts`, **finiteness** checks) and the edit forms (`validation-helpers.ts`, **sign** checks like `x > 0`) apply different rules, so a file can import a record the form then refuses to save — the "uneditable round-trip" trap behind a whole cluster of open bugs (#183, #184, #194, #178, #175). Derive both layers from **one per-field rule set** so anything importable is also editable and vice-versa, and route malformed input to the friendly validation error rather than a raw `TypeError`. No engine or schema change; retires the defect _class_ instead of patching each instance. Reuses the D8 boundary. |
+| 19.3 | **Monarch import name disambiguation**          | The all-accounts CSV path collapses accounts whose display names slug-collide (exact duplicates, or names differing only in case/punctuation) into a single asset, silently dropping the others' balances (#167) — data loss on a realistic all-accounts export. Disambiguate colliding names (e.g. append the account subtype or an index) and surface an "N accounts merged/renamed" note in the existing review step, so a duplicate name can never silently overwrite a real balance. Reuses the on-device review-and-undo import flow; no new data leaves the device.                                                                                 |
+
+**Dashboard insight (extends Phase 14 — Dashboard Insight)**
+
+| #    | Work item                                   | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.4 | **Blended cost-of-debt vs. blended return** | `summarizePositions` surfaces totals (debt, assets, net worth, commitments) but not the single comparison the founding "pay debt or invest?" question turns on: the **balance-weighted average interest rate** across debts vs. the **balance-weighted average return** across investments, and the spread between them. Showing both distills the optimizer's core conclusion into one always-on, read-only line a user sees before running any search. Purely derived from existing model fields — no engine or schema change — and complements the 14.3 composition breakdown (what the money is _in_) with what it _costs vs. earns_. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -335,9 +366,10 @@ Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
 Phase 16 Cashflow & Rate Realism          v2.5   (Jul–Aug 2026 reviews)
 Phase 17 Deeper What-Ifs                  v2.6   (Jul–Aug 2026 reviews)
 Phase 18 Position Control, Tracking & Data Safety  v2.7  (Jul–Aug 2026 reviews)
+Phase 19 Privacy, Integrity & Insight     v2.8   (August 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile. Phase 19 turns from the forecast to its foundations — encrypting on-device data at rest, unifying the import/edit validation contract that a cluster of open issues keeps tripping, disambiguating a lossy import path, and adding the one dashboard insight (blended debt-cost vs. return) that states the optimizer's conclusion at a glance.
 
 ---
 
