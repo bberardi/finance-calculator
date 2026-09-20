@@ -304,6 +304,40 @@ implies.
 
 ---
 
+### Phase 19 — Foundation Hardening — _target v2.8_
+
+Surfaced by a September 2026 review. Phases 9–18 grew the roadmap ten phases
+deep in **new features**, but the same review found that the backlog those
+features sit on has drifted: 26 open issues are all bugs, and roughly a third
+of them are correctness defects in `src/helpers/**` — the exact layer the
+[Math Correctness Charter (§4)](#4-math-correctness-charter-non-negotiable)
+calls "non-negotiable" and holds to 100% line + branch coverage. Charter §4
+says "a plausible-looking chart on top of a subtly wrong formula is worse than
+no chart at all," so this phase pauses feature expansion to pay down that
+correctness debt and close the systemic gap that keeps producing it, then adds
+one net-new capability that strengthens the privacy story rather than the
+forecast. Each item passes the §5 non-goal filters (client-side, data stays on
+device, not a budgeting app); the rationale column says why each earns a slot.
+**The 19.1–19.3 items touch the math and validation layers, so the Math
+Correctness Charter (§4) applies** — cited reference tests, upheld invariants,
+and 100% `src/helpers/**` coverage.
+
+**Correctness & Charter debt (quality)**
+
+| #    | Work item                                           | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.1 | **Correctness bug burndown**                        | The open backlog holds a cluster of math/engine defects in the charter-protected layer — forecast-vs-schedule drift (#165, #166, #187, #199, #203), a non-transitive sort comparator that scrambles a whole column (#213), an unguarded Monte Carlo `paths` knob (#188), and a match-accounting overstatement in the growth totals (#214). Each is exactly the "subtly wrong formula under a plausible chart" the Charter exists to prevent. Clear them as a tracked group, each with the Charter-required failing regression test committed before its fix, before starting another feature phase.                                                                                                               |
+| 19.2 | **Single-source validation (import ↔ form parity)** | Field validation is implemented twice — `validateLoan`/`validateInvestment`/`validateAsset` in `validation-helpers.ts` drive the edit forms, while `data-helpers.ts` re-implements the same range/shape checks at the JSON-import boundary (its own comment at `data-helpers.ts:661` notes the two must be hand-kept "in agreement"). They have drifted repeatedly, producing a recurring "uneditable round-trip" bug class: import accepts values the form then rejects — `+Infinity` (#183), a negative return rate (#184), `Principal`/`CurrentAmount` = 0 (#194), a null housing field (#201). Derive both paths from one shared, tested validation schema so a value can never be importable but uneditable. |
+| 19.3 | **Import → edit round-trip harness**                | Nothing today asserts the invariant behind 19.2 — that anything `importFromJson` accepts, the edit form can open and re-save. Add a property-based round-trip test (fast-check over generated loans/investments/assets) wired into CI, so a future import-boundary or form change that reopens the drift fails the build. Turns 19.2 from a one-time reconciliation into a standing guarantee; reuses the existing D8 validation boundary and the Charter's layer-3 property-test tooling.                                                                                                                                                                                                                        |
+
+**Privacy & portability (new feature)**
+
+| #    | Work item                                | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.4 | **Optional passphrase-encrypted export** | PathWise's headline promise is "your numbers never leave your device," yet the only durable copy — the JSON export (D5) — is plaintext, so backing up to cloud storage or email exposes the full balance sheet. Offer an optional passphrase-encrypted export (Web Crypto `AES-GCM` + PBKDF2, entirely client-side) that import transparently decrypts, keeping the no-backend/key-free line intact while making an off-device backup safe to store anywhere. Pairs with the planned backup-staleness reminder (18.4). |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -335,9 +369,10 @@ Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
 Phase 16 Cashflow & Rate Realism          v2.5   (Jul–Aug 2026 reviews)
 Phase 17 Deeper What-Ifs                  v2.6   (Jul–Aug 2026 reviews)
 Phase 18 Position Control, Tracking & Data Safety  v2.7  (Jul–Aug 2026 reviews)
+Phase 19 Foundation Hardening              v2.8   (September 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile. Phase 19 is listed last for continuity but is deliberately the one phase the roadmap's own **correctness-first** principle argues for pulling _forward_: its 19.1–19.3 items pay down accumulated defects in the charter-protected math layer, and every projection, milestone, and optimizer score in Phases 16–18 inherits those numbers — so a maintainer may reasonably interleave the correctness burndown ahead of further feature work rather than waiting for v2.8.
 
 ---
 
