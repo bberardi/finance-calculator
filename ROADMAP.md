@@ -304,6 +304,37 @@ implies.
 
 ---
 
+### Phase 19 — Decision Depth & Privacy — _target v2.8_
+
+Surfaced by a September 2026 roadmap/codebase review. Phases 9–18 are already
+broad, and the current open issues are almost entirely automated bug-scan
+findings rather than feature gaps (the one genuine user request, freed cash
+after payoff #168, is already tracked as 16.1) — so this phase adds only the
+three items a fresh pass found that no existing phase or the "considered but not
+planned" list below already covers. Each passes the §5 non-goal filters
+(client-side, data stays on device, not a budgeting app); the rationale column
+says why each earns a slot.
+
+**Credibility (extends Phase 9 — Honest Uncertainty / Phase 15.1)**
+
+| #    | Work item                               | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.1 | **Investment fee / expense-ratio drag** | Investments grow at a single gross `AverageReturnRate` (`investment-model.ts`) with no cost input, so a fund's expense ratio or an advisor's AUM fee — often 0.5–1.5%/yr, and the difference between a good and a bad long-horizon outcome — is invisible. Add an optional annual cost that nets against the return, completing the honesty chain the assumptions panel already advertises (nominal → today's dollars → after-tax **→ after-fee**). Math-touching, so the §4 Charter applies; a fixed effective net rate keeps it a small engine change with cited reference tests. |
+
+**New decision tools (extends the founding "where should my money go?")**
+
+| #    | Work item                   | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 19.2 | **Rent vs. buy comparison** | Buying a home is the largest "where should my money go?" decision most users ever face, and PathWise already models both sides — a mortgage with property appreciation (Phase 7) and an investment growing the difference — but has no view that pits them against each other. Add a closed-form comparison (down payment + monthly outlay vs. renting and investing the gap) reporting net worth at horizon and the break-even year, in the same "is this worth it?" framing as the 9.3 enhancement-ROI and 16.3 refinance calculators. Reuses `forecastLoan`/`forecastInvestment`; deterministic, backend-free. |
+
+**Data safety & privacy (extends Phase 18)**
+
+| #    | Work item                       | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 19.3 | **Passphrase-encrypted export** | The JSON backup (`data-manager.tsx`) is plaintext, so the moment a user stores it in a cloud drive, email, or shared machine their whole balance sheet is readable — a soft spot in the otherwise strong "your numbers never leave your device" story. Offer an optional passphrase that encrypts the export with the browser-native Web Crypto API (AES-GCM + PBKDF2) and decrypts on import. No backend, no dependency, no key escrow; the plaintext export stays the default for portability. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -335,9 +366,10 @@ Phase 15 Credibility & Accessibility Follow-ups  v2.4  (July 2026 review)
 Phase 16 Cashflow & Rate Realism          v2.5   (Jul–Aug 2026 reviews)
 Phase 17 Deeper What-Ifs                  v2.6   (Jul–Aug 2026 reviews)
 Phase 18 Position Control, Tracking & Data Safety  v2.7  (Jul–Aug 2026 reviews)
+Phase 19 Decision Depth & Privacy         v2.8   (September 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile. Phase 19 sits last because it is additive rather than corrective — a fee-drag honesty companion, a rent-vs-buy decision tool, and export encryption — none of which the earlier phases' numbers depend on.
 
 ---
 
