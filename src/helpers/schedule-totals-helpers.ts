@@ -41,12 +41,18 @@ export const getAmortizationTotals = (
 };
 
 export interface GrowthTotals {
-  // Recurring contributions paid in over the schedule ("contributed").
-  // Excludes the starting balance, which was never a contribution.
+  // The investor's own recurring contributions over the schedule
+  // ("contributed"). Excludes the starting balance, which was never a
+  // contribution, and the employer match, which is not the investor's money.
   totalContributions: number;
+  // Employer-match dollars added over the schedule. Kept apart from the
+  // investor's contributions so "Total invested" is only their own money. (#214)
+  totalEmployerMatch: number;
   // Interest/returns earned over the schedule ("earned").
   totalInterest: number;
-  // Everything the investor put in: starting balance + contributions.
+  // Everything the investor put in: starting balance + own contributions.
+  // Money conservation: endingValue = endingInvested + totalEmployerMatch +
+  // totalInterest (to the cent, up to per-row rounding).
   endingInvested: number;
   // Final projected value (the last entry's TotalValue). Falls back to the
   // starting balance for an empty schedule so the footer is always defined.
@@ -58,17 +64,22 @@ export const getGrowthTotals = (
   startingBalance: number
 ): GrowthTotals => {
   let totalContributions = 0;
+  let totalEmployerMatch = 0;
   let totalInterest = 0;
   for (const entry of growth) {
-    totalContributions += entry.ContributionAmount;
+    const match = entry.EmployerMatchAmount ?? 0;
+    totalContributions += entry.ContributionAmount - match;
+    totalEmployerMatch += match;
     totalInterest += entry.InterestEarned;
   }
   totalContributions = roundToCents(totalContributions);
+  totalEmployerMatch = roundToCents(totalEmployerMatch);
   totalInterest = roundToCents(totalInterest);
   const endingValue =
     growth.length > 0 ? growth[growth.length - 1].TotalValue : startingBalance;
   return {
     totalContributions,
+    totalEmployerMatch,
     totalInterest,
     endingInvested: roundToCents(startingBalance + totalContributions),
     endingValue: roundToCents(endingValue),

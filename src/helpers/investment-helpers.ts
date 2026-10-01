@@ -404,6 +404,7 @@ export const generateInvestmentGrowth = (
       // Total money in this period — your contribution plus any employer match.
       ContributionAmount:
         Math.round((contributionThisPeriod + employerMatch) * 100) / 100,
+      EmployerMatchAmount: Math.round(employerMatch * 100) / 100,
       InterestEarned: Math.round(interestEarned * 100) / 100,
       TotalValue: Math.round(currentValue * 100) / 100,
     });

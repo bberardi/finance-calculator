@@ -99,7 +99,11 @@ export const simulateNetWorthBands = (
   today: Date = new Date(),
   options: MonteCarloOptions = {}
 ): MonteCarloBands => {
-  const paths = options.paths ?? DEFAULT_PATHS;
+  // `paths` is a public count knob: a non-finite or sub-1 value would yield
+  // all-NaN bands (0) or a RangeError (negative), so fall back to the default
+  // like the sibling budget/term guards do. (#188)
+  const requestedPaths = Math.floor(options.paths ?? DEFAULT_PATHS);
+  const paths = requestedPaths >= 1 ? requestedPaths : DEFAULT_PATHS;
   const sigma = (options.annualVolatilityPct ?? DEFAULT_VOLATILITY_PCT) / 100;
   const seed = options.seed ?? DEFAULT_SEED;
   const percentiles = options.percentiles ?? DEFAULT_PERCENTILES;

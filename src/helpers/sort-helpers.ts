@@ -19,10 +19,20 @@ const stringCollator = new Intl.Collator('en-US', {
 const toComparable = (value: SortValue): number | string =>
   value instanceof Date ? value.getTime() : value;
 
-// -1 / 0 / 1 ordering of two sort values (ascending).
+// A NaN key (or an Invalid Date, whose getTime() is NaN) has no order. Treating
+// it as "equal" to everything makes the comparator non-transitive and lets the
+// engine leave the whole column unsorted, so it gets a fixed slot instead. (#213)
+const isNaNKey = (value: number | string): boolean =>
+  typeof value === 'number' && Number.isNaN(value);
+
+// -1 / 0 / 1 ordering of two sort values (ascending). NaN / Invalid Date keys
+// sort after every valid key.
 export const compareSortValues = (a: SortValue, b: SortValue): number => {
   const ca = toComparable(a);
   const cb = toComparable(b);
+  const aNaN = isNaNKey(ca);
+  const bNaN = isNaNKey(cb);
+  if (aNaN || bNaN) return aNaN === bNaN ? 0 : aNaN ? 1 : -1;
   if (typeof ca === 'string' && typeof cb === 'string') {
     return Math.sign(stringCollator.compare(ca, cb));
   }
@@ -42,7 +52,14 @@ export const sortBy = <T>(
   direction: SortDirection
 ): T[] => {
   const factor = direction === 'asc' ? 1 : -1;
-  return [...items].sort(
-    (a, b) => factor * compareSortValues(selector(a), selector(b))
-  );
+  return [...items].sort((a, b) => {
+    const va = selector(a);
+    const vb = selector(b);
+    // Unorderable keys stay at the end in both directions rather than flipping
+    // to the top on a descending sort.
+    const aNaN = isNaNKey(toComparable(va));
+    const bNaN = isNaNKey(toComparable(vb));
+    if (aNaN || bNaN) return compareSortValues(va, vb);
+    return factor * compareSortValues(va, vb);
+  });
 };

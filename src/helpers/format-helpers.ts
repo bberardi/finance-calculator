@@ -48,15 +48,27 @@ const getPercentFormatter = (fractionDigits: number): Intl.NumberFormat => {
  * Always shows exactly two fraction digits, matching the prior behavior of the
  * loan/investment tables and PIT/schedule popouts.
  */
+// Intl keeps the minus sign on -0 and on any negative that rounds to zero at
+// the displayed precision ("-$0.00"). Round to that precision first and fold
+// -0 into +0 so an effectively-zero amount never shows a spurious sign. (#182)
+const normalizeForDisplay = (
+  amount: number,
+  fractionDigits: number
+): number => {
+  const scale = 10 ** fractionDigits;
+  const rounded = Math.round(amount * scale) / scale;
+  return rounded === 0 ? 0 : amount;
+};
+
 export const formatCurrency = (amount: number): string =>
-  usdFormatter.format(amount);
+  usdFormatter.format(normalizeForDisplay(amount, 2));
 
 /**
  * Formats a number as compact US dollars for space-constrained surfaces (chart
  * axis ticks, tooltips), e.g. `1234567` -> `"$1.2M"`, `-6000` -> `"-$6K"`.
  */
 export const formatCurrencyCompact = (amount: number): string =>
-  usdCompactFormatter.format(amount);
+  usdCompactFormatter.format(amount === 0 ? 0 : amount);
 
 /**
  * Formats a signed net-worth *change* for the scenario/optimizer panels: a
@@ -67,8 +79,14 @@ export const formatCurrencyCompact = (amount: number): string =>
  * a confusing "+$0"; that plan's real benefit shows as interest saved and an
  * earlier debt-free date instead.
  */
-export const formatNetWorthDelta = (delta: number): string =>
-  delta === 0 ? 'No change' : `${delta > 0 ? '+' : ''}${formatCurrency(delta)}`;
+// The zero test runs at the displayed (cent) precision, so a sub-cent delta
+// also reads "No change" rather than a signed "$0.00". (#182)
+export const formatNetWorthDelta = (delta: number): string => {
+  const cents = Math.round(delta * 100) / 100;
+  return cents === 0
+    ? 'No change'
+    : `${cents > 0 ? '+' : ''}${formatCurrency(delta)}`;
+};
 
 /**
  * Formats a percentage value, where `percent` is the human-facing percent

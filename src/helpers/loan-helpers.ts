@@ -61,6 +61,14 @@ export const getMonthlyPayment = (
   return Math.round(payment * 100) / 100;
 };
 
+// Number of terms the full schedule takes to retire the loan, or the calendar
+// term count when the schedule never reaches a zero balance.
+const scheduledTermCount = (loan: Loan): number => {
+  const fullSchedule = generateAmortizationSchedule(loan);
+  const last = fullSchedule[fullSchedule.length - 1];
+  return last.RemainingBalance === 0 ? fullSchedule.length : getTerms(loan);
+};
+
 // Returns a point-in-time view of a loan given a date.
 export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
   const paidTerms = getTerms(loan, date);
@@ -84,8 +92,16 @@ export const getPitCalculation = (loan: Loan, date: Date): PitLoan => {
     // count: when the schedule stops early at payoff (RemainingBalance 0), the
     // loan has no terms left, so report 0 rather than (scheduled − payoff term),
     // which would contradict the $0 remaining principal on the same row. (#73)
+    //
+    // While a balance remains, count the terms the *schedule* still needs, not
+    // the calendar term count: an aggressive payment retires the loan well
+    // before EndDate, and "111 payments remaining" beside a balance that clears
+    // in 11 would contradict the schedule-based RemainingPrincipal. A schedule
+    // that never retires the balance falls back to the calendar term. (#203)
     RemainingTerms:
-      lastEntry.RemainingBalance > 0 ? getTerms(loan) - lastEntry.Term : 0,
+      lastEntry.RemainingBalance > 0
+        ? scheduledTermCount(loan) - lastEntry.Term
+        : 0,
     RemainingPrincipal: lastEntry.RemainingBalance,
     PaidPrincipal: loan.Principal - lastEntry.RemainingBalance,
     PaidInterest: relevantAmortization
@@ -135,12 +151,23 @@ export const generateAmortizationSchedule = (
     // exception is a genuine single closing term (term === totalTerms), where
     // the balance is paid in full regardless. validateLoan surfaces a matching
     // sanity warning on the input side. (#70)
-    if (normalPrincipal <= 0 && term !== totalTerms) {
+    //
+    // The scheduled final term may absorb only a rounding-sized residual (at
+    // most one extra payment) — the cent drift a rounded payment leaves behind.
+    // A payment that covers interest but is far too small to amortize the loan
+    // would otherwise dump the whole unpaid balance into one fictitious balloon
+    // row reporting $0 remaining, contradicting forecastLoan, which still shows
+    // that balance owed. Such a schedule instead stops with the balance still
+    // outstanding. (#166)
+    const closesOnScheduledFinalTerm =
+      term === totalTerms &&
+      remainingBalance - Math.max(normalPrincipal, 0) <= loan.MonthlyPayment;
+    if (normalPrincipal <= 0 && !closesOnScheduledFinalTerm) {
       break;
     }
 
     const isFinalTerm =
-      term === totalTerms || normalPrincipal >= remainingBalance;
+      closesOnScheduledFinalTerm || normalPrincipal >= remainingBalance;
     const principalPayment = isFinalTerm ? remainingBalance : normalPrincipal;
     remainingBalance -= principalPayment;
 

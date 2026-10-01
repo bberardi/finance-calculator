@@ -44,7 +44,15 @@ export const toRealSeries = (
   dates: Date[],
   today: Date,
   annualInflationPct: number = DEFAULT_INFLATION_PCT
-): number[] =>
-  values.map((value, index) =>
+): number[] => {
+  // A missing date would reach dayjs(undefined) — the wall clock — and deflate
+  // against the run time, so a mismatch fails loudly instead. (#224)
+  if (dates.length !== values.length) {
+    throw new Error(
+      `toRealSeries: expected one date per value (got ${dates.length} dates for ${values.length} values).`
+    );
+  }
+  return values.map((value, index) =>
     roundToCents(toRealValue(value, dates[index], today, annualInflationPct))
   );
+};

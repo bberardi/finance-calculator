@@ -116,7 +116,10 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
         }
       }
 
-      cumulativeInvested += entry.ContributionAmount;
+      // Only the investor's own money counts as "invested"; the employer match
+      // is broken out in the totals footer instead. (#214)
+      cumulativeInvested +=
+        entry.ContributionAmount - (entry.EmployerMatchAmount ?? 0);
 
       return {
         period: entry.Period,
@@ -193,6 +196,14 @@ export const GrowthSchedulePopout = (props: GrowthSchedulePopoutProps) => {
                 label: 'Total invested',
                 value: formatCurrency(totals.endingInvested),
               },
+              ...(totals.totalEmployerMatch > 0
+                ? [
+                    {
+                      label: 'Employer match',
+                      value: formatCurrency(totals.totalEmployerMatch),
+                    },
+                  ]
+                : []),
               {
                 label: 'Interest earned',
                 value: formatCurrency(totals.totalInterest),

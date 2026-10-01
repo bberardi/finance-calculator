@@ -113,7 +113,9 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   // A non-positive monthly payment never amortizes the loan (the balance would
   // grow under interest forever), so block it at the source. (#51)
   if (!(
-    Number.isFinite(loan.MonthlyPayment) && (loan.MonthlyPayment ?? 0) > 0
+    typeof loan.MonthlyPayment === 'number' &&
+    Number.isFinite(loan.MonthlyPayment) &&
+    loan.MonthlyPayment > 0
   )) {
     errors.MonthlyPayment = 'Monthly payment must be greater than 0.';
   }
