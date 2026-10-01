@@ -239,25 +239,58 @@ export const importAssetsFromMonarchBalanceCsv = (
   // the imported assets follow the file's first-seen account order. A file with
   // no name column collapses to a single group keyed by '' (named from the file).
   const groups = new Map<string, AccountGroup>();
-  for (const cells of rows.slice(1)) {
+  // Rows seen per account name and date. A balance history has one row per
+  // account per date, so a repeated (name, date) pair means a SECOND account
+  // with the same display name; it gets its own group rather than silently
+  // overwriting the first. (#167)
+  const rowsPerNameAndDate = new Map<string, number>();
+  const dataRows = rows.slice(1);
+  const hasNamedRows =
+    nameIdx !== -1 &&
+    dataRows.some(
+      (cells) =>
+        cellAt(cells, nameIdx).trim() !== '' &&
+        !Number.isNaN(parseMonarchAmount(cellAt(cells, amountIdx)))
+    );
+  for (const cells of dataRows) {
     const amount = parseMonarchAmount(cellAt(cells, amountIdx));
     if (Number.isNaN(amount)) {
       continue;
     }
     const rawName = nameIdx === -1 ? '' : cellAt(cells, nameIdx).trim();
-    let group = groups.get(rawName);
+    // In an export that names its accounts, a blank-name row is a stray or
+    // summary row, not an account; falling back to the file name would inject
+    // a phantom asset. (A file whose name column is blank throughout is still
+    // a single account named from the file.) (#222)
+    if (rawName === '' && hasNamedRows) {
+      continue;
+    }
+    const rawDate = cellAt(cells, dateIdx).trim();
+    let occurrence = 0;
+    if (rawDate !== '') {
+      const dateKey = `${rawName}\u0000${rawDate}`;
+      occurrence = rowsPerNameAndDate.get(dateKey) ?? 0;
+      rowsPerNameAndDate.set(dateKey, occurrence + 1);
+    }
+    const groupKey =
+      occurrence === 0 ? rawName : `${rawName}\u0000${occurrence}`;
+    let group = groups.get(groupKey);
     if (!group) {
       group = {
-        name: rawName === '' ? undefined : rawName,
+        name:
+          rawName === ''
+            ? undefined
+            : occurrence === 0
+              ? rawName
+              : `${rawName} (${occurrence + 1})`,
         latestTime: -Infinity,
         fallback: amount,
       };
-      groups.set(rawName, group);
+      groups.set(groupKey, group);
     } else {
       group.fallback = amount;
     }
 
-    const rawDate = cellAt(cells, dateIdx).trim();
     const parsed = rawDate === '' ? undefined : dayjs(rawDate);
     if (parsed && parsed.isValid() && parsed.valueOf() >= group.latestTime) {
       group.latestTime = parsed.valueOf();
@@ -271,12 +304,29 @@ export const importAssetsFromMonarchBalanceCsv = (
     );
   }
 
-  return Array.from(groups.values()).map((group) =>
-    buildAsset(
-      group.name ?? nameFromFilename(filename),
-      group.latest ?? group.fallback
+  return withUniqueIds(
+    Array.from(groups.values()).map((group) =>
+      buildAsset(
+        group.name ?? nameFromFilename(filename),
+        group.latest ?? group.fallback
+      )
     )
   );
+};
+
+// Distinct accounts whose names slug to the same Id (e.g. "My 401(k)" and
+// "My 401 k") would overwrite each other on the Id-keyed merge; suffix repeats
+// (-2, -3, …) so every account imports. (#167)
+const withUniqueIds = (assets: Asset[]): Asset[] => {
+  const used = new Set<string>();
+  return assets.map((asset) => {
+    let id = asset.Id;
+    for (let n = 2; used.has(id); n++) {
+      id = `${asset.Id}-${n}`;
+    }
+    used.add(id);
+    return id === asset.Id ? asset : { ...asset, Id: id };
+  });
 };
 
 /**
@@ -287,6 +337,8 @@ export const importAssetsFromMonarchBalanceCsv = (
 export const importAssetsFromMonarchBalanceCsvFiles = (
   files: MonarchCsvFile[]
 ): Asset[] =>
-  files.flatMap((file) =>
-    importAssetsFromMonarchBalanceCsv(file.text, file.name)
+  withUniqueIds(
+    files.flatMap((file) =>
+      importAssetsFromMonarchBalanceCsv(file.text, file.name)
+    )
   );

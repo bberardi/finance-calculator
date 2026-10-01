@@ -27,6 +27,15 @@ import {
 import { fieldHelperText } from '../components/field-helper-text';
 import { useFieldTracking } from '../hooks/use-field-tracking';
 
+// The fields the monthly payment is recomputed from, as one comparable key.
+const paymentDriversKey = (loan: Loan): string =>
+  [
+    loan.Principal,
+    loan.InterestRate,
+    loan.StartDate?.getTime(),
+    loan.EndDate?.getTime(),
+  ].join('|');
+
 export const AddEditLoan = (props: AddEditLoanProps) => {
   const [newLoan, setNewLoan] = useState<Loan>(emptyLoan);
 
@@ -74,22 +83,44 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
   // Letting the recompute run fills in the derived payment so the round-trip
   // (import → edit → save) works, matching the engine's "derive when unset"
   // behavior. (#94)
-  const skipNextPaymentRecompute = useRef(false);
+  //
+  // The suppression keys on the driving fields' VALUES, not on "skip the next
+  // effect run": on a fresh mount the recompute effect also runs once for the
+  // initial emptyLoan state, which consumed a one-shot skip before the loaded
+  // loan arrived, so the real emptyLoan → loaded transition recomputed and
+  // overwrote the custom payment anyway. (#207) Recompute resumes once the user
+  // changes a driving field away from the loaded values.
+  const preservedDrivers = useRef<string | undefined>(undefined);
+  const preservedDriversSeen = useRef(false);
 
   useEffect(() => {
     // Edit reuses the passed loan; a conversion (Add Liability → "Convert to
     // loan") seeds add-mode from `initialValues`; a plain add starts empty.
     setNewLoan(props.loan ?? props.initialValues ?? emptyLoan);
     resetTracking();
-    skipNextPaymentRecompute.current =
-      typeof props.loan?.MonthlyPayment === 'number' &&
-      props.loan.MonthlyPayment > 0;
+    preservedDrivers.current =
+      props.loan &&
+      typeof props.loan.MonthlyPayment === 'number' &&
+      props.loan.MonthlyPayment > 0
+        ? paymentDriversKey(props.loan)
+        : undefined;
+    preservedDriversSeen.current = false;
   }, [props.loan, props.initialValues, props.open, resetTracking]);
 
+  const driversKey = paymentDriversKey(newLoan);
   useEffect(() => {
-    if (skipNextPaymentRecompute.current) {
-      skipNextPaymentRecompute.current = false;
-      return;
+    if (preservedDrivers.current !== undefined) {
+      if (driversKey === preservedDrivers.current) {
+        // The loaded loan's own values: keep its stored payment.
+        preservedDriversSeen.current = true;
+        return;
+      }
+      if (!preservedDriversSeen.current) {
+        // The pre-seed emptyLoan render; the loaded loan hasn't arrived yet.
+        return;
+      }
+      // The user changed a driving field: recompute from here on.
+      preservedDrivers.current = undefined;
     }
     // Guard on "rate is a valid non-negative number" rather than truthiness:
     // a 0% (interest-free) loan is a first-class, supported input, but `0` is
@@ -113,6 +144,7 @@ export const AddEditLoan = (props: AddEditLoanProps) => {
       }));
     }
   }, [
+    driversKey,
     newLoan.Principal,
     newLoan.InterestRate,
     newLoan.StartDate,

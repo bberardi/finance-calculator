@@ -82,4 +82,14 @@ describe('InvestmentTable (roadmap 6.4)', () => {
       expect.objectContaining({ Id: 'i2' }),
     ]);
   });
+
+  it('offers Research & context only when the handler is wired (#200)', async () => {
+    const onInvestmentResearch = vi.fn();
+    renderTable({ onInvestmentResearch });
+    const buttons = screen.getAllByRole('button', {
+      name: 'Research & context',
+    });
+    await userEvent.click(buttons[0]);
+    expect(onInvestmentResearch).toHaveBeenCalledTimes(1);
+  });
 });

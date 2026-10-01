@@ -15,6 +15,7 @@ import { getInvestmentPeriods } from '../helpers/investment-helpers';
 import { currentInvestmentValue } from '../helpers/forecast-helpers';
 import { formatCurrency, formatPercent } from '../helpers/format-helpers';
 import {
+  Article,
   Calculate,
   ContentCopy,
   Delete,
@@ -45,6 +46,7 @@ interface InvestmentRowHandlers {
   onEdit: (investment: Investment) => void;
   onClone: (investment: Investment) => void;
   onDelete: (investment: Investment) => void;
+  onResearch?: (investment: Investment) => void;
 }
 
 // Best-known current value for the table column and totals: the explicit
@@ -78,6 +80,15 @@ const investmentActions = (
     title: 'Duplicate Investment',
     onClick: () => handlers.onClone(investment),
   },
+  ...(handlers.onResearch
+    ? [
+        {
+          icon: <Article />,
+          title: 'Research & context',
+          onClick: () => handlers.onResearch?.(investment),
+        },
+      ]
+    : []),
   {
     icon: <Delete />,
     title: 'Delete Investment',
@@ -281,6 +292,7 @@ export const InvestmentTable = (props: InvestmentTableProps) => {
     onEdit: props.onInvestmentEdit,
     onClone: props.onInvestmentClone,
     onDelete: props.onInvestmentDelete,
+    onResearch: props.onInvestmentResearch,
   };
 
   return (
@@ -336,4 +348,6 @@ export type InvestmentTableProps = {
   onInvestmentDelete: (investment: Investment) => void;
   onInvestmentClone: (investment: Investment) => void;
   onInvestmentBulkDelete: (investments: Investment[]) => void;
+  // Open the research/context links manager (9.4) for an investment. (#200)
+  onInvestmentResearch?: (investment: Investment) => void;
 };

@@ -4,6 +4,7 @@ import {
   investmentToAsset,
   isInvestmentAsset,
   investmentsFromAssets,
+  mergeInvestmentIntoAsset,
 } from './asset-investment-helpers';
 import { Asset, AssetType } from '../models/asset-model';
 import {
@@ -125,5 +126,24 @@ describe('investmentToAsset / assetToInvestment', () => {
         },
       ])
     ).toEqual([]);
+  });
+});
+
+describe('mergeInvestmentIntoAsset (#172)', () => {
+  it('keeps asset-only fields such as ResearchLinks across an edit', () => {
+    const stored: Asset = {
+      ...investmentToAsset(fullInvestment),
+      ResearchLinks: [{ Label: 'Fund page', Url: 'https://example.com' }],
+    };
+    const edited = { ...fullInvestment, Name: 'Renamed' };
+    const merged = mergeInvestmentIntoAsset(edited, stored);
+    expect(merged.Name).toBe('Renamed');
+    expect(merged.ResearchLinks).toEqual(stored.ResearchLinks);
+  });
+
+  it('builds a plain asset when nothing is stored yet', () => {
+    expect(mergeInvestmentIntoAsset(fullInvestment, undefined)).toEqual(
+      investmentToAsset(fullInvestment)
+    );
   });
 });

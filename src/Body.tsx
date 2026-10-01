@@ -23,6 +23,7 @@ import { Investment } from './models/investment-model';
 import { InvestmentTable } from './investment/investment-table';
 import { Asset, AssetType } from './models/asset-model';
 import { AssetTable } from './asset/asset-table';
+import { ResearchPopout } from './asset/research-popout';
 import { DataManager } from './data-manager/data-manager';
 import { PersistenceToggle } from './persistence/persistence-toggle';
 import { FirstVisitNotice } from './persistence/first-visit-notice';
@@ -37,6 +38,7 @@ import { DataSnapshot } from './state/finance-reducer';
 import { buildLoanSeedFromAsset } from './helpers/convert-helpers';
 import {
   investmentToAsset,
+  mergeInvestmentIntoAsset,
   isInvestmentAsset,
   investmentsFromAssets,
 } from './helpers/asset-investment-helpers';
@@ -81,8 +83,11 @@ type UndoableDelete =
   | { kind: 'asset'; entity: Asset; index: number };
 
 // A bulk delete pending confirmation: which kind, and the selected entities.
+// `noun` overrides the display word when it differs from the storage kind
+// (investments are stored as assets).
 type PendingBulkDelete =
-  { kind: 'loan'; entities: Loan[] } | { kind: 'asset'; entities: Asset[] };
+  | { kind: 'loan'; entities: Loan[]; noun?: string }
+  | { kind: 'asset'; entities: Asset[]; noun?: string };
 
 // A committed bulk delete that can still be undone: the pre-delete data
 // snapshot (restored wholesale) plus the snackbar message.
@@ -160,6 +165,10 @@ export const Body = () => {
     () => assets.filter((a) => !isInvestmentAsset(a)),
     [assets]
   );
+  // The stored asset behind an investment, which carries the asset-only fields
+  // (ResearchLinks, …) the Investment shape lacks.
+  const storedAsset = (id: string): Asset | undefined =>
+    assets.find((a) => a.Id === id);
 
   // Local UI state only: dialog open/closed and which entity is being edited.
   const [isAddLoanOpen, setIsAddLoanOpen] = useState<boolean>(false);
@@ -257,24 +266,36 @@ export const Body = () => {
     if (!oldInvestment) {
       addAsset(investmentToAsset(newInvestment));
     } else {
-      updateAsset(investmentToAsset(newInvestment));
+      updateAsset(
+        mergeInvestmentIntoAsset(newInvestment, storedAsset(newInvestment.Id))
+      );
     }
   };
 
   // Step 1: clicking the row/card trash icon asks for confirmation. The
   // investment is deleted as its underlying asset.
   const onInvestmentDelete = (investment: Investment) => {
-    setPendingDelete({ kind: 'asset', entity: investmentToAsset(investment) });
+    setPendingDelete({
+      kind: 'asset',
+      entity: mergeInvestmentIntoAsset(investment, storedAsset(investment.Id)),
+    });
   };
 
   const onInvestmentClone = (investment: Investment) =>
     addAsset(
-      investmentToAsset({
-        ...investment,
-        Id: '',
-        Name: `${investment.Name} (copy)`,
-      })
+      mergeInvestmentIntoAsset(
+        { ...investment, Id: '', Name: `${investment.Name} (copy)` },
+        storedAsset(investment.Id)
+      )
     );
+
+  // Research & context (9.4) for an investment: managed here because the
+  // investment table only sees the Investment shape, while the links live on
+  // the stored asset. Edits persist directly. (#200)
+  const [researchAssetId, setResearchAssetId] = useState<string>();
+  const researchAsset = researchAssetId
+    ? storedAsset(researchAssetId)
+    : undefined;
 
   // Edit an existing asset/liability from its table row. Editing offers every
   // asset type so a holding can be retyped freely — including flipping an asset
@@ -396,7 +417,10 @@ export const Body = () => {
     if (selected.length > 0) {
       setPendingBulkDelete({
         kind: 'asset',
-        entities: selected.map(investmentToAsset),
+        entities: selected.map((investment) =>
+          mergeInvestmentIntoAsset(investment, storedAsset(investment.Id))
+        ),
+        noun: 'investment',
       });
     }
   };
@@ -408,7 +432,10 @@ export const Body = () => {
   };
 
   const bulkDeleteCount = pendingBulkDelete?.entities.length ?? 0;
-  const bulkDeleteNoun = pendingBulkDelete?.kind ?? 'loan';
+  // Investments are stored as assets, so the display noun is carried
+  // separately from the storage kind. (#174)
+  const bulkDeleteNoun =
+    pendingBulkDelete?.noun ?? pendingBulkDelete?.kind ?? 'loan';
   const pluralize = (count: number, noun: string) =>
     `${count} ${noun}${count === 1 ? '' : 's'}`;
 
@@ -433,7 +460,7 @@ export const Body = () => {
       snapshot,
       message: `Deleted ${pluralize(
         pendingBulkDelete.entities.length,
-        pendingBulkDelete.kind
+        bulkDeleteNoun
       )}`,
     });
     setPendingBulkDelete(undefined);
@@ -608,6 +635,9 @@ export const Body = () => {
                 onInvestmentDelete={onInvestmentDelete}
                 onInvestmentClone={onInvestmentClone}
                 onInvestmentBulkDelete={onInvestmentBulkDelete}
+                onInvestmentResearch={(investment) =>
+                  setResearchAssetId(investment.Id)
+                }
               />
             ) : (
               <SectionEmptyState
@@ -628,6 +658,7 @@ export const Body = () => {
                 assets={assetHoldings}
                 loans={loans}
                 onAssetEdit={onAssetAddEdit}
+                onAssetPersist={updateAsset}
                 onAssetDelete={onAssetDelete}
                 onAssetClone={onAssetClone}
                 onAssetBulkDelete={onAssetBulkDelete}
@@ -690,6 +721,7 @@ export const Body = () => {
                       assets={liabilityAssets}
                       loans={loans}
                       onAssetEdit={onAssetAddEdit}
+                      onAssetPersist={updateAsset}
                       onAssetDelete={onAssetDelete}
                       onAssetClone={onAssetClone}
                       onAssetBulkDelete={onAssetBulkDelete}
@@ -764,6 +796,15 @@ export const Body = () => {
       {/* Mounted only while open so the date-picker chunk (6.6) loads on first
           use rather than at startup. The forms re-initialize from props in a
           mount-run effect, so a fresh mount opens cleanly. */}
+      {researchAsset && (
+        <ResearchPopout
+          asset={researchAsset}
+          onSave={(links) =>
+            updateAsset({ ...researchAsset, ResearchLinks: links })
+          }
+          onClose={() => setResearchAssetId(undefined)}
+        />
+      )}
       <Suspense fallback={<DialogFallback />}>
         {isAddLoanOpen && (
           <AddEditLoan

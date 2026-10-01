@@ -378,3 +378,47 @@ describe('importAssetsFromMonarchBalanceCsvFiles', () => {
     ).toThrow(/"broken\.csv"/);
   });
 });
+
+describe('Monarch account identity (#167, #222)', () => {
+  it('keeps two same-named accounts with rows on the same date apart', () => {
+    const assets = importAssetsFromMonarchBalanceCsv(
+      'Date,Amount,Account Name\n2024-01-01,1000,Savings\n2024-01-01,2000,Savings\n2024-02-01,1100,Savings\n2024-02-01,2100,Savings',
+      'all.csv'
+    );
+    expect(assets.map((a) => [a.Name, a.Balance])).toEqual([
+      ['Savings', 1100],
+      ['Savings (2)', 2100],
+    ]);
+    expect(new Set(assets.map((a) => a.Id)).size).toBe(2);
+  });
+
+  it('gives slug-colliding names distinct Ids', () => {
+    const assets = importAssetsFromMonarchBalanceCsv(
+      'Date,Amount,Account Name\n2024-01-01,1000,My 401(k)\n2024-01-01,2000,My 401 k',
+      'all.csv'
+    );
+    expect(assets.map((a) => a.Id)).toEqual([
+      'monarch:my-401-k',
+      'monarch:my-401-k-2',
+    ]);
+  });
+
+  it('gives colliding accounts across files distinct Ids', () => {
+    const assets = importAssetsFromMonarchBalanceCsvFiles([
+      { name: 'Savings.csv', text: 'Date,Amount\n2024-01-01,1000' },
+      { name: 'Savings.csv', text: 'Date,Amount\n2024-01-01,2000' },
+    ]);
+    expect(assets.map((a) => a.Id)).toEqual([
+      'monarch:savings',
+      'monarch:savings-2',
+    ]);
+  });
+
+  it('skips a blank-name row in an all-accounts export', () => {
+    const assets = importAssetsFromMonarchBalanceCsv(
+      'Date,Amount,Account Name\n2024-01-01,1000,Chase\n2024-02-01,50,',
+      'MyFile.csv'
+    );
+    expect(assets.map((a) => [a.Name, a.Balance])).toEqual([['Chase', 1000]]);
+  });
+});
