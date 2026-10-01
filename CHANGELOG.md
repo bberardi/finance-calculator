@@ -9,6 +9,41 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.14.3] — Bug sweep (September 2026 scan)
+
+### Fixed
+
+- **Investment forecasts drifted from the Growth Schedule.** The forecast chart
+  and the schedule/PIT/dashboard now read one anchored engine, so they agree at
+  every compounding boundary. This removes an extra contribution on nearly
+  every live forecast (#217), a dropped compounding period when today's day of
+  the month is before the start's (#165), contributions credited an interval
+  late when they are less frequent than compounding (#187), and month-end
+  start dates drifting earlier and over-counting contributions (#199). A
+  return at or below −100%/period now decays to zero instead of flipping sign
+  (#221, and the enhancement calculator #218).
+- **Editing a loan overwrote a custom monthly payment** on open-and-save (#207).
+- **Research links were lost** when an investment was edited, cloned or
+  deleted-then-undone (#172), and adding a link to a property opened the Edit
+  dialog instead of saving (#210). Investments now offer Research & context
+  (#200).
+- **Monarch import** dropped a loan-promoted account (#206), merged same-named
+  accounts into one (#167), and turned a blank-name row into a phantom asset
+  (#222).
+- **Import ↔ form disagreements** that left entities uneditable or let invalid
+  values through: paid-off loans (#194), null optional housing fields (#201),
+  negative investment returns (#184), +Infinity amounts (#183), Invalid Date
+  start dates (#223); friendlier import errors for `null` payloads, `null`
+  loans and non-string Ids (#175, #178, #202).
+- **Dashboard & schedules:** monthly commitments no longer count paid-off loans
+  (#179) or not-yet-started investments (#173); the Growth Schedule separates
+  employer match from your own contributions (#214); an under-amortizing loan
+  no longer shows a fictitious "paid off" balloon row (#166) and the PIT view's
+  remaining payments follow the schedule (#203).
+- **Smaller fixes:** no spurious sign on $0.00 amounts (#182), stable sorting
+  with missing values (#213), "investments" wording on bulk delete (#174), and
+  guards on `simulateNetWorthBands` `paths` (#188) and `toRealSeries` (#224).
+
 ## [1.14.2] — Review fixes (math consistency & UX)
 
 ### Fixed
