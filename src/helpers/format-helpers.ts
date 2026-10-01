@@ -73,11 +73,8 @@ export const formatCurrencyCompact = (amount: number): string =>
 /**
  * Formats a signed net-worth *change* for the scenario/optimizer panels: a
  * leading "+" for a gain, the native "-" for a loss, and the literal
- * "No change" when the delta is exactly zero. The zero case keeps a pure
- * debt-paydown — which clears the loan by the horizon either way, so it doesn't
- * move net worth there (v1 doesn't redirect the freed payment) — from reading as
- * a confusing "+$0"; that plan's real benefit shows as interest saved and an
- * earlier debt-free date instead.
+ * "No change" when the delta is zero at cent precision (rather than a
+ * confusing "+$0.00").
  */
 // The zero test runs at the displayed (cent) precision, so a sub-cent delta
 // also reads "No change" rather than a signed "$0.00". (#182)

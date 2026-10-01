@@ -15,9 +15,9 @@ import {
 // baseline using the same forecast engine the chart and scenarios use. Pure and
 // framework-free (D7) so the Phase 5.2 search can run in a Web Worker.
 //
-// A single-target plan is the degenerate 100%-to-one case. v1 does NOT redirect
-// a loan's freed payment after payoff (the "snowball" mode reserved for later) —
-// see the score note below for how the ranking still values debt payoff.
+// A single-target plan is the degenerate 100%-to-one case. A loan's freed
+// payment after payoff is kept as cash in net worth (#168); redirecting it to
+// another target (the "snowball" mode) is reserved for later.
 
 export const roundToCents = (value: number): number =>
   Math.round(value * 100) / 100;
@@ -37,11 +37,11 @@ export interface PlanEvaluation {
   interestSaved: number;
   // Months the projected debt-free date moves earlier.
   payoffMonthsEarlier: number;
-  // Ranking objective: net worth gained PLUS interest saved. Net worth at the
-  // horizon alone undervalues paying off a loan that's already cleared by then
-  // (v1 doesn't redirect the freed payment), so interest avoided — real money
-  // that stayed with the user — is added so high-rate debt payoff ranks fairly
-  // against investing.
+  // Ranking objective: net worth gained at the horizon PLUS the interest saved
+  // after it. Interest saved before the horizon already shows in net worth
+  // (lower balances, and freed payments kept as cash, #168); the part after it
+  // is real money a horizon snapshot can't see, so it is added on top — and
+  // only it, so nothing is counted twice.
   score: number;
 }
 
@@ -106,7 +106,7 @@ const toEvaluation = (
   netWorthDelta: impact.netWorthDelta,
   interestSaved: impact.interestSaved,
   payoffMonthsEarlier: impact.payoffMonthsEarlier,
-  score: roundToCents(impact.netWorthDelta + impact.interestSaved),
+  score: roundToCents(impact.netWorthDelta + impact.interestSavedAfterHorizon),
 });
 
 export const evaluatePlan = (
