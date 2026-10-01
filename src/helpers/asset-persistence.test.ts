@@ -25,6 +25,12 @@ const validAsset = (overrides: Partial<Asset> = {}): Asset => ({
 });
 
 describe('validateAsset', () => {
+  it('rejects a +Infinity Balance (#183)', () => {
+    expect(
+      validateAsset({ ...validAsset(), Balance: Infinity }).errors.Balance
+    ).toBeDefined();
+  });
+
   it('accepts a well-formed asset', () => {
     const result = validateAsset(validAsset());
     expect(result.errors).toEqual({});

@@ -52,8 +52,12 @@ export interface MergePreview<T> {
 /**
  * Check if an ID is valid (non-empty and non-whitespace)
  */
-const isValidId = (id: string | undefined): boolean => {
-  return !!id && id.trim() !== '';
+// Takes `unknown` because import feeds it freshly-parsed, untrusted JSON: a
+// truthy non-string Id (a number, boolean, or object) must read as invalid —
+// surfacing the friendly validation error — rather than throwing on `.trim()`.
+// (#178)
+const isValidId = (id: unknown): boolean => {
+  return typeof id === 'string' && id.trim() !== '';
 };
 
 /**
@@ -184,7 +188,7 @@ const parseScenarios = (value: unknown): Scenario[] => {
         `Invalid scenario at index ${index}: expected an object.`
       );
     }
-    if (!isValidId(raw.Id as string | undefined)) {
+    if (!isValidId(raw.Id)) {
       throw new Error(`Invalid or missing Id in scenario at index ${index}.`);
     }
     if (typeof raw.Name !== 'string' || raw.Name.trim() === '') {
@@ -290,7 +294,7 @@ const parseAssets = (value: unknown): Asset[] => {
     if (!isPlainObject(raw)) {
       throw new Error(`Invalid asset at index ${index}: expected an object.`);
     }
-    if (!isValidId(raw.Id as string | undefined)) {
+    if (!isValidId(raw.Id)) {
       throw new Error(
         `Invalid or missing ID in asset at index ${index}. All items must have a non-empty ID.`
       );
@@ -526,12 +530,13 @@ export const importFromJson = (
   assets: Asset[];
 } => {
   try {
-    const raw = JSON.parse(jsonString) as ExportData;
+    const raw = JSON.parse(jsonString) as ExportData | null;
 
     // Validate the structure. Investments are folded into assets (v5), so only a
     // loans array is required up front; the migration ladder supplies assets and
-    // scenarios for older files.
-    if (!raw.loans || !Array.isArray(raw.loans)) {
+    // scenarios for older files. A literal `null` payload must hit the same
+    // friendly error rather than a raw TypeError on `null.loans`. (#175)
+    if (!isPlainObject(raw) || !Array.isArray(raw.loans)) {
       throw new Error(
         'Invalid data format: Expected an object with a "loans" array.'
       );
@@ -543,6 +548,11 @@ export const importFromJson = (
 
     // Convert ISO date strings back to Date objects
     const loans: Loan[] = data.loans.map((serializedLoan, index) => {
+      // Mirror parseScenarios/parseAssets: a null (or other non-object) element
+      // gets the friendly per-index error, not a raw TypeError on `.Id`. (#202)
+      if (!isPlainObject(serializedLoan)) {
+        throw new Error(`Invalid loan at index ${index}: expected an object.`);
+      }
       // Validate ID is present and non-empty
       if (!isValidId(serializedLoan.Id)) {
         throw new Error(
@@ -588,13 +598,17 @@ export const importFromJson = (
         (n) => n >= 0,
         'a non-negative finite number'
       );
+      // Principal must be strictly positive — the loan form rejects $0, so
+      // accepting it here would import a loan the Edit dialog can never save.
+      // CurrentAmount stays >= 0: a fully paid-off loan is a legitimate,
+      // editable state. (#194)
       validateNumericField(
         serializedLoan.Principal,
         'Principal',
         'loan',
         index,
-        (n) => n >= 0,
-        'a non-negative finite number'
+        (n) => n > 0,
+        'a positive finite number'
       );
       validateNumericField(
         serializedLoan.CurrentAmount,
@@ -643,11 +657,15 @@ export const importFromJson = (
         InterestRate: serializedLoan.InterestRate,
         Principal: serializedLoan.Principal,
         CurrentAmount: serializedLoan.CurrentAmount,
-        MonthlyPayment: serializedLoan.MonthlyPayment,
-        HomeValue: serializedLoan.HomeValue,
-        PropertyTaxAnnual: serializedLoan.PropertyTaxAnnual,
-        HomeInsuranceAnnual: serializedLoan.HomeInsuranceAnnual,
-        MonthlyPmi: serializedLoan.MonthlyPmi,
+        // Optional numerics: an explicit `null` is treated as absent by the
+        // validation above, so store it as absent too — a literal null would
+        // otherwise trip the form's finite-number check and leave the loan
+        // uneditable. (#201)
+        MonthlyPayment: serializedLoan.MonthlyPayment ?? undefined,
+        HomeValue: serializedLoan.HomeValue ?? undefined,
+        PropertyTaxAnnual: serializedLoan.PropertyTaxAnnual ?? undefined,
+        HomeInsuranceAnnual: serializedLoan.HomeInsuranceAnnual ?? undefined,
+        MonthlyPmi: serializedLoan.MonthlyPmi ?? undefined,
         StartDate: new Date(serializedLoan.StartDate),
         EndDate: new Date(serializedLoan.EndDate),
       };

@@ -79,17 +79,23 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   if (loan.Provider.trim() === '') {
     errors.Provider = 'Loan provider is required.';
   }
-  if (!(loan.Principal > 0)) {
+  // Every core numeric rule checks finiteness as well as sign: `Infinity > 0`
+  // is true, so a bare sign check would accept an overflowing input the JSON
+  // import boundary (isFiniteNumber) rejects. (#183)
+  if (!(Number.isFinite(loan.Principal) && loan.Principal > 0)) {
     errors.Principal = 'Principal must be greater than 0.';
   }
-  if (!(loan.CurrentAmount > 0)) {
-    errors.CurrentAmount = 'Current amount must be greater than 0.';
+  // A fully paid-off loan (current amount $0) is a legitimate state the import
+  // boundary and the forecast both accept, so the form must too — otherwise an
+  // imported paid-off loan can never be edited. (#194)
+  if (!(Number.isFinite(loan.CurrentAmount) && loan.CurrentAmount >= 0)) {
+    errors.CurrentAmount = 'Current amount cannot be negative.';
   }
   // 0% is a real, fully-supported rate (interest-free loans) — the engine and
   // the JSON import boundary both accept it, so the form must too, otherwise an
   // imported 0% loan becomes uneditable. Only negative (or non-numeric) rates
   // are rejected. (#72)
-  if (!(loan.InterestRate >= 0)) {
+  if (!(Number.isFinite(loan.InterestRate) && loan.InterestRate >= 0)) {
     errors.InterestRate = 'Interest rate cannot be negative.';
   }
   if (!loan.StartDate) {
@@ -106,7 +112,9 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
   }
   // A non-positive monthly payment never amortizes the loan (the balance would
   // grow under interest forever), so block it at the source. (#51)
-  if (!(typeof loan.MonthlyPayment === 'number' && loan.MonthlyPayment > 0)) {
+  if (!(
+    Number.isFinite(loan.MonthlyPayment) && (loan.MonthlyPayment ?? 0) > 0
+  )) {
     errors.MonthlyPayment = 'Monthly payment must be greater than 0.';
   }
 
@@ -150,7 +158,9 @@ export const validateLoan = (loan: Loan): ValidationResult<LoanField> => {
     ['MonthlyPmi', loan.MonthlyPmi],
   ];
   for (const [field, value] of nonNegativeOptionalFields) {
-    if (value !== undefined && !(Number.isFinite(value) && value >= 0)) {
+    // `!= null` (not `!== undefined`): an explicit null from an imported file
+    // is absent, not invalid. (#201)
+    if (value != null && !(Number.isFinite(value) && value >= 0)) {
       errors[field] = 'Enter a non-negative amount.';
     }
   }
@@ -200,15 +210,24 @@ export const validateInvestment = (
   // contributions) — the engine and the JSON import boundary both accept it, so
   // the form must too, otherwise an imported $0-balance investment becomes
   // uneditable. Only negative (or non-numeric) balances are rejected. (#72)
-  if (!(investment.StartingBalance >= 0)) {
+  if (!(
+    Number.isFinite(investment.StartingBalance) &&
+    investment.StartingBalance >= 0
+  )) {
     errors.StartingBalance = 'Starting balance cannot be negative.';
   }
-  // Original rule: AverageReturnRate >= 0 (0 is valid; negative is not).
-  if (!(investment.AverageReturnRate >= 0)) {
-    errors.AverageReturnRate = 'Average return rate cannot be negative.';
+  // A negative return (a declining holding) is accepted: the JSON import
+  // boundary allows a negative investment GrowthRate, and the engines floor
+  // the per-period factor at zero, so blocking it here would leave an imported
+  // declining investment uneditable. Only a non-finite rate is an error; a
+  // negative one is warned below. (#184, #183)
+  if (!Number.isFinite(investment.AverageReturnRate)) {
+    errors.AverageReturnRate = 'Average return rate must be a number.';
   }
-  if (!investment.StartDate) {
-    errors.StartDate = 'Start date is required.';
+  // A Date object is always truthy, including an Invalid Date — check the
+  // timestamp too, mirroring the import boundary's isNaN(getTime()). (#223)
+  if (!investment.StartDate || isNaN(investment.StartDate.getTime())) {
+    errors.StartDate = 'A valid start date is required.';
   }
   // These optional numeric fields are rejected when negative by the JSON import
   // boundary (data-helpers, >= 0), so the form must reject them too — otherwise a
@@ -271,6 +290,9 @@ export const validateInvestment = (
   }
   if (investment.AverageReturnRate > INVESTMENT_RETURN_WARNING_THRESHOLD) {
     warnings.AverageReturnRate = `A return above ${INVESTMENT_RETURN_WARNING_THRESHOLD}%/yr beats every broad index historically — double-check the value.`;
+  } else if (investment.AverageReturnRate < 0) {
+    warnings.AverageReturnRate =
+      'A negative return shrinks this investment every period — double-check the value.';
   }
 
   // A step-up that is configured but has no (or zero) amount silently does
@@ -344,7 +366,7 @@ export const validateAsset = (asset: Asset): ValidationResult<AssetField> => {
   // Balance is the current value (a liability's debt is stored positive too), so
   // it must be non-negative — mirrors the JSON import boundary (data-helpers,
   // >= 0) so a saved asset round-trips through export/import.
-  if (!(asset.Balance >= 0)) {
+  if (!(Number.isFinite(asset.Balance) && asset.Balance >= 0)) {
     errors.Balance = 'Balance cannot be negative.';
   }
   // GrowthRate may be negative (a depreciating asset), so the only error is a
