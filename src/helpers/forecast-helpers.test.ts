@@ -384,8 +384,10 @@ describe('Forecast Helpers', () => {
       // Mutation guard: the previous test only checks month 12, so any mutant
       // that leaks contributions into off-cadence months (e.g. weakening the
       // `elapsedMonths % contributionInterval === 0` gate) goes undetected.
-      // With 0% return and StartDate = today, quarter boundaries land exactly on
-      // months 3/6/9/12, so the months between must hold flat at the anchor.
+      // With 0% return and StartDate = today, contributions are dated months
+      // 0/3/6/9. Each shows from the first grid point after its date (a point
+      // reads the balance at the start of its day, like
+      // generateInvestmentGrowth), and the months between hold flat.
       const investment = makeInvestment({
         CurrentValue: 1000,
         RecurringContribution: 100,
@@ -397,11 +399,12 @@ describe('Forecast Helpers', () => {
         0,
         today
       );
-      expect(series[1].Value).toBe(1000);
-      expect(series[2].Value).toBe(1000);
+      expect(series[0].Value).toBe(1000);
+      expect(series[1].Value).toBe(1100);
+      expect(series[2].Value).toBe(1100);
       expect(series[3].Value).toBe(1100);
-      expect(series[4].Value).toBe(1100);
-      expect(series[5].Value).toBe(1100);
+      expect(series[4].Value).toBe(1200);
+      expect(series[5].Value).toBe(1200);
       expect(series[6].Value).toBe(1200);
     });
 
@@ -434,11 +437,14 @@ describe('Forecast Helpers', () => {
         today
       );
       // Cadence runs Apr/Jul/Oct/Jan regardless of the forecast run date:
-      // contributions land at months 1 (Jul), 4 (Oct), 7 (Jan), 10 (Apr).
-      expect(series[1].Value).toBe(1100);
-      expect(series[3].Value).toBe(1100);
-      expect(series[4].Value).toBe(1200);
-      expect(series[10].Value).toBe(1400);
+      // contributions are dated months 1 (Jul 1), 4 (Oct 1), 7 (Jan 1) and
+      // 10 (Apr 1), and show from the following grid point.
+      expect(series[1].Value).toBe(1000);
+      expect(series[2].Value).toBe(1100);
+      expect(series[4].Value).toBe(1100);
+      expect(series[5].Value).toBe(1200);
+      expect(series[10].Value).toBe(1300);
+      expect(series[11].Value).toBe(1400);
       expect(series[12].Value).toBe(1400);
     });
 

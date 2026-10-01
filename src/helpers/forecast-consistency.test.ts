@@ -181,20 +181,30 @@ describe('Consistency: month-end start dates do not skip a period (#93)', () => 
   // and forecastInvestment, for the life of the investment. Clamped stepping
   // (Jan 31 → Feb 28) removes the skip so all three agree again.
 
-  it('getInvestmentPeriods equals the period count generateInvestmentGrowth produces (symptom A)', () => {
+  it('getInvestmentPeriods agrees with generateInvestmentGrowth for a month-end start (symptom A, #199)', () => {
     const inv = makeInvestment({
       StartDate: new Date(2025, 0, 31),
       CompoundingPeriod: CompoundingFrequency.Monthly,
     });
-    const end = new Date(2025, 4, 31); // 2025-05-31
     // growth includes a period-0 anchor entry, so its period count is length − 1.
-    const growthPeriods = generateInvestmentGrowth(inv, end).length - 1;
-    expect(getInvestmentPeriods(inv, end)).toBe(growthPeriods);
-    expect(getInvestmentPeriods(inv, end)).toBe(5); // was 5 vs 4 before the fix
+    // Mid-period end dates: the period in progress is counted by both.
+    for (const end of [new Date(2025, 11, 30), new Date(2025, 4, 30)]) {
+      const growthPeriods = generateInvestmentGrowth(inv, end).length - 1;
+      expect(getInvestmentPeriods(inv, end)).toBe(growthPeriods);
+    }
+    // An end date exactly on a boundary behaves like any mid-month start: the
+    // growth schedule holds the completed periods, getInvestmentPeriods also
+    // counts the one just beginning.
+    const midMonth = makeInvestment({
+      StartDate: new Date(2025, 0, 15),
+      CompoundingPeriod: CompoundingFrequency.Monthly,
+    });
+    expect(getInvestmentPeriods(inv, new Date(2025, 4, 31))).toBe(
+      getInvestmentPeriods(midMonth, new Date(2025, 4, 15))
+    );
   });
 
   it('a month-end start loses no period versus a mid-month start (no skipped February)', () => {
-    const end = new Date(2025, 4, 31);
     const monthEnd = makeInvestment({
       StartDate: new Date(2025, 0, 31),
       CompoundingPeriod: CompoundingFrequency.Monthly,
@@ -203,11 +213,11 @@ describe('Consistency: month-end start dates do not skip a period (#93)', () => 
       StartDate: new Date(2025, 0, 15),
       CompoundingPeriod: CompoundingFrequency.Monthly,
     });
-    // Before the fix the month-end start produced one fewer period (February was
-    // skipped); now both span the same number of compounding events.
-    expect(generateInvestmentGrowth(monthEnd, end).length).toBe(
-      generateInvestmentGrowth(midMonth, end).length
-    );
+    // Four months after each start, both have compounded exactly four times
+    // (Feb 28 / Mar 31 / Apr 30 / May 31 vs. the 15th of each month).
+    expect(
+      generateInvestmentGrowth(monthEnd, new Date(2025, 4, 31)).length
+    ).toBe(generateInvestmentGrowth(midMonth, new Date(2025, 4, 15)).length);
   });
 
   it('forecastInvestment matches generateInvestmentGrowth at the first (aligned) boundary for a month-end start (symptom B)', () => {

@@ -15,9 +15,14 @@ import {
   generateAmortizationSchedule,
   getPitCalculation,
 } from './loan-helpers';
-import { forecastLoan } from './forecast-helpers';
-import { generateInvestmentGrowth } from './investment-helpers';
+import { forecastInvestment, forecastLoan } from './forecast-helpers';
+import {
+  generateInvestmentGrowth,
+  runInvestmentEngine,
+} from './investment-helpers';
 import { getGrowthTotals } from './schedule-totals-helpers';
+
+const roundCents = (value: number): number => Math.round(value * 100) / 100;
 
 // Regression tests for the September 2026 bug sweep. Each block names the issue
 // it pins; every test here failed before its fix.
@@ -232,5 +237,152 @@ describe('growth totals with an employer match (#214)', () => {
     expect(
       totals.endingInvested + totals.totalEmployerMatch + totals.totalInterest
     ).toBeCloseTo(totals.endingValue, 2);
+  });
+});
+
+describe('investment engine consistency (#165, #187, #199, #217, #221)', () => {
+  const finalValue = (points: { Value: number }[]) =>
+    points[points.length - 1].Value;
+  const finalGrowth = (inv: Investment, end: Date) =>
+    generateInvestmentGrowth(inv, end).at(-1)!.TotalValue;
+
+  it('does not drop a period when today is before the start day-of-month (#165)', () => {
+    const inv = investment({
+      StartDate: new Date(2020, 0, 15),
+      StartingBalance: 1000,
+      AverageReturnRate: 10,
+      CompoundingPeriod: CompoundingFrequency.Annually,
+    });
+    const horizon = new Date(2031, 0, 15);
+    const early = forecastInvestment(inv, horizon, 0, new Date(2021, 0, 3));
+    const late = forecastInvestment(inv, horizon, 0, new Date(2021, 0, 20));
+    expect(finalGrowth(inv, horizon)).toBe(2853.12);
+    expect(finalValue(early)).toBe(2853.12);
+    expect(finalValue(late)).toBe(2853.12);
+  });
+
+  it.each([
+    [CompoundingFrequency.Monthly, CompoundingFrequency.Quarterly, 300],
+    [CompoundingFrequency.Monthly, CompoundingFrequency.Annually, 1200],
+    [CompoundingFrequency.Quarterly, CompoundingFrequency.Annually, 1200],
+    [CompoundingFrequency.Monthly, CompoundingFrequency.Monthly, 100],
+  ])(
+    'matches the canonical engine for %s compounding / %s contributions (#187)',
+    (compounding, contributions, amount) => {
+      const inv = investment({
+        AverageReturnRate: 7,
+        CompoundingPeriod: compounding,
+        RecurringContribution: amount,
+        ContributionFrequency: contributions,
+      });
+      const horizon = new Date(2030, 0, 1);
+      const forecast = forecastInvestment(inv, horizon, 0, inv.StartDate);
+      expect(finalValue(forecast)).toBe(finalGrowth(inv, horizon));
+    }
+  );
+
+  it('anchors month-end cadences to the start day (#199)', () => {
+    const inv = investment({
+      StartDate: new Date(2025, 0, 31),
+      StartingBalance: 0,
+      AverageReturnRate: 0,
+      CompoundingPeriod: CompoundingFrequency.Quarterly,
+      RecurringContribution: 100,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    });
+    expect(finalGrowth(inv, new Date(2026, 0, 31))).toBe(1200);
+
+    const growing = investment({
+      StartDate: new Date(2025, 0, 31),
+      AverageReturnRate: 8,
+      CompoundingPeriod: CompoundingFrequency.Quarterly,
+      RecurringContribution: 200,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    });
+    const horizon = new Date(2035, 0, 31);
+    expect(
+      finalValue(forecastInvestment(growing, horizon, 0, growing.StartDate))
+    ).toBe(finalGrowth(growing, horizon));
+  });
+
+  it('does not double-count a contribution for an off-boundary today (#217)', () => {
+    const inv = investment({
+      StartDate: new Date(2020, 0, 1),
+      StartingBalance: 0,
+      AverageReturnRate: 0,
+      RecurringContribution: 500,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    });
+    const horizon = new Date(2027, 0, 1);
+    expect(finalGrowth(inv, horizon)).toBe(42000);
+    expect(
+      finalValue(forecastInvestment(inv, horizon, 0, new Date(2026, 0, 1)))
+    ).toBe(42000);
+    // Off-boundary run: the grid falls on the 15th. Dec 15 2026 holds the 84
+    // contributions dated Jan 2020 – Dec 2026 (the bug added an 85th); the
+    // final point, Jan 15 2027, also holds the one dated Jan 1 2027.
+    const offBoundary = forecastInvestment(
+      inv,
+      horizon,
+      0,
+      new Date(2026, 0, 15)
+    );
+    expect(offBoundary[11].Value).toBe(42000);
+    expect(finalValue(offBoundary)).toBe(42500);
+  });
+
+  it('agrees at every boundary for an off-boundary today with contributions (#217)', () => {
+    const inv = investment({
+      StartDate: new Date(2020, 0, 1),
+      AverageReturnRate: 8,
+      RecurringContribution: 500,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    });
+    const today = new Date(2026, 0, 15);
+    const forecast = forecastInvestment(inv, new Date(2030, 0, 1), 0, today);
+    // Grid points fall on the 15th; each holds the value at the boundary on the
+    // 1st of its month plus the contribution dated that day.
+    for (const index of [1, 12, 47]) {
+      const point = forecast[index];
+      const boundary = new Date(
+        point.Date.getFullYear(),
+        point.Date.getMonth(),
+        1
+      );
+      expect(point.Value).toBe(roundCents(finalGrowth(inv, boundary) + 500));
+    }
+  });
+
+  it('never goes negative for a return at or below -100%/period (#221)', () => {
+    const inv = investment({
+      StartDate: new Date(2020, 0, 1),
+      StartingBalance: 1000,
+      AverageReturnRate: -150,
+      CompoundingPeriod: CompoundingFrequency.Annually,
+    });
+    const horizon = new Date(2024, 0, 1);
+    const growth = generateInvestmentGrowth(inv, horizon).map(
+      (entry) => entry.TotalValue
+    );
+    expect(growth).toEqual([1000, 0, 0, 0, 0]);
+    const forecast = forecastInvestment(inv, horizon, 0, inv.StartDate);
+    expect(forecast.every((point) => point.Value >= 0)).toBe(true);
+    expect(finalValue(forecast)).toBe(0);
+  });
+});
+
+describe('runInvestmentEngine without a StartDate', () => {
+  it('reports the starting balance and no schedule', () => {
+    const inv = investment({
+      StartDate: undefined as unknown as Date,
+      RecurringContribution: 100,
+      ContributionFrequency: CompoundingFrequency.Monthly,
+    });
+    const result = runInvestmentEngine(inv, new Date(2030, 0, 1), {
+      sampleDates: [new Date(2026, 0, 1)],
+    });
+    expect(result.growth).toEqual([]);
+    expect(result.samples).toEqual([10000]);
+    expect(result.lumpFactors).toEqual([1]);
   });
 });
