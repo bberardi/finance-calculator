@@ -29,6 +29,11 @@ const ASSUMPTIONS: { title: string; detail: string }[] = [
     detail: `Values are nominal and pre-tax. Toggle “today's dollars” to discount future projections at ${DEFAULT_INFLATION_PCT}%/yr inflation (a real view); an after-tax view is still planned.`,
   },
   {
+    title: 'Paid-off loans free up cash',
+    detail:
+      'Once a loan is paid off, its monthly payment is kept as cash in your net worth (earning nothing) rather than disappearing.',
+  },
+  {
     title: 'Anchored to today',
     detail:
       "Each line starts from a position's current balance or value, not a replay from its start date.",

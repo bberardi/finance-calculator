@@ -10,6 +10,7 @@ import {
   getContributionForYear,
 } from './investment-helpers';
 import {
+  forecastFreedCash,
   forecastLoan,
   forecastInvestment,
   forecastNetWorth,
@@ -237,7 +238,7 @@ describe('Property: forecastInvestment invariants', () => {
 });
 
 describe('Property: net worth is pointwise additive', () => {
-  it('forecastNetWorth = Σ investments − Σ loans at every month', () => {
+  it('forecastNetWorth = Σ investments + Σ freed cash − Σ loans at every month', () => {
     fc.assert(
       fc.property(
         fc.array(loanArb, { maxLength: 3 }),
@@ -262,12 +263,15 @@ describe('Property: net worth is pointwise additive', () => {
           const investmentSeries = investments.map((inv) =>
             forecastInvestment(inv, horizon, 0, today)
           );
+          // Payments freed by loans paid off inside the forecast (#168).
+          const freedSeries = loans.map((l) =>
+            forecastFreedCash(l, horizon, 0, today)
+          );
 
           for (let m = 0; m < netWorth.length; m++) {
-            const assets = investmentSeries.reduce(
-              (sum, s) => sum + s[m].Value,
-              0
-            );
+            const assets =
+              investmentSeries.reduce((sum, s) => sum + s[m].Value, 0) +
+              freedSeries.reduce((sum, s) => sum + s[m].Value, 0);
             const debts = loanSeries.reduce((sum, s) => sum + s[m].Value, 0);
             expect(cents(netWorth[m].Value)).toBe(cents(assets - debts));
           }

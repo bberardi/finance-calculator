@@ -15,7 +15,12 @@ import {
   generateAmortizationSchedule,
   getPitCalculation,
 } from './loan-helpers';
-import { forecastInvestment, forecastLoan } from './forecast-helpers';
+import {
+  forecastFreedCash,
+  forecastInvestment,
+  forecastLoan,
+  forecastNetWorth,
+} from './forecast-helpers';
 import {
   generateInvestmentGrowth,
   runInvestmentEngine,
@@ -384,5 +389,65 @@ describe('runInvestmentEngine without a StartDate', () => {
     expect(result.growth).toEqual([]);
     expect(result.samples).toEqual([10000]);
     expect(result.lumpFactors).toEqual([1]);
+  });
+});
+
+describe('freed cash after a loan is paid off (#168)', () => {
+  const today = new Date(2026, 0, 1);
+  const horizon = new Date(2031, 0, 1);
+  // $12,000 at 0% with a $1,000 payment: paid off after 12 months.
+  const shortLoan = loan({
+    Principal: 12000,
+    CurrentAmount: 12000,
+    InterestRate: 0,
+    MonthlyPayment: 1000,
+    StartDate: new Date(2025, 0, 1),
+    EndDate: new Date(2027, 0, 1),
+  });
+
+  it('accumulates the freed payment once the balance reaches zero', () => {
+    const freed = forecastFreedCash(shortLoan, horizon, 0, today);
+    expect(freed[12].Value).toBe(0);
+    expect(freed[13].Value).toBe(1000);
+    expect(freed[60].Value).toBe(48000);
+  });
+
+  it('credits the unused part of the final payment', () => {
+    const odd = loan({
+      ...shortLoan,
+      Principal: 11500,
+      CurrentAmount: 11500,
+    });
+    const freed = forecastFreedCash(odd, horizon, 0, today);
+    expect(freed[11].Value).toBe(0);
+    expect(freed[12].Value).toBe(500);
+    expect(freed[13].Value).toBe(1500);
+  });
+
+  it('frees nothing for a loan already paid off today', () => {
+    const paidOff = loan({ ...shortLoan, CurrentAmount: 0 });
+    const freed = forecastFreedCash(paidOff, horizon, 0, today);
+    expect(freed.every((point) => point.Value === 0)).toBe(true);
+  });
+
+  it('makes paying a loan off early raise net worth at the horizon', () => {
+    const baseline = forecastNetWorth(
+      [shortLoan],
+      [],
+      horizon,
+      undefined,
+      today
+    );
+    const early = forecastNetWorth(
+      [shortLoan],
+      [],
+      horizon,
+      { ExtraLoanPayments: { [shortLoan.Id]: 1000 } },
+      today
+    );
+    // Same total paid toward a 0% loan, but the extra $1,000/mo keeps
+    // accumulating after the earlier payoff instead of vanishing.
+    expect(baseline.at(-1)!.Value).toBe(48000);
+    expect(early.at(-1)!.Value).toBe(108000);
   });
 });

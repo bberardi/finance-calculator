@@ -9,6 +9,20 @@ Detailed acceptance criteria for each phase live in the merged PRs and the
 
 ## [Unreleased]
 
+## [1.15.0] — Freed cash after payoff
+
+### Changed
+
+- **Paying off a loan now raises projected net worth** (#168). Once a loan's
+  balance reaches zero inside the forecast, its monthly payment (plus any
+  scenario extra) is kept as cash in net worth instead of disappearing, so an
+  early payoff shows its real benefit on the chart, in scenarios and in the
+  optimizer. The cash is assumed to earn nothing (a stated assumption);
+  choosing an investment or the next debt as the destination is Roadmap 16.1's
+  remaining scope. The optimizer's score now adds only the interest saved
+  _after_ the horizon to the net-worth gain, since interest saved before it is
+  already in net worth.
+
 ## [1.14.3] — Bug sweep (September 2026 scan)
 
 ### Fixed

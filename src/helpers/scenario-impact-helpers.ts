@@ -22,6 +22,11 @@ export interface ScenarioImpact {
   // Baseline − scenario total loan interest over the loans' lifetimes
   // (positive = interest saved).
   interestSaved: number;
+  // The part of interestSaved accruing AFTER the net-worth horizon. Interest
+  // saved before it already shows in netWorthDelta (lower balances, and the
+  // freed payments kept as cash, #168), so this is the only part a ranking may
+  // add on top without double-counting.
+  interestSavedAfterHorizon: number;
   // Months the projected debt-free date moves earlier (0 if unchanged, or if a
   // debt-free date can't be determined for both baseline and scenario).
   payoffMonthsEarlier: number;
@@ -30,13 +35,15 @@ export interface ScenarioImpact {
 // Total interest a loan accrues over the forecast: each month's interest is the
 // prior month's balance times the monthly rate (the engine accrues on the
 // balance before the payment, and a paid-off balance of 0 accrues nothing).
-const totalLoanInterest = (
+const loanInterest = (
   loan: Loan,
   horizon: Date,
   extraMonthlyPayment: number,
   today: Date,
-  oneTimePayment: number = 0
-): number => {
+  oneTimePayment: number,
+  // Months after which interest counts as "after the net-worth horizon".
+  horizonMonths: number
+): { total: number; afterHorizon: number } => {
   const series = forecastLoan(
     loan,
     horizon,
@@ -46,10 +53,13 @@ const totalLoanInterest = (
   );
   const monthlyRate = loan.InterestRate / 100 / 12;
   let total = 0;
+  let afterHorizon = 0;
   for (let month = 1; month < series.length; month++) {
-    total += series[month - 1].Value * monthlyRate;
+    const interest = series[month - 1].Value * monthlyRate;
+    total += interest;
+    if (month > horizonMonths) afterHorizon += interest;
   }
-  return total;
+  return { total, afterHorizon };
 };
 
 // First month index at which the summed loan balances reach zero, or undefined
@@ -93,6 +103,10 @@ export interface ScenarioBaseline {
   netWorthAtHorizon: number;
   // Baseline lifetime loan interest.
   interest: number;
+  // Baseline loan interest accruing after `nwHorizon`.
+  interestAfterHorizon: number;
+  // Months from today to `nwHorizon`.
+  horizonMonths: number;
   // Baseline debt-free month, or undefined if debt isn't cleared in the horizon.
   payoffMonth: number | undefined;
 }
@@ -127,8 +141,13 @@ export const computeScenarioBaseline = (
   // series is still a date-stamped axis).
   const length = forecastNetWorth([], [], longHorizon, undefined, today).length;
 
-  const interest = loans.reduce(
-    (sum, loan) => sum + totalLoanInterest(loan, longHorizon, 0, today),
+  const horizonMonths = baselineNet.length - 1;
+  const baselineInterest = loans.map((loan) =>
+    loanInterest(loan, longHorizon, 0, today, 0, horizonMonths)
+  );
+  const interest = baselineInterest.reduce((sum, i) => sum + i.total, 0);
+  const interestAfterHorizon = baselineInterest.reduce(
+    (sum, i) => sum + i.afterHorizon,
     0
   );
   const payoffMonth = debtFreeMonth(
@@ -145,6 +164,8 @@ export const computeScenarioBaseline = (
     length,
     netWorthAtHorizon: baselineNet[baselineNet.length - 1].Value,
     interest,
+    interestAfterHorizon,
+    horizonMonths,
     payoffMonth,
   };
 };
@@ -174,19 +195,23 @@ export const computeScenarioImpactWithBaseline = (
     scenarioNet[scenarioNet.length - 1].Value - baseline.netWorthAtHorizon
   );
 
-  const scenarioInterest = loans.reduce(
-    (sum, loan) =>
-      sum +
-      totalLoanInterest(
-        loan,
-        baseline.longHorizon,
-        scenario.ExtraLoanPayments?.[loan.Id] ?? 0,
-        today,
-        scenario.OneTimeLoanPayments?.[loan.Id] ?? 0
-      ),
-    0
+  const scenarioInterest = loans.map((loan) =>
+    loanInterest(
+      loan,
+      baseline.longHorizon,
+      scenario.ExtraLoanPayments?.[loan.Id] ?? 0,
+      today,
+      scenario.OneTimeLoanPayments?.[loan.Id] ?? 0,
+      baseline.horizonMonths
+    )
   );
-  const interestSaved = roundToCents(baseline.interest - scenarioInterest);
+  const interestSaved = roundToCents(
+    baseline.interest - scenarioInterest.reduce((sum, i) => sum + i.total, 0)
+  );
+  const interestSavedAfterHorizon = roundToCents(
+    baseline.interestAfterHorizon -
+      scenarioInterest.reduce((sum, i) => sum + i.afterHorizon, 0)
+  );
 
   const scenarioPayoff = debtFreeMonth(
     loans,
@@ -200,7 +225,12 @@ export const computeScenarioImpactWithBaseline = (
       ? Math.max(0, baseline.payoffMonth - scenarioPayoff)
       : 0;
 
-  return { netWorthDelta, interestSaved, payoffMonthsEarlier };
+  return {
+    netWorthDelta,
+    interestSaved,
+    interestSavedAfterHorizon,
+    payoffMonthsEarlier,
+  };
 };
 
 export const computeScenarioImpact = (

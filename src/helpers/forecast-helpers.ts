@@ -83,6 +83,48 @@ export const getEffectiveMonthlyPayment = (
       : roundToCents(balance / remainingTerms);
 };
 
+// Month-by-month loan simulation shared by forecastLoan (the balance) and
+// forecastFreedCash (the payment money no longer needed once it is paid off).
+const simulateLoan = (
+  loan: Loan,
+  horizon: Date,
+  extraMonthlyPayment: number,
+  today: Date,
+  oneTimePayment: number
+): { dates: Date[]; balances: number[]; freedCash: number[] } => {
+  const months = getMonthsBetween(today, horizon);
+  const start = dayjs(today);
+  const monthlyRate = loan.InterestRate / 100 / 12;
+
+  let balance = roundToCents(Math.max(loan.CurrentAmount, 0));
+  // A loan already at $0 today isn't being paid, so it frees nothing.
+  const paidDownInForecast = balance > 0;
+
+  const payment = getEffectiveMonthlyPayment(loan, today) + extraMonthlyPayment;
+
+  const dates = [start.toDate()];
+  const balances = [balance];
+  const freedCash = [0];
+  let freed = 0;
+
+  for (let month = 1; month <= months; month++) {
+    const oneTimeThisMonth = month === 1 ? oneTimePayment : 0;
+    if (balance > 0) {
+      const owed = balance + balance * monthlyRate;
+      balance = roundToCents(Math.max(0, owed - payment - oneTimeThisMonth));
+      // The final payment only needs to cover what's left; the rest is freed.
+      freed += Math.max(0, payment + oneTimeThisMonth - owed);
+    } else if (paidDownInForecast) {
+      freed += payment;
+    }
+    dates.push(start.add(month, 'month').toDate());
+    balances.push(balance);
+    freedCash.push(roundToCents(freed));
+  }
+
+  return { dates, balances, freedCash };
+};
+
 // Forecast a loan's remaining balance month by month from today to the
 // horizon. The series is anchored to CurrentAmount (today's actual balance)
 // rather than replaying the theoretical schedule from StartDate, so the
@@ -102,31 +144,37 @@ export const forecastLoan = (
   // and diverge from month 1.
   oneTimePayment: number = 0
 ): ForecastPoint[] => {
-  const months = getMonthsBetween(today, horizon);
-  const start = dayjs(today);
-  const monthlyRate = loan.InterestRate / 100 / 12;
+  const { dates, balances } = simulateLoan(
+    loan,
+    horizon,
+    extraMonthlyPayment,
+    today,
+    oneTimePayment
+  );
+  return dates.map((date, index) => ({ Date: date, Value: balances[index] }));
+};
 
-  let balance = roundToCents(Math.max(loan.CurrentAmount, 0));
-
-  const payment = getEffectiveMonthlyPayment(loan, today) + extraMonthlyPayment;
-
-  const points: ForecastPoint[] = [{ Date: start.toDate(), Value: balance }];
-
-  for (let month = 1; month <= months; month++) {
-    if (balance > 0) {
-      const interest = balance * monthlyRate;
-      const oneTimeThisMonth = month === 1 ? oneTimePayment : 0;
-      balance = roundToCents(
-        Math.max(0, balance + interest - payment - oneTimeThisMonth)
-      );
-    }
-    points.push({
-      Date: start.add(month, 'month').toDate(),
-      Value: balance,
-    });
-  }
-
-  return points;
+// Cash freed by paying a loan off (#168, ROADMAP 16.1): once the balance
+// reaches zero inside the forecast, the monthly payment (plus any scenario
+// extra) is no longer owed, so it accumulates — conservatively as cash, earning
+// nothing — instead of vanishing. The payoff month frees whatever its final
+// payment didn't need. Escrow (tax/insurance) keeps being paid and is not
+// freed. A loan already at $0 today frees nothing (it isn't being paid).
+export const forecastFreedCash = (
+  loan: Loan,
+  horizon: Date,
+  extraMonthlyPayment: number = 0,
+  today: Date = new Date(),
+  oneTimePayment: number = 0
+): ForecastPoint[] => {
+  const { dates, freedCash } = simulateLoan(
+    loan,
+    horizon,
+    extraMonthlyPayment,
+    today,
+    oneTimePayment
+  );
+  return dates.map((date, index) => ({ Date: date, Value: freedCash[index] }));
 };
 
 // Forecast an investment's value month by month from today to the horizon.
@@ -230,8 +278,8 @@ export const forecastNetWorth = (
   const months = getMonthsBetween(today, horizon);
   const start = dayjs(today);
 
-  const loanSeries = loans.map((loan) =>
-    forecastLoan(
+  const loanRuns = loans.map((loan) =>
+    simulateLoan(
       loan,
       horizon,
       scenario?.ExtraLoanPayments?.[loan.Id] ?? 0,
@@ -264,13 +312,16 @@ export const forecastNetWorth = (
         sum + assetNetWorthSign(assets[index]) * series[month].Value,
       0
     );
-    const debts = loanSeries.reduce(
-      (sum, series) => sum + series[month].Value,
+    const debts = loanRuns.reduce((sum, run) => sum + run.balances[month], 0);
+    // Payments freed by loans paid off within the forecast stay with the
+    // user as cash. (#168)
+    const freedCash = loanRuns.reduce(
+      (sum, run) => sum + run.freedCash[month],
       0
     );
     points.push({
       Date: start.add(month, 'month').toDate(),
-      Value: roundToCents(investmentValue + assetValue - debts),
+      Value: roundToCents(investmentValue + assetValue + freedCash - debts),
     });
   }
 
