@@ -142,6 +142,7 @@ describe('getGrowthTotals', () => {
       getGrowthTotals(growth, referenceInvestment.StartingBalance)
     ).toEqual({
       totalContributions: 0,
+      totalEmployerMatch: 0,
       totalInterest: 210,
       endingInvested: 1000,
       endingValue: 1210,
@@ -181,6 +182,7 @@ describe('getGrowthTotals', () => {
   it('falls back to the starting balance for an empty schedule', () => {
     expect(getGrowthTotals([], 2500)).toEqual({
       totalContributions: 0,
+      totalEmployerMatch: 0,
       totalInterest: 0,
       endingInvested: 2500,
       endingValue: 2500,
@@ -193,6 +195,7 @@ describe('getGrowthTotals', () => {
     ];
     expect(getGrowthTotals(periodZeroOnly, 5000)).toEqual({
       totalContributions: 0,
+      totalEmployerMatch: 0,
       totalInterest: 0,
       endingInvested: 5000,
       endingValue: 5000,

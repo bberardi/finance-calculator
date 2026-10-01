@@ -78,7 +78,12 @@ describe('MonarchImportDialog type editors (loan/investment/asset split)', () =>
     await userEvent.click(screen.getByRole('button', { name: 'Import 1' }));
     expect(onConfirm).toHaveBeenCalledWith({
       loans: [
-        expect.objectContaining({ Name: 'Chase Mortgage', Principal: 250000 }),
+        // A valid Id, so the Id-keyed merge doesn't drop it. (#206)
+        expect.objectContaining({
+          Id: 'acc-1',
+          Name: 'Chase Mortgage',
+          Principal: 250000,
+        }),
       ],
       assets: [],
     });

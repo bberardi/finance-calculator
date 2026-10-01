@@ -319,8 +319,14 @@ export const MonarchImportDialog = ({
           <AddEditLoan
             open
             initialValues={editing.seed}
+            // The loan seed carries an empty Id (the normal add flow mints
+            // one), but this commit path merges by Id and drops empty ones,
+            // so give it the account's stable monarch Id. (#206)
             onSave={(loan) =>
-              resolve(editing.accountId, { kind: 'loan', loan })
+              resolve(editing.accountId, {
+                kind: 'loan',
+                loan: { ...loan, Id: loan.Id || editing.accountId },
+              })
             }
             onClose={() => setEditing(null)}
           />

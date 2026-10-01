@@ -76,13 +76,44 @@ describe('validateLoan — errors', () => {
     ).toBeUndefined();
   });
 
-  it('requires CurrentAmount > 0 (boundary: 0 fails, 0.01 passes)', () => {
+  it('allows a paid-off CurrentAmount of 0 but rejects negative (#194)', () => {
+    // Import accepts CurrentAmount 0 (a fully paid-off loan), so the form must
+    // too — otherwise the imported loan is uneditable.
     expect(
       validateLoan({ ...validLoan(), CurrentAmount: 0 }).errors.CurrentAmount
-    ).toBeDefined();
-    expect(
-      validateLoan({ ...validLoan(), CurrentAmount: 0.01 }).errors.CurrentAmount
     ).toBeUndefined();
+    expect(
+      validateLoan({ ...validLoan(), CurrentAmount: -0.01 }).errors
+        .CurrentAmount
+    ).toBeDefined();
+  });
+
+  it('rejects +Infinity on every core numeric loan field (#183)', () => {
+    const errors = validateLoan({
+      ...validLoan(),
+      Principal: Infinity,
+      CurrentAmount: Infinity,
+      InterestRate: Infinity,
+      MonthlyPayment: Infinity,
+    }).errors;
+    expect(errors.Principal).toBeDefined();
+    expect(errors.CurrentAmount).toBeDefined();
+    expect(errors.InterestRate).toBeDefined();
+    expect(errors.MonthlyPayment).toBeDefined();
+  });
+
+  it('treats an explicit null optional housing field as absent (#201)', () => {
+    const errors = validateLoan({
+      ...validLoan(),
+      HomeValue: null,
+      PropertyTaxAnnual: null,
+      HomeInsuranceAnnual: null,
+      MonthlyPmi: null,
+    } as unknown as ReturnType<typeof validLoan>).errors;
+    expect(errors.HomeValue).toBeUndefined();
+    expect(errors.PropertyTaxAnnual).toBeUndefined();
+    expect(errors.HomeInsuranceAnnual).toBeUndefined();
+    expect(errors.MonthlyPmi).toBeUndefined();
   });
 
   it('allows InterestRate of 0 (interest-free) but rejects negative (#72)', () => {
@@ -294,14 +325,35 @@ describe('validateInvestment — errors', () => {
     ).toBeDefined();
   });
 
-  it('allows AverageReturnRate of 0 but rejects negative (boundary)', () => {
+  it('allows a zero or negative AverageReturnRate (warned, not blocked) (#184)', () => {
+    // Import accepts a negative investment GrowthRate, so the form must too —
+    // otherwise an imported declining investment is uneditable.
     expect(
       validateInvestment({ ...validInvestment(), AverageReturnRate: 0 }).errors
         .AverageReturnRate
     ).toBeUndefined();
+    const negative = validateInvestment({
+      ...validInvestment(),
+      AverageReturnRate: -5,
+    });
+    expect(negative.errors.AverageReturnRate).toBeUndefined();
+    expect(negative.warnings.AverageReturnRate).toBeDefined();
+  });
+
+  it('rejects a non-finite AverageReturnRate / StartingBalance (#183)', () => {
+    const errors = validateInvestment({
+      ...validInvestment(),
+      AverageReturnRate: Infinity,
+      StartingBalance: Infinity,
+    }).errors;
+    expect(errors.AverageReturnRate).toBeDefined();
+    expect(errors.StartingBalance).toBeDefined();
+  });
+
+  it('rejects an Invalid Date StartDate (#223)', () => {
     expect(
-      validateInvestment({ ...validInvestment(), AverageReturnRate: -0.01 })
-        .errors.AverageReturnRate
+      validateInvestment({ ...validInvestment(), StartDate: new Date('x') })
+        .errors.StartDate
     ).toBeDefined();
   });
 

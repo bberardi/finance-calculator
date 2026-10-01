@@ -47,7 +47,11 @@ export const emptyInvestment: Investment = {
 
 export type InvestmentGrowthEntry = {
   Period: number;
+  // Total money in this period: your contribution plus any employer match.
   ContributionAmount: number;
+  // The employer-match share of ContributionAmount (absent/0 without a match).
+  // Tracked separately because the match is not the investor's own money. (#214)
+  EmployerMatchAmount?: number;
   InterestEarned: number;
   TotalValue: number;
 };

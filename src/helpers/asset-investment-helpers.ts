@@ -8,11 +8,14 @@ import { CompoundingFrequency, Investment } from '../models/investment-model';
 // import/migration, and by the UI. Keeping the mapping here (D7: pure, no
 // React/MUI) means the field correspondence lives in exactly one place.
 //
-// Field correspondence (lossless round-trip):
+// Field correspondence:
 //   Investment.StartingBalance ↔ Asset.Balance
 //   Investment.AverageReturnRate ↔ Asset.GrowthRate
 //   Investment.CurrentValue      ↔ Asset.CurrentValue (today's anchor)
-//   everything else copies across by the same name.
+//   every other Investment field copies across by the same name.
+// Asset-only fields (ResearchLinks, LinkedLoanId, …) have no Investment
+// counterpart, so the round-trip is NOT lossless on its own: callers updating a
+// stored asset must merge with `mergeInvestmentIntoAsset`. (#172)
 
 /** Convert an investment-type Asset into the Investment the engine consumes. */
 export const assetToInvestment = (asset: Asset): Investment => ({
@@ -56,6 +59,17 @@ export const investmentToAsset = (investment: Investment): Asset => ({
   EmployerMatchLimitPct: investment.EmployerMatchLimitPct,
   AnnualSalary: investment.AnnualSalary,
 });
+
+/**
+ * Apply an edited Investment onto its stored asset, keeping the asset-only
+ * fields (ResearchLinks, …) the Investment shape can't carry. Without the merge
+ * an edit, clone or delete→undo of an investment silently dropped its research
+ * links. (#172)
+ */
+export const mergeInvestmentIntoAsset = (
+  investment: Investment,
+  stored: Asset | undefined
+): Asset => ({ ...stored, ...investmentToAsset(investment) });
 
 /** True for assets that are investments (folded from the standalone Investment). */
 export const isInvestmentAsset = (asset: Asset): boolean =>

@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
 import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
@@ -68,8 +69,15 @@ export const summarizePositions = (
   // payment (the same value forecastLoan applies), so a loan with an unset/0
   // MonthlyPayment that the forecast amortizes still contributes its derived
   // payment. (#91) A loan with no escrow/PMI fields contributes P&I alone.
+  //
+  // A paid-off loan (zero balance) contributes nothing: forecastLoan applies no
+  // payment to a zero balance, so counting its stored payment would contradict
+  // both the forecast and the $0 debt beside it. (#179)
   const loanCommitments = loans.reduce(
-    (sum, loan) => sum + getMonthlyPaymentBreakdown(loan, today).total,
+    (sum, loan) =>
+      loan.CurrentAmount > 0
+        ? sum + getMonthlyPaymentBreakdown(loan, today).total
+        : sum,
     0
   );
   const investmentCommitments = investments.reduce((sum, investment) => {
@@ -77,6 +85,12 @@ export const summarizePositions = (
     // (mirrors the engine).
     const base = investment.RecurringContribution ?? 0;
     if (!investment.ContributionFrequency || !(base > 0)) {
+      return sum;
+    }
+    // A future-dated investment contributes nothing until its StartDate (the
+    // forecast only contributes from the start month on), so it adds no
+    // outflow yet. (#173)
+    if (dayjs(today).isBefore(dayjs(investment.StartDate), 'month')) {
       return sum;
     }
     // The contribution actually being made now — the base stepped up to the

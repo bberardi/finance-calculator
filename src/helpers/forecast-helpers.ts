@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { Loan } from '../models/loan-model';
-import { CompoundingFrequency, Investment } from '../models/investment-model';
+import { Investment } from '../models/investment-model';
 import { Asset } from '../models/asset-model';
 import { ForecastPoint, ScenarioInput } from '../models/forecast-model';
 import {
@@ -11,15 +11,8 @@ import {
 } from './loan-helpers';
 import { assetNetWorthSign, forecastAsset } from './asset-helpers';
 import {
-  employerMatchOnContribution,
-  generateInvestmentGrowth,
-  getAnniversaryDate,
-  getContributionForYear,
-  getContributionsWithStepUp,
-  getInvestmentYear,
-  getNextCompoundingDate,
-  getPeriodsPerYear,
-  hasPassedAnniversary,
+  InvestmentContributionEvent,
+  runInvestmentEngine,
 } from './investment-helpers';
 
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
@@ -28,38 +21,6 @@ const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 // at least to the requested end date (never negative).
 const getMonthsBetween = (start: Date, end: Date): number =>
   Math.max(0, Math.ceil(dayjs(end).diff(dayjs(start), 'month', true)));
-
-// Months between occurrences for a frequency (monthly=1, quarterly=3, annually=12).
-const getIntervalMonths = (frequency: CompoundingFrequency): number =>
-  12 / getPeriodsPerYear(frequency);
-
-// Fraction (0 ≤ f < 1) of the current compounding period already elapsed at
-// `today`, measured exactly as generateInvestmentGrowth does: step from the
-// StartDate cadence to the last boundary on or before `today` and pro-rate by
-// elapsed/total days of that period. Returns 0 when `today` lands on a
-// boundary (or before StartDate) — no partial period is in flight. (#88)
-const getPartialPeriodFraction = (
-  startDate: Date,
-  today: Date,
-  frequency: CompoundingFrequency
-): number => {
-  if (today <= startDate) {
-    return 0;
-  }
-  let boundary = new Date(startDate.getTime());
-  let next = getNextCompoundingDate(boundary, frequency);
-  while (next <= today) {
-    boundary = next;
-    next = getNextCompoundingDate(boundary, frequency);
-  }
-  // boundary ≤ today < next.
-  if (boundary.getTime() === today.getTime()) {
-    return 0;
-  }
-  const totalMs = next.getTime() - boundary.getTime();
-  const elapsedMs = today.getTime() - boundary.getTime();
-  return elapsedMs / totalMs;
-};
 
 // Default chart horizon: the longest loan schedule, extended to at least
 // 30 years from today when any investments exist (or when there is nothing
@@ -169,13 +130,19 @@ export const forecastLoan = (
 };
 
 // Forecast an investment's value month by month from today to the horizon.
-// The series is anchored to CurrentValue when provided, otherwise to the
-// value projected for today from the investment's historical inputs.
-// Contribution and compounding cadence is anchored to the investment's
-// StartDate at calendar-month granularity (matching the date-based schedule
-// of generateInvestmentGrowth), so a forecast does not shift depending on
-// when it is generated. Yearly step-ups follow StartDate anniversaries.
-// Index 0 is today.
+// The series is a read of the single investment engine (runInvestmentEngine) at
+// each grid month: index 0 is today's pro-rated value, and each later point is
+// the value at the last compounding boundary on or before it plus the money
+// added since. So it agrees with generateInvestmentGrowth — the Growth
+// Schedule, PIT view and dashboard — at every compounding boundary, for every
+// compounding / contribution cadence and whatever day the forecast is run.
+// (#165, #187, #217)
+//
+// When CurrentValue is set, it replaces the modeled value of the money already
+// in the account: that anchor grows from today on (earning only the remainder
+// of today's compounding period, #103), and contributions from today on are
+// added on top exactly as the engine credits them (employer match included,
+// with this year's cap already partly used by earlier contributions).
 export const forecastInvestment = (
   investment: Investment,
   horizon: Date,
@@ -189,214 +156,50 @@ export const forecastInvestment = (
 ): ForecastPoint[] => {
   const months = getMonthsBetween(today, horizon);
   const start = dayjs(today);
-
-  const growthToToday = generateInvestmentGrowth(investment, today);
-  const anchorValue =
-    investment.CurrentValue ??
-    (growthToToday.length > 0
-      ? growthToToday[growthToToday.length - 1].TotalValue
-      : investment.StartingBalance);
-
-  const periodRate =
-    investment.AverageReturnRate /
-    100 /
-    getPeriodsPerYear(investment.CompoundingPeriod);
-  const compoundingInterval = getIntervalMonths(investment.CompoundingPeriod);
-
-  // Match generateInvestmentGrowth: contributions only apply when both the
-  // amount and the frequency are set.
-  const baseContribution = investment.ContributionFrequency
-    ? (investment.RecurringContribution ?? 0)
-    : 0;
-  const contributionInterval = investment.ContributionFrequency
-    ? getIntervalMonths(investment.ContributionFrequency)
-    : 1;
-
-  const investmentStartMonth = dayjs(investment.StartDate).startOf('month');
-
-  // Off-boundary anchor reconciliation (#88, #103). When `today` falls inside a
-  // compounding period (fraction f elapsed), contributions made during the
-  // remainder of the period still earn the full period rate (they open the
-  // period in the canonical engine), but the carried anchor grows by a
-  // first-boundary factor that depends on WHICH anchor we carried:
-  //
-  //  - generateInvestmentGrowth / StartingBalance anchor: it already bakes in
-  //    this period's pro-rated slice (base·(1 + r·f)), so applying a full
-  //    `periodRate` at the next boundary would count that slice twice. Complete
-  //    the period instead with (1 + r)/(1 + r·f), which divides the baked-in
-  //    slice back out and upgrades it to exactly one full period → base·(1 + r).
-  //
-  //  - user-supplied CurrentValue anchor: it is just today's actual value, with
-  //    NO pro-rated slice baked in. Applying (1 + r)/(1 + r·f) would divide out a
-  //    slice that was never added, systematically under-crediting the first
-  //    partial period and every value after it (#103). It must instead earn only
-  //    the *remaining* fraction of the period to the next boundary. Use the same
-  //    LINEAR day-fraction pro-rating generateInvestmentGrowth uses for a partial
-  //    period (PRECISION.md): 1 + r·(1 − f).
-  //
-  // Both reduce to (1 + r) when `today` is on a boundary (f = 0), so boundary-
-  // anchored consistency — and the #88 off-boundary tests — are unchanged.
-  const partialFraction = getPartialPeriodFraction(
-    investment.StartDate,
-    today,
-    investment.CompoundingPeriod
+  const dates = Array.from({ length: months + 1 }, (_, month) =>
+    start.add(month, 'month').toDate()
   );
-  const usesCurrentValueAnchor = investment.CurrentValue != null;
-  const firstBoundaryFactor = usesCurrentValueAnchor
-    ? 1 + periodRate * (1 - partialFraction)
-    : (1 + periodRate) / (1 + periodRate * partialFraction);
-  let firstBoundaryApplied = false;
-  // Contributions added since today within the still-open first period; these
-  // earn the full period rate, separate from the carried anchor's correction.
-  let partialPeriodContributions = 0;
-  // Employer-match accrual state (ROADMAP 8.1): matchable contribution used this
-  // investment-year, reset at year boundaries so the annual cap holds.
-  let matchYear = 0;
-  let matchCumThisYear = 0;
 
-  // Contributions made earlier in the CURRENT investment-year (from the last
-  // StartDate anniversary up to `today`) already consumed match-cap headroom in
-  // the canonical engine, and they're baked into the anchor value. Seed the
-  // accrual state with them — otherwise a mid-year-anchored forecast re-grants
-  // match the employer already paid this year, over-crediting the first partial
-  // year by up to the full annual match whenever contributions exceed the cap.
-  // The window [last anniversary, today) is exactly the set of contribution
-  // dates getInvestmentYear attributes to the current year (anniversaries are
-  // contribution dates, so no date between them and `today` changes year).
-  const matchActive =
-    (investment.EmployerMatchRate ?? 0) > 0 &&
-    (investment.EmployerMatchLimitPct ?? 0) > 0 &&
-    (investment.AnnualSalary ?? 0) > 0;
-  if (
-    matchActive &&
-    baseContribution > 0 &&
-    investment.ContributionFrequency &&
-    today > investment.StartDate
-  ) {
-    const anniversaryYear = hasPassedAnniversary(today, investment.StartDate)
-      ? today.getFullYear()
-      : today.getFullYear() - 1;
-    matchYear = getInvestmentYear(today, investment.StartDate);
-    matchCumThisYear = getContributionsWithStepUp(
-      getAnniversaryDate(investment.StartDate, anniversaryYear),
-      today,
-      investment.StartDate,
-      baseContribution,
-      investment.ContributionFrequency,
-      investment.ContributionStepUpAmount,
-      investment.ContributionStepUpType
+  // Month k's extra (and the one-time lump at month 1) is contributed at the
+  // start of that month's interval, so it shows in month k's point.
+  const extras: InvestmentContributionEvent[] = [];
+  for (let month = 1; month <= months; month++) {
+    const amount =
+      Math.max(0, extraMonthlyContribution) +
+      (month === 1 ? Math.max(0, oneTimeContribution) : 0);
+    if (amount > 0) {
+      extras.push({ Date: dates[month - 1], Amount: amount });
+    }
+  }
+
+  const end = dates[dates.length - 1];
+  const projected = runInvestmentEngine(investment, end, {
+    extras,
+    sampleDates: dates,
+    lumpDate: today,
+    accrueAt: today,
+  });
+
+  let values = projected.samples;
+  if (investment.CurrentValue != null) {
+    // Money already in the account per the model (no contributions from today
+    // on); the difference to `projected` is the money added from today on.
+    const carried = runInvestmentEngine(investment, end, {
+      sampleDates: dates,
+      contributionCutoff: today,
+      accrueAt: today,
+    }).samples;
+    const anchor = investment.CurrentValue;
+    values = projected.samples.map(
+      (value, index) =>
+        anchor * projected.lumpFactors[index] + value - carried[index]
     );
   }
 
-  let value = anchorValue;
-  const points: ForecastPoint[] = [
-    { Date: start.toDate(), Value: roundToCents(value) },
-  ];
-
-  for (let month = 1; month <= months; month++) {
-    const monthDate = start.add(month, 'month');
-    // Calendar months since the investment started; events stay anchored to
-    // the StartDate cadence regardless of the forecast's run date.
-    const elapsedMonths = monthDate
-      .startOf('month')
-      .diff(investmentStartMonth, 'month');
-
-    // Contributions added before the first compounding boundary belong to the
-    // open period and earn the full period rate there.
-    let contributionThisMonth = 0;
-    // The base contribution's canonical investment-year (set only when it fires),
-    // used to attribute the employer match to a year consistently with the period
-    // growth engine.
-    let baseContributionYear: number | undefined;
-
-    if (
-      baseContribution > 0 &&
-      elapsedMonths >= 0 &&
-      elapsedMonths % contributionInterval === 0
-    ) {
-      // Step-up year attribution (ROADMAP §8.1). The canonical engine,
-      // generateInvestmentGrowth, applies the contribution that *opens* each
-      // compounding period (dated one contribution-interval before this grid
-      // month). On the monthly grid the contribution fired at `monthDate`
-      // corresponds to that period-opening contribution, so attribute it to the
-      // year of `monthDate − contributionInterval`. Without this shift the
-      // monthly grid stepped up one contribution early, diverging from the
-      // period engine the day a step-up was configured (the off-by-one this
-      // reconciles). Without step-ups the year is irrelevant to the amount, so
-      // the no-step-up boundary consistency is unaffected.
-      const yearNumber = getInvestmentYear(
-        monthDate.subtract(contributionInterval, 'month').toDate(),
-        investment.StartDate
-      );
-      contributionThisMonth += getContributionForYear(
-        baseContribution,
-        yearNumber,
-        investment.ContributionStepUpAmount,
-        investment.ContributionStepUpType
-      );
-      baseContributionYear = yearNumber;
-    }
-
-    if (extraMonthlyContribution > 0) {
-      contributionThisMonth += extraMonthlyContribution;
-    }
-
-    // One-time lump-sum contribution (ROADMAP 8.2): applied once at month 1, then
-    // folded into the same money-in as the recurring/extra contributions below so
-    // it is matched and compounded identically.
-    if (oneTimeContribution > 0 && month === 1) {
-      contributionThisMonth += oneTimeContribution;
-    }
-
-    // Employer match (ROADMAP 8.1) on this month's total contribution (recurring
-    // + any optimizer extra), accrued against the annual cap per investment-year.
-    // Attribute to the base contribution's canonical year when it fires (matching
-    // generateInvestmentGrowth), else this grid month's year. Folded into the
-    // month's money-in so it earns the period rate like any contribution.
-    if (contributionThisMonth > 0) {
-      const contributionYear =
-        baseContributionYear ??
-        getInvestmentYear(monthDate.toDate(), investment.StartDate);
-      if (contributionYear !== matchYear) {
-        matchYear = contributionYear;
-        matchCumThisYear = 0;
-      }
-      const employerMatch = employerMatchOnContribution(
-        matchCumThisYear,
-        contributionThisMonth,
-        investment
-      );
-      matchCumThisYear += contributionThisMonth;
-      contributionThisMonth += employerMatch;
-    }
-
-    value += contributionThisMonth;
-    if (!firstBoundaryApplied) {
-      partialPeriodContributions += contributionThisMonth;
-    }
-
-    if (elapsedMonths > 0 && elapsedMonths % compoundingInterval === 0) {
-      if (!firstBoundaryApplied) {
-        // First boundary after an off-boundary `today`: grow the carried anchor
-        // by the complementary factor, and credit this period's contributions
-        // the full period rate. With f = 0 (boundary anchor) this collapses to
-        // value *= (1 + periodRate).
-        value =
-          (value - partialPeriodContributions) * firstBoundaryFactor +
-          partialPeriodContributions * (1 + periodRate);
-        firstBoundaryApplied = true;
-      } else {
-        value *= 1 + periodRate;
-      }
-    }
-
-    points.push({
-      Date: monthDate.toDate(),
-      Value: roundToCents(value),
-    });
-  }
-
-  return points;
+  return values.map((value, index) => ({
+    Date: dates[index],
+    Value: roundToCents(value),
+  }));
 };
 
 // Best-known value of an investment as of `today`: the explicit CurrentValue

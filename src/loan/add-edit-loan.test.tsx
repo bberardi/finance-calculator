@@ -17,6 +17,27 @@ const validLoan: Loan = {
 };
 
 describe('AddEditLoan (form)', () => {
+  it('keeps a custom MonthlyPayment on an untouched open-and-save (#207)', async () => {
+    const onSave = vi.fn();
+    const customLoan = {
+      ...validLoan,
+      Principal: 100000,
+      CurrentAmount: 95000,
+      InterestRate: 5,
+      MonthlyPayment: 600,
+      StartDate: new Date(2024, 0, 1),
+      EndDate: new Date(2044, 0, 1),
+    };
+    renderWithProviders(
+      <AddEditLoan open loan={customLoan} onSave={onSave} onClose={vi.fn()} />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save loan' }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ MonthlyPayment: 600 }),
+      customLoan
+    );
+  });
+
   it('disables Save for a new, empty (invalid) loan', () => {
     renderWithProviders(
       <AddEditLoan open onSave={vi.fn()} onClose={vi.fn()} />

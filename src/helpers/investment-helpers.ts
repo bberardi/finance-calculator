@@ -164,21 +164,32 @@ export const getNextCompoundingDate = (
   return addMonthsClamped(currentDate, monthsToAdd);
 };
 
-// Count how many contributions occur between two dates (exclusive of end date)
+// Months between occurrences of a cadence (monthly=1, quarterly=3, annually=12).
+export const getIntervalMonths = (frequency: CompoundingFrequency): number =>
+  12 / getPeriodsPerYear(frequency);
+
+// The k-th cadence date after `anchor`, always measured FROM THE ANCHOR
+// (anchor + k·interval months, clamped to month end). Stepping from the running
+// date instead let a day-29..31 start that clamped in a short month stay stuck
+// on the clamped day forever (Jan 31 → Feb 28 → Mar 28 …), drifting the whole
+// cadence earlier and over-counting contributions. (#199)
+const getCadenceDate = (
+  anchor: Date,
+  k: number,
+  frequency: CompoundingFrequency
+): Date => addMonthsClamped(anchor, k * getIntervalMonths(frequency));
+
+// Count how many contributions occur between two dates (exclusive of end date),
+// on the cadence anchored to `startDate`.
 export const getContributionsInPeriod = (
   startDate: Date,
   endDate: Date,
   contributionFrequency: CompoundingFrequency
 ): number => {
   let count = 0;
-  let currentDate = new Date(startDate.getTime());
-
-  // Count contributions that occur on or after start date and before end date
-  while (currentDate < endDate) {
+  while (getCadenceDate(startDate, count, contributionFrequency) < endDate) {
     count++;
-    currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
   }
-
   return count;
 };
 
@@ -277,13 +288,16 @@ export const getContributionsWithStepUp = (
 ): number => {
   let totalContribution = 0;
 
-  // Anchor to investmentStartDate and advance to first contribution date on or after startDate.
-  // This keeps contribution timing consistent across compounding periods — without this,
-  // each period would treat its own start as a contribution date, over-counting when
-  // compounding is more frequent than contributions (e.g. monthly compounding + quarterly contributions).
-  let currentDate = new Date(investmentStartDate.getTime());
+  // Contribution dates sit on the cadence anchored to investmentStartDate, so
+  // timing stays consistent across compounding periods — without this, each
+  // period would treat its own start as a contribution date, over-counting when
+  // compounding is more frequent than contributions. Each date is measured from
+  // the anchor, never from the previous (possibly month-end-clamped) date. (#199)
+  let k = 0;
+  let currentDate = investmentStartDate;
   while (currentDate < startDate) {
-    currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
+    k++;
+    currentDate = getCadenceDate(investmentStartDate, k, contributionFrequency);
   }
 
   while (currentDate < endDate) {
@@ -299,120 +313,285 @@ export const getContributionsWithStepUp = (
     );
 
     totalContribution += contributionAmount;
-    currentDate = getNextCompoundingDate(currentDate, contributionFrequency);
+    k++;
+    currentDate = getCadenceDate(investmentStartDate, k, contributionFrequency);
   }
 
   return roundToCents(totalContribution);
+};
+
+// Extra money-in on top of the recurring contribution (an optimizer/scenario
+// extra or a one-time lump sum). Matched and compounded exactly like a
+// recurring contribution dated on the same day.
+export interface InvestmentContributionEvent {
+  Date: Date;
+  Amount: number;
+}
+
+export interface InvestmentEngineOptions {
+  // Additional dated contributions, merged with the recurring schedule.
+  extras?: InvestmentContributionEvent[];
+  // Dates (ascending, each <= the engine's end date) to report the value at.
+  sampleDates?: Date[];
+  // Recurring contributions dated on/after this date are skipped (extras are
+  // never added when it is set). Used to isolate money already in the account.
+  contributionCutoff?: Date;
+  // Report, per sample date, the growth factor of $1 present from this date on.
+  lumpDate?: Date;
+  // A sample in the same compounding period as this date credits the money
+  // dated before it the pro-rated slice r·(elapsed/period) up to it — so a
+  // sample AT this date equals generateInvestmentGrowth(investment, date).
+  accrueAt?: Date;
+}
+
+export interface InvestmentEngineResult {
+  growth: InvestmentGrowthEntry[];
+  // Value at each sample date.
+  samples: number[];
+  // Growth factor from `lumpDate` to each sample date (1 when no lumpDate).
+  lumpFactors: number[];
+}
+
+// The single investment growth engine. Compounding boundaries and contribution
+// dates are both anchored to StartDate (k·interval months from it, clamped to
+// month end). Money dated inside a compounding period [b, b') is credited at the
+// period's start and earns the full period rate at b'; the schedule's final
+// partial period earns the linearly pro-rated slice r·(elapsed/period)
+// (PRECISION.md). A sample read part-way through a period holds the value at
+// the period's last boundary plus the money added since (the forecast chart's
+// step between compounding dates), except that money dated before `accrueAt`
+// also carries its pro-rated slice to that date. The per-period growth factor is
+// floored at zero, so a return at or below −100%/period decays the balance to
+// zero instead of flipping its sign. (#221)
+//
+// generateInvestmentGrowth and forecastInvestment are both thin reads of this
+// engine, so the schedule, PIT view, dashboard and forecast chart agree at
+// every date by construction (#165, #187, #217).
+export const runInvestmentEngine = (
+  investment: Investment,
+  end: Date,
+  options: InvestmentEngineOptions = {}
+): InvestmentEngineResult => {
+  const start = investment.StartDate;
+  const sampleDates = options.sampleDates ?? [];
+  if (!start) {
+    return {
+      growth: [],
+      samples: sampleDates.map(() => investment.StartingBalance),
+      lumpFactors: sampleDates.map(() => 1),
+    };
+  }
+  const periodRate =
+    investment.AverageReturnRate /
+    100 /
+    getPeriodsPerYear(investment.CompoundingPeriod);
+  const growthFactor = (fraction: number): number =>
+    Math.max(0, 1 + periodRate * fraction);
+
+  const samples: number[] = new Array<number>(sampleDates.length);
+  const lumpFactors: number[] = new Array<number>(sampleDates.length).fill(1);
+  const lumpDate = options.lumpDate;
+  const cutoff = options.contributionCutoff;
+
+  // Merged, date-ordered money-in: the recurring schedule plus any extras.
+  const baseContribution =
+    investment.ContributionFrequency &&
+    (investment.RecurringContribution ?? 0) > 0
+      ? (investment.RecurringContribution as number)
+      : 0;
+  const extras = cutoff
+    ? []
+    : [...(options.extras ?? [])]
+        .filter((event) => event.Amount > 0)
+        .sort((a, b) => a.Date.getTime() - b.Date.getTime());
+  let extraIndex = 0;
+  let contributionIndex = 0;
+  const nextRecurringDate = (): Date | undefined => {
+    if (baseContribution <= 0) return undefined;
+    const date = getCadenceDate(
+      start,
+      contributionIndex,
+      investment.ContributionFrequency as CompoundingFrequency
+    );
+    return cutoff && date >= cutoff ? undefined : date;
+  };
+  // Pop every money-in event dated before `before`, in date order.
+  const takeEventsBefore = (before: Date): InvestmentContributionEvent[] => {
+    const events: InvestmentContributionEvent[] = [];
+    for (;;) {
+      const recurringDate = nextRecurringDate();
+      const extra = extras[extraIndex];
+      const recurringDue =
+        recurringDate !== undefined && recurringDate < before;
+      const extraDue = extra !== undefined && extra.Date < before;
+      if (!recurringDue && !extraDue) return events;
+      if (
+        recurringDue &&
+        (!extraDue || (recurringDate as Date) <= extra.Date)
+      ) {
+        const date = recurringDate as Date;
+        events.push({
+          Date: date,
+          Amount: getContributionForYear(
+            baseContribution,
+            getInvestmentYear(date, start),
+            investment.ContributionStepUpAmount,
+            investment.ContributionStepUpType
+          ),
+        });
+        contributionIndex++;
+      } else {
+        events.push(extra);
+        extraIndex++;
+      }
+    }
+  };
+  const sumBefore = (
+    events: InvestmentContributionEvent[],
+    before: Date
+  ): number =>
+    roundToCents(
+      events.reduce(
+        (sum, event) => (event.Date < before ? sum + event.Amount : sum),
+        0
+      )
+    );
+
+  const growth: InvestmentGrowthEntry[] = [];
+  let value = investment.StartingBalance;
+  let sampleIndex = 0;
+
+  // Money dated before StartDate (an extra on a not-yet-started investment)
+  // waits uninvested and joins the first period at StartDate.
+  const preStart = takeEventsBefore(start);
+  while (
+    sampleIndex < sampleDates.length &&
+    sampleDates[sampleIndex] <= start
+  ) {
+    samples[sampleIndex] =
+      value + sumBefore(preStart, sampleDates[sampleIndex]);
+    sampleIndex++;
+  }
+
+  if (end <= start) {
+    return { growth, samples, lumpFactors };
+  }
+
+  growth.push({
+    Period: 0,
+    ContributionAmount: 0,
+    InterestEarned: 0,
+    TotalValue: roundToCents(value),
+  });
+
+  // Employer-match accrual state (ROADMAP 8.1): the matchable contribution used
+  // this investment-year, reset at each year boundary so the annual cap holds.
+  // A compounding period never crosses a year boundary (the period count
+  // divides the year evenly), so the whole period belongs to one year.
+  let matchYear = 0;
+  let matchCumThisYear = 0;
+  // Growth of $1 present from lumpDate, accrued to the current period start.
+  let lumpAccrued = lumpDate && lumpDate <= start ? 1 : undefined;
+
+  for (let period = 1; ; period++) {
+    const periodStart = getCadenceDate(
+      start,
+      period - 1,
+      investment.CompoundingPeriod
+    );
+    if (periodStart >= end) break;
+    const periodEnd = getCadenceDate(
+      start,
+      period,
+      investment.CompoundingPeriod
+    );
+    const periodMs = periodEnd.getTime() - periodStart.getTime();
+    const fractionAt = (date: Date): number =>
+      (date.getTime() - periodStart.getTime()) / periodMs;
+
+    const events = takeEventsBefore(periodEnd);
+    if (period === 1) events.unshift(...preStart);
+
+    const periodYear = getInvestmentYear(periodStart, start);
+    if (periodYear !== matchYear) {
+      matchYear = periodYear;
+      matchCumThisYear = 0;
+    }
+    const matchOn = (money: number): number =>
+      employerMatchOnContribution(matchCumThisYear, money, investment);
+
+    // The lump enters part-way through this period: it earns only the slice
+    // of the period remaining after lumpDate (1 + r·(1 − f)). (#103)
+    let lumpStartFraction = 0;
+    if (lumpAccrued === undefined && lumpDate && lumpDate < periodEnd) {
+      lumpAccrued = 1;
+      lumpStartFraction = fractionAt(lumpDate);
+    }
+
+    // Samples inside (periodStart, periodEnd].
+    const accrueAt = options.accrueAt;
+    while (
+      sampleIndex < sampleDates.length &&
+      sampleDates[sampleIndex] <= periodEnd
+    ) {
+      const date = sampleDates[sampleIndex];
+      const closesPeriod = date.getTime() === periodEnd.getTime();
+      // The read point that earns interest: the period end when the sample
+      // closes the period, `accrueAt` when it falls in (periodStart, date],
+      // else the period start (no interest yet).
+      const accrual = closesPeriod
+        ? periodEnd
+        : accrueAt && accrueAt > periodStart && accrueAt <= date
+          ? accrueAt
+          : periodStart;
+      const accruedMoney = sumBefore(events, accrual);
+      const money = sumBefore(events, date);
+      samples[sampleIndex] =
+        (value + accruedMoney + matchOn(accruedMoney)) *
+          growthFactor(fractionAt(accrual)) +
+        (money - accruedMoney) +
+        (matchOn(money) - matchOn(accruedMoney));
+      if (lumpAccrued !== undefined && closesPeriod) {
+        lumpFactors[sampleIndex] =
+          lumpAccrued * growthFactor(1 - lumpStartFraction);
+      } else if (lumpAccrued !== undefined) {
+        lumpFactors[sampleIndex] = lumpAccrued;
+      }
+      sampleIndex++;
+    }
+
+    // Advance the schedule: a full period, or the partial period ending at `end`.
+    const isPartial = periodEnd > end;
+    const closeAt = isPartial ? end : periodEnd;
+    const money = sumBefore(events, closeAt);
+    const employerMatch = matchOn(money);
+    matchCumThisYear += money;
+    const valueBeforeInterest = value + money + employerMatch;
+    value = valueBeforeInterest * growthFactor(isPartial ? fractionAt(end) : 1);
+    if (lumpAccrued !== undefined) {
+      lumpAccrued *= growthFactor(1 - lumpStartFraction);
+    }
+
+    growth.push({
+      Period: period,
+      // Total money in this period — your contribution plus any employer match.
+      ContributionAmount: roundToCents(money + employerMatch),
+      EmployerMatchAmount: roundToCents(employerMatch),
+      InterestEarned: roundToCents(value - valueBeforeInterest),
+      TotalValue: roundToCents(value),
+    });
+    if (isPartial) break;
+  }
+
+  return { growth, samples, lumpFactors };
 };
 
 // Generate growth projection for an investment using date-based calculations
 export const generateInvestmentGrowth = (
   investment: Investment,
   endDate?: Date
-): InvestmentGrowthEntry[] => {
-  const growth: InvestmentGrowthEntry[] = [];
-  const end = endDate ?? new Date();
-
-  if (!investment.StartDate || end <= investment.StartDate) {
-    return growth;
-  }
-
-  const periodsPerYear = getPeriodsPerYear(investment.CompoundingPeriod);
-  const periodRate = investment.AverageReturnRate / 100 / periodsPerYear;
-
-  let currentValue = investment.StartingBalance;
-  let currentDate = new Date(investment.StartDate.getTime());
-  let period = 0;
-
-  // Add Period 0 - the initial state with no interest accrued
-  growth.push({
-    Period: 0,
-    ContributionAmount: 0,
-    InterestEarned: 0,
-    TotalValue: Math.round(currentValue * 100) / 100,
-  });
-
-  // Employer-match accrual state (ROADMAP 8.1): the matchable contribution used
-  // this investment-year, reset at each year boundary so the annual cap holds.
-  let matchYear = 0;
-  let matchCumThisYear = 0;
-
-  // Process each compounding period
-  while (currentDate < end) {
-    const nextCompoundDate = getNextCompoundingDate(
-      currentDate,
-      investment.CompoundingPeriod
-    );
-    const periodEndDate = nextCompoundDate > end ? end : nextCompoundDate;
-
-    period++;
-
-    // Calculate contributions in this period (with step-up if configured)
-    let contributionThisPeriod = 0;
-    const recurringContribution = investment.RecurringContribution ?? 0;
-    if (recurringContribution > 0 && investment.ContributionFrequency) {
-      contributionThisPeriod = getContributionsWithStepUp(
-        currentDate,
-        periodEndDate,
-        investment.StartDate,
-        recurringContribution,
-        investment.ContributionFrequency,
-        investment.ContributionStepUpAmount,
-        investment.ContributionStepUpType
-      );
-
-      currentValue += contributionThisPeriod;
-    }
-
-    // Employer match (ROADMAP 8.1), accrued against the annual cap per
-    // investment-year. A compounding period never crosses a year boundary (the
-    // period count divides the year evenly), so the whole period belongs to one
-    // year; reset the running total when the year changes. The match is money in
-    // that compounds this period like any contribution.
-    const periodYear = getInvestmentYear(currentDate, investment.StartDate);
-    if (periodYear !== matchYear) {
-      matchYear = periodYear;
-      matchCumThisYear = 0;
-    }
-    const employerMatch = employerMatchOnContribution(
-      matchCumThisYear,
-      contributionThisPeriod,
-      investment
-    );
-    matchCumThisYear += contributionThisPeriod;
-    currentValue += employerMatch;
-
-    // Apply compound interest (full period or pro-rated)
-    let interestEarned: number;
-    if (nextCompoundDate <= end) {
-      // Full compounding period
-      const valueBeforeInterest = currentValue;
-      currentValue *= 1 + periodRate;
-      interestEarned = currentValue - valueBeforeInterest;
-    } else {
-      // Partial compounding period
-      const totalDays = nextCompoundDate.getTime() - currentDate.getTime();
-      const actualDays = end.getTime() - currentDate.getTime();
-      const partialRate = periodRate * (actualDays / totalDays);
-      const valueBeforeInterest = currentValue;
-      currentValue *= 1 + partialRate;
-      interestEarned = currentValue - valueBeforeInterest;
-    }
-
-    growth.push({
-      Period: period,
-      // Total money in this period — your contribution plus any employer match.
-      ContributionAmount:
-        Math.round((contributionThisPeriod + employerMatch) * 100) / 100,
-      InterestEarned: Math.round(interestEarned * 100) / 100,
-      TotalValue: Math.round(currentValue * 100) / 100,
-    });
-
-    currentDate = nextCompoundDate;
-  }
-
-  return growth;
-};
+): InvestmentGrowthEntry[] =>
+  runInvestmentEngine(investment, endDate ?? new Date()).growth;
 
 // Point-in-time view of an investment at an arbitrary date along its timeline.
 //

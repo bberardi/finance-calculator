@@ -36,8 +36,11 @@ export const evaluateEnhancement = (
 
   const recoupPercent = cost > 0 ? round1((valueAdd / cost) * 100) : undefined;
   const immediateEquityChange = roundToCents(valueAdd - cost);
+  // Floor the yearly factor at zero (as the asset engine does, #152): a rate at
+  // or below -100%/yr decays the added value to zero rather than flipping its
+  // sign or going NaN for a fractional horizon. (#218)
   const addedValueAtYears = roundToCents(
-    valueAdd * Math.pow(1 + growth, years)
+    valueAdd * Math.pow(Math.max(0, 1 + growth), years)
   );
 
   let breakEvenYears: number | undefined;

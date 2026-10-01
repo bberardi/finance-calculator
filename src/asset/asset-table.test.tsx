@@ -32,6 +32,7 @@ const assets = [
 const renderTable = (overrides: Partial<Record<string, unknown>> = {}) => {
   const handlers = {
     onAssetEdit: vi.fn(),
+    onAssetPersist: vi.fn(),
     onAssetDelete: vi.fn(),
     onAssetClone: vi.fn(),
     onAssetBulkDelete: vi.fn(),
@@ -91,6 +92,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         assets={assets}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -106,6 +108,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         assets={assets}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -130,6 +133,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         assets={[property(3)]}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -147,6 +151,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         assets={[property(0), property(-2.5)]}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -170,6 +175,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         ]}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -193,6 +199,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         ]}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -223,6 +230,7 @@ describe('AssetTable (shared HoldingTable config)', () => {
         ]}
         loans={[]}
         onAssetEdit={vi.fn()}
+        onAssetPersist={vi.fn()}
         onAssetDelete={vi.fn()}
         onAssetClone={vi.fn()}
         onAssetBulkDelete={vi.fn()}
@@ -244,5 +252,39 @@ describe('AssetTable (shared HoldingTable config)', () => {
     expect(
       screen.queryByRole('columnheader', { name: 'Equity' })
     ).not.toBeInTheDocument();
+  });
+
+  it('persists a research link directly instead of opening the Edit dialog (#210)', async () => {
+    const property = makeAsset({
+      Id: 'p1',
+      Name: 'Beach House',
+      AssetType: AssetType.Property,
+    });
+    const onAssetEdit = vi.fn();
+    const onAssetPersist = vi.fn();
+    renderWithProviders(
+      <AssetTable
+        assets={[property]}
+        loans={[]}
+        onAssetEdit={onAssetEdit}
+        onAssetPersist={onAssetPersist}
+        onAssetDelete={vi.fn()}
+        onAssetClone={vi.fn()}
+        onAssetBulkDelete={vi.fn()}
+      />
+    );
+    await userEvent.click(
+      screen.getAllByRole('button', { name: 'Research & context' })[0]
+    );
+    await userEvent.type(screen.getByLabelText(/^Label/), 'Zillow');
+    await userEvent.type(screen.getByLabelText(/^URL/), 'https://zillow.com');
+    await userEvent.click(screen.getByRole('button', { name: /add link/i }));
+    expect(onAssetEdit).not.toHaveBeenCalled();
+    expect(onAssetPersist).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Id: 'p1',
+        ResearchLinks: [{ Label: 'Zillow', Url: 'https://zillow.com' }],
+      })
+    );
   });
 });

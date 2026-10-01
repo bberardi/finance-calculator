@@ -44,8 +44,8 @@ interface AssetRowHandlers {
   // Open the "is this improvement worth it?" calculator (9.3). Offered only for
   // appreciating property assets.
   onEnhance?: (asset: Asset) => void;
-  // Open the research/context links manager (9.4). Offered for investments and
-  // property (the holdings with external context worth tracking).
+  // Open the research/context links manager (9.4). Offered for property here;
+  // investments get it from the investment table.
   onResearch?: (asset: Asset) => void;
 }
 
@@ -94,12 +94,9 @@ const assetActions = (
       onClick: () => onEnhance(asset),
     });
   }
-  // Research & context: investments (company/fund research) and property (area).
-  if (
-    onResearch &&
-    (asset.AssetType === AssetType.Investment ||
-      asset.AssetType === AssetType.Property)
-  ) {
+  // Research & context for property (area research). Investments never reach
+  // this table; the investment table offers its own research action. (#200)
+  if (onResearch && asset.AssetType === AssetType.Property) {
     actions.push({
       icon: <Article />,
       title: 'Research & context',
@@ -209,8 +206,9 @@ export const AssetTable = (props: AssetTableProps) => {
   // Self-managed "enhancement ROI" popout (9.3): opened from a property row and
   // closed here, so it needs no Body wiring.
   const [enhanceAsset, setEnhanceAsset] = useState<Asset>();
-  // Self-managed "research & context" popout (9.4): opened from an investment or
-  // property row; its edits persist through the normal onAssetEdit path.
+  // Self-managed "research & context" popout (9.4): opened from a property row.
+  // Link edits persist directly through onAssetPersist — onAssetEdit opens the
+  // Edit dialog, and a link routed there was lost when it was dismissed. (#210)
   const [researchAsset, setResearchAsset] = useState<Asset>();
 
   const handlers: AssetRowHandlers = {
@@ -340,9 +338,11 @@ export const AssetTable = (props: AssetTableProps) => {
       {researchAsset && (
         <ResearchPopout
           asset={researchAsset}
-          onSave={(links) =>
-            props.onAssetEdit({ ...researchAsset, ResearchLinks: links })
-          }
+          onSave={(links) => {
+            const updated = { ...researchAsset, ResearchLinks: links };
+            props.onAssetPersist(updated);
+            setResearchAsset(updated);
+          }}
           onClose={() => setResearchAsset(undefined)}
         />
       )}
@@ -353,7 +353,10 @@ export const AssetTable = (props: AssetTableProps) => {
 export type AssetTableProps = {
   assets: Asset[];
   loans: Loan[];
+  // Opens the Edit dialog for a row.
   onAssetEdit: (a: Asset) => void;
+  // Saves an asset change directly (no dialog), e.g. research-link edits.
+  onAssetPersist: (a: Asset) => void;
   onAssetDelete: (a: Asset) => void;
   onAssetClone: (a: Asset) => void;
   onAssetBulkDelete: (assets: Asset[]) => void;

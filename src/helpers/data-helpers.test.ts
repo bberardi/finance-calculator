@@ -500,6 +500,97 @@ describe('exportToJson and importFromJson', () => {
       CurrentAmount: 95000,
     };
 
+    it('rejects a top-level null payload with the friendly error (#175)', () => {
+      expect(() => importFromJson('null')).toThrow(
+        'Invalid data format: Expected an object with a "loans" array.'
+      );
+    });
+
+    it('rejects a null loan element with the friendly error (#202)', () => {
+      const json = JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        loans: [null],
+      });
+      expect(() => importFromJson(json)).toThrow(
+        'Invalid loan at index 0: expected an object.'
+      );
+    });
+
+    it.each([123, true, { a: 1 }])(
+      'rejects a truthy non-string loan Id (%j) with the friendly error (#178)',
+      (Id) => {
+        const json = JSON.stringify({
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          loans: [{ ...baseLoan, Id }],
+        });
+        expect(() => importFromJson(json)).toThrow(
+          'Invalid or missing ID in loan at index 0'
+        );
+      }
+    );
+
+    it('rejects a non-string asset / scenario Id with the friendly error (#178)', () => {
+      expect(() =>
+        importFromJson(
+          JSON.stringify({
+            schemaVersion: EXPORT_SCHEMA_VERSION,
+            loans: [],
+            assets: [{ Id: 42 }],
+          })
+        )
+      ).toThrow(/Invalid or missing ID/i);
+      expect(() =>
+        importFromJson(
+          JSON.stringify({
+            schemaVersion: EXPORT_SCHEMA_VERSION,
+            loans: [],
+            scenarios: [{ Id: true }],
+          })
+        )
+      ).toThrow(/Invalid or missing ID/i);
+    });
+
+    it('rejects Principal 0 but accepts a paid-off CurrentAmount 0 (#194)', () => {
+      expect(() =>
+        importFromJson(
+          JSON.stringify({
+            schemaVersion: EXPORT_SCHEMA_VERSION,
+            loans: [{ ...baseLoan, Principal: 0 }],
+          })
+        )
+      ).toThrow("Invalid value for 'Principal'");
+      const { loans } = importFromJson(
+        JSON.stringify({
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          loans: [{ ...baseLoan, CurrentAmount: 0, MonthlyPayment: 500 }],
+        })
+      );
+      expect(loans[0].CurrentAmount).toBe(0);
+    });
+
+    it('stores an explicit null optional housing field as absent (#201)', () => {
+      const { loans } = importFromJson(
+        JSON.stringify({
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          loans: [
+            {
+              ...baseLoan,
+              MonthlyPayment: null,
+              HomeValue: null,
+              PropertyTaxAnnual: null,
+              HomeInsuranceAnnual: null,
+              MonthlyPmi: null,
+            },
+          ],
+        })
+      );
+      expect(loans[0].MonthlyPayment).toBeUndefined();
+      expect(loans[0].HomeValue).toBeUndefined();
+      expect(loans[0].PropertyTaxAnnual).toBeUndefined();
+      expect(loans[0].HomeInsuranceAnnual).toBeUndefined();
+      expect(loans[0].MonthlyPmi).toBeUndefined();
+    });
+
     it('should reject a loan where InterestRate is a string ("not-a-number")', () => {
       const json = JSON.stringify({
         schemaVersion: EXPORT_SCHEMA_VERSION,
