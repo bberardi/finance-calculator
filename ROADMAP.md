@@ -395,6 +395,44 @@ reference tests, upheld invariants, and 100% `src/helpers/**` coverage.
 
 ---
 
+### Phase 22 — Loan Realism & Planning Depth — _target v2.11_
+
+Surfaced by a November 2026 UX/codebase review. The 21 phases above cover
+statistical honesty, planning, distribution, accessibility, privacy and
+decision depth, but three real-world **loan structures** the engine still can't
+express, one of the highest-dollar debt decisions it can't yet compare, and the
+income side of the planned FI mode remain untracked. The `Loan` model carries a
+single fixed `InterestRate` and one amortizing `MonthlyPayment`
+(`loan-model.ts`), with no notion of a prepayment cost, a non-amortizing term,
+or a recast — so each of these is a genuine gap rather than a restatement of an
+existing item. Each passes the §5 non-goal filters (client-side, data stays on
+device, not a budgeting app); the rationale column says why each earns a slot.
+**The loan-structure items (22.1–22.3) and the FI income model (22.5) touch the
+forecast/amortization math, so the Math Correctness Charter (§4) applies** —
+cited reference tests, upheld invariants, and 100% `src/helpers/**` coverage.
+
+**Loan realism (extends Phase 16 — Cashflow & Rate Realism)**
+
+| #    | Work item                              | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 22.1 | **Prepayment penalty**                 | Some loans charge a fee (a flat amount, a percent of the balance, or N months' interest) for paying off early, which directly lowers the value of the extra payments the optimizer and scenarios recommend — yet the engine treats every early payoff as free. Add an optional penalty to the `Loan` model that nets against interest-saved in the 16.3 refinance compare and the optimizer's payoff scoring, so a penalized payoff is ranked honestly.                             |
+| 22.2 | **Interest-only & balloon loan terms** | The amortization engine assumes a fully-amortizing P&I payment, so HELOCs, construction loans, and balloon mortgages (an interest-only period, then a lump-sum or re-amortization) can only be faked — the under-amortizing edge cases already surface as bugs (#166, #242). Add an optional interest-only window and balloon term to the loan, amortized on the shared monthly axis with charter reference tests against a published interest-only schedule.                       |
+| 22.3 | **Mortgage recast**                    | A recast re-amortizes a loan to a lower payment after a lump-sum principal payment while keeping the term and rate — a distinct lever from refinance (16.3) and extra payments (16.1), already named in the 18.2 note example ("recast after $10k principal") but never modeled. Let a user apply a dated recast and compare payment, lifetime interest, and net worth against refinancing or simply investing the lump sum, in the same "is this worth it?" framing as 9.3 / 16.3. |
+
+**New decision tools (extends the founding "where should my money go?")**
+
+| #    | Work item                      | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 22.4 | **Debt consolidation compare** | 16.3 refinances one loan into a new rate/term; consolidation rolls **several** debts into one new loan — a common, high-dollar "where should my money go?" decision the app can't yet express. Model combining a chosen set of loans into a single replacement and compare blended rate, total monthly payment, lifetime interest, and net worth at horizon before vs. after. Reuses `forecastLoan` and the 16.3 compare view. |
+
+**Planning depth (extends Phase 10 — From Calculator to Plan)**
+
+| #    | Work item                                | Rationale / acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 22.5 | **Retirement income streams in FI mode** | The planned 10.3 FI mode takes an annual-spending input and a drawdown, but without recurring income (Social Security, a pension, rental income) the FI number and FI date are overstated — the spend a portfolio must cover is net of those inflows. Add optional dated income streams (start date, amount, optional COLA) that offset drawdown, modeled like an investment's recurring contribution on the shared axis. A single scalar stream per source, **not** expense tracking, so it stays inside §5. Sequence with or after 10.3. |
+
+---
+
 ### Considered but not currently planned
 
 Reviewed against the roadmap and intentionally **not** scheduled. Recorded here so
@@ -429,9 +467,10 @@ Phase 18 Position Control, Tracking & Data Safety  v2.7  (Jul–Aug 2026 reviews
 Phase 19 Input Integrity & Quality Guardrails  v2.8  (Aug–Sep 2026 reviews)
 Phase 20 Privacy & Data Resilience       v2.9   (Aug–Sep 2026 reviews)
 Phase 21 Decision Depth & Insight        v2.10  (Aug–Sep 2026 reviews)
+Phase 22 Loan Realism & Planning Depth   v2.11  (Nov 2026 review)
 ```
 
-Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile. Phases 19–21 consolidate eight overlapping August–September 2026 reviews, and follow the same principle: 19 first makes the input boundary and the UI provably correct (parity by construction, round-trip and accessibility guardrails), because every later feature adds inputs; 20 then hardens the privacy promise and makes local data recoverable; and 21 adds the insight, credibility and decision tools that build on a trustworthy foundation.
+Rationale for the order: completeness (the true net-worth line) shipped in Phase 7 and answer quality in Phase 8, so what's left is statistical honesty, then planning, then distribution, then accessibility & interaction polish on the now-complete surface, then a data-safety/goal-setting follow-up from the v2.x review, then a dashboard-insight follow-up that adds the last read-only "where is my money?" view, then a credibility/accessibility follow-up that finishes the after-tax honesty trio, makes the chart perceptible without color, and lowers the empty-state barrier. Phases 16–18 consolidate four overlapping July–August 2026 reviews and stay in that order for the same reason the earlier ones do — **correctness first**: 16 retires the engine limitations the app already advertises (freed cash flow after payoff, fixed rates, monthly-only cadence) and makes goals solvable, because every later view inherits those numbers; 17 then deepens the what-if surface on top of a forecast worth comparing; and 18 closes the per-position control, plan-vs-reality tracking, and data-safety gaps, plus the memoization the added overlays make worthwhile. Phases 19–21 consolidate eight overlapping August–September 2026 reviews, and follow the same principle: 19 first makes the input boundary and the UI provably correct (parity by construction, round-trip and accessibility guardrails), because every later feature adds inputs; 20 then hardens the privacy promise and makes local data recoverable; and 21 adds the insight, credibility and decision tools that build on a trustworthy foundation. Phase 22 follows the same correctness-first principle on a fresh November 2026 review: it first retires three loan structures the engine still can't express (prepayment penalty, interest-only/balloon terms, recast) and the income side of FI mode — all math-touching, so every later comparison inherits honest numbers — before adding the consolidation decision tool on top.
 
 ---
 
